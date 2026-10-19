@@ -272,8 +272,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
           
           <div className="flex items-center space-x-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
-            <button onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
-              <ShieldAlert className="w-3.5 h-3.5" /><span>Oscura</span>
+            <button title="Copertura visiva: non rimuove i dati originali dal PDF" onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
+              <ShieldAlert className="w-3.5 h-3.5" /><span>Copri (visivo)</span>
             </button>
             <select value={redactColor} onChange={(e) => setRedactColor(e.target.value)} className="bg-slate-900 text-xs text-slate-200 border border-slate-600 rounded px-1 py-0.5 outline-none cursor-pointer">
               <option value="#0f172a">Nero</option>
