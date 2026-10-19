@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 // @ts-ignore - la libreria espone un export CommonJS
 import HTMLToDOCX from 'html-to-docx';
 import TurndownService from 'turndown';
@@ -118,10 +120,22 @@ export async function POST(req: Request) {
       });
     }
 
-    browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: true,
-    });
+    // Vercel Serverless non dispone necessariamente del browser scaricato da Puppeteer.
+    // In produzione usiamo il binario Chromium compilato per ambienti serverless;
+    // in sviluppo manteniamo il browser installato da Puppeteer per il sistema locale.
+    if (process.env.VERCEL) {
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+        defaultViewport: chromium.defaultViewport,
+        headless: 'shell',
+      });
+    } else {
+      browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        headless: true,
+      });
+    }
     const page = await browser.newPage();
     // Il contenuto è fornito dall'utente: non eseguire script né inviare dati a host esterni.
     await page.setJavaScriptEnabled(false);
