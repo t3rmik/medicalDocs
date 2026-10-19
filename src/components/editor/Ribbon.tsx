@@ -1,13 +1,14 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Editor } from '@tiptap/react'
+import toast from 'react-hot-toast'
 import { 
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
   Subscript, Superscript, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, CheckSquare, Palette, Highlighter,
   Table as TableIcon, Image as ImageIcon, SplitSquareHorizontal,
-  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2
+  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +18,7 @@ interface RibbonProps {
 
 export function Ribbon({ editor }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout'>('Home');
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!editor) return null;
 
@@ -74,8 +76,9 @@ export function Ribbon({ editor }: RibbonProps) {
                 className="text-xs border border-slate-300 rounded px-2 py-1 bg-white hover:bg-slate-50 outline-none w-28"
                 onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
               >
-                <option value="Inter">Inter</option>
+                <option value="Calibri">Calibri</option>
                 <option value="Arial">Arial</option>
+                <option value="Inter">Inter</option>
                 <option value="Times New Roman">Times New Roman</option>
               </select>
               
@@ -125,15 +128,70 @@ export function Ribbon({ editor }: RibbonProps) {
             >
               <TableIcon className="w-4 h-4 text-blue-600" /> <span>Inserisci Tabella</span>
             </button>
-            <button 
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="sr-only"
+              aria-label="Scegli immagine dal dispositivo"
+              onChange={async (event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (!file) return;
+                const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                  toast.error('Scegli un’immagine PNG, JPG, WEBP o GIF.');
+                  return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                  toast.error('L’immagine deve essere più piccola di 5 MB.');
+                  return;
+                }
+                try {
+                  const src = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Lettura immagine non riuscita.'));
+                    reader.onerror = () => reject(new Error('Lettura immagine non riuscita.'));
+                    reader.readAsDataURL(file);
+                  });
+                  editor.chain().focus().setImage({ src, alt: file.name.replace(/\.[^.]+$/, '') }).run();
+                  toast.success('Immagine inserita nel documento.');
+                } catch {
+                  toast.error('Non è stato possibile leggere questa immagine.');
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+            >
+              <FileUp className="h-4 w-4 text-emerald-600" /> <span>Carica immagine</span>
+            </button>
+            <button
               type="button"
               onClick={() => {
-                const url = window.prompt('URL Immagine:');
-                if (url) editor.chain().focus().setImage({ src: url }).run();
+                const url = window.prompt('Incolla l’indirizzo web dell’immagine:');
+                if (!url) return;
+                try {
+                  const parsed = new URL(url);
+                  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('URL non sicuro');
+                  editor.chain().focus().setImage({ src: parsed.toString() }).run();
+                } catch {
+                  toast.error('Inserisci un URL immagine valido che inizi con https:// o http://.');
+                }
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 hover:bg-slate-200 rounded text-slate-700 text-xs font-medium bg-white border border-slate-300"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
             >
-              <ImageIcon className="w-4 h-4 text-green-600" /> <span>Inserisci Immagine</span>
+              <ImageIcon className="h-4 w-4 text-blue-600" /> <span>Da link</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+              title="Inserisce un’interruzione manuale; verrà rispettata in esportazione"
+            >
+              <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> <span>Interruzione pagina</span>
             </button>
             <button 
               type="button"
@@ -166,8 +224,15 @@ export function Ribbon({ editor }: RibbonProps) {
         )}
 
         {activeTab === 'Layout' && (
-          <div className="text-xs text-slate-500 italic px-2">
-            Margini A4 Standard (2.54 cm). Orientamento Verticale.
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Formato pagina A4 · margini standard</span>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+            >
+              <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> Inserisci nuova pagina
+            </button>
           </div>
         )}
       </div>
