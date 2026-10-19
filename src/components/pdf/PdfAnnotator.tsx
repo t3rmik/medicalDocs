@@ -32,7 +32,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [scale, setScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
-  const [redactColor, setRedactColor] = useState('#0f172a'); // Colore oscuramento predefinito
+  const [redactColor, setRedactColor] = useState('#0f172a');
   
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [history, setHistory] = useState<Annotation[][]>([]);
@@ -44,7 +44,6 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Salva stato per Undo/Redo
   const pushHistory = (newAnnotations: Annotation[]) => {
     const updatedHistory = history.slice(0, historyStep + 1);
     setHistory([...updatedHistory, newAnnotations]);
@@ -198,7 +197,6 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             color: rgb(0.14, 0.39, 0.92)
           });
         } else if (ann.type === 'redact') {
-          // Converte hex color in rgb per pdf-lib
           let r = 0.05, g = 0.09, b = 0.16;
           if (ann.color === '#ffffff') { r = 1; g = 1; b = 1; }
           else if (ann.color === '#dc2626') { r = 0.86; g = 0.15; b = 0.15; }
@@ -230,7 +228,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       });
 
       const pdfBytes = await pdfDocLib.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as unknown as Uint8Array], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -249,14 +247,12 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white relative select-none">
-      {/* Barra superiore strumenti */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800 border-b border-slate-700 shadow-md">
         <div className="flex items-center space-x-3">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
         </div>
 
-        {/* Toolbar Centrale con Strumenti e Undo/Redo */}
         <div className="flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-700 shadow-inner">
           <button 
             onClick={handleUndo} 
@@ -325,7 +321,6 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
         </div>
         
-        {/* Zoom e Paginazione */}
         <div className="flex items-center space-x-3">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
@@ -347,7 +342,6 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         </div>
       </div>
 
-      {/* Area di Visualizzazione e Annotazione */}
       <div className="flex-1 overflow-auto flex items-center justify-center p-8 bg-slate-950">
         {loading ? (
           <div className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
@@ -361,7 +355,6 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           >
             <canvas ref={canvasRef} className="block pointer-events-none" />
 
-            {/* Elementi Annotazioni trascinabili con tasto Elimina (X) */}
             {annotations.filter(a => a.page === pageNum).map(ann => (
               <div
                 key={ann.id}
