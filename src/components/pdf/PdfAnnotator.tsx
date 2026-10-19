@@ -337,13 +337,13 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white relative select-none">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800 border-b border-slate-700 shadow-md">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 bg-slate-800 border-b border-slate-700 shadow-md">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
         </div>
 
-        <div className="flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-700 shadow-inner">
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/90 px-2 py-1.5 rounded-xl border border-slate-700 shadow-inner">
           <button onClick={handleUndo} disabled={historyStep < 0} title="Annulla" className="p-1.5 rounded hover:bg-slate-800 disabled:opacity-30 text-slate-300 transition">
             <Undo2 className="w-4 h-4" />
           </button>
@@ -369,7 +369,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             </label>
           )}
           
-          <div className="flex items-center space-x-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
+          <div className="flex flex-wrap items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
             <button title="Copertura visiva: non rimuove i dati originali dal PDF" onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
               <ShieldAlert className="w-3.5 h-3.5" /><span>Copri (visivo)</span>
             </button>
@@ -390,7 +390,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
           <button onClick={() => setScale(s => Math.min(3, s + 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomIn className="w-4 h-4" /></button>
