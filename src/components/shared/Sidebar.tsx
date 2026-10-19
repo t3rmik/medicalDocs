@@ -123,27 +123,22 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, activeDocId, curr
                 {filteredDocs?.map((doc) => (
                   <div
                     key={doc.id}
-                    onClick={() => onLoadDocument(doc)}
-                    className={'group flex cursor-pointer items-start justify-between gap-2 rounded-xl border p-3 transition focus-within:ring-2 focus-within:ring-blue-100 ' + (activeDocId === doc.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm')}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        onLoadDocument(doc)
-                      }
-                    }}
-                    aria-current={activeDocId === doc.id ? 'true' : undefined}
+                    className={'group flex items-start justify-between gap-2 rounded-xl border p-2 transition focus-within:ring-2 focus-within:ring-blue-100 ' + (activeDocId === doc.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm')}
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => onLoadDocument(doc)}
+                      className="min-w-0 flex-1 rounded-lg px-1 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+                      aria-current={activeDocId === doc.id ? 'page' : undefined}
+                    >
+                      <span className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-800">
                         <FileText className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                         <span className="truncate">{doc.title || 'Documento senza titolo'}</span>
-                      </p>
-                      <p className="mt-1 text-[11px] text-slate-500">
+                      </span>
+                      <span className="mt-1 block text-[11px] text-slate-500">
                         Modificato: {new Date(doc.updatedAt).toLocaleDateString('it-IT')}
-                      </p>
-                    </div>
+                      </span>
+                    </button>
                     <div className="flex shrink-0 items-center gap-0.5">
                       <button
                         type="button"
