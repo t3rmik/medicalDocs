@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
 import { Header } from '@/components/shared/Header'
+import { AIStudio } from '@/components/ai/AIStudio'
 import { Sidebar } from '@/components/shared/Sidebar'
 import { MedicalEditor } from '@/components/editor/MedicalEditor'
 import { FileOpener } from '@/components/shared/FileOpener'
@@ -38,6 +39,12 @@ export default function Home() {
   const [isFileOpenerOpen, setIsFileOpenerOpen] = useState(false);
   const [pdfAnnotatorFile, setPdfAnnotatorFile] = useState<File | null>(null);
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
+  const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
+  const insertIntoEditorRef = useRef<((html: string) => void) | null>(null);
+  const registerEditorInsert = useCallback((handler: ((html: string) => void) | null) => {
+    insertIntoEditorRef.current = handler;
+  }, []);
+
 
   const persistDocument = async (doc: MedicalDocument, session: number) => {
     const docToSave = { ...doc, updatedAt: new Date() };
@@ -180,6 +187,35 @@ export default function Home() {
     }
   };
 
+  const handleOpenAIStudio = () => {
+    if (pdfAnnotatorFile) {
+      toast.error("Torna all'editor testuale per usare AI Studio.");
+      return;
+    }
+    setIsAIStudioOpen(true);
+  };
+
+  const handleInsertAIResult = (result: string, actionLabel: string) => {
+    const insertHtml = insertIntoEditorRef.current;
+    if (!insertHtml) {
+      toast.error("L'editor non è pronto. Chiudi AI Studio, attendi il caricamento e riprova.");
+      return;
+    }
+    const escapeHtml = (value: string) => value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    const paragraphs = result.trim().split(/\r?\n/).map((line) =>
+      line.trim() ? '<p>' + escapeHtml(line) + '</p>' : '<p><br></p>'
+    ).join('');
+    const html = '<h2>AI Studio — ' + escapeHtml(actionLabel) + '</h2>' + paragraphs;
+    insertHtml(html);
+    setIsAIStudioOpen(false);
+    toast.success('Risultato AI inserito nel documento.');
+  };
+
   const handleUpdateDocumentMetadata = async (
     docId: number,
     updates: Partial<Pick<MedicalDocument, 'favorite' | 'folder'>>
@@ -306,6 +342,7 @@ export default function Home() {
         onNewDocument={handleNewDocument}
         activeFileName={activeDoc.title}
         onTitleChange={handleTitleChange}
+        onOpenAIStudio={handleOpenAIStudio}
         isSaving={isSaving}
       />
       
@@ -328,12 +365,14 @@ export default function Home() {
               onChange={handleContentChange}
               initialContent={activeDoc.content}
               isSaving={isSaving}
+              onRegisterInsert={registerEditorInsert}
             />
           </main>
         </div>
       )}
 
       <FileOpener isOpen={isFileOpenerOpen} onClose={() => setIsFileOpenerOpen(false)} onFileSelect={handleFileSelect} />
+      <AIStudio isOpen={isAIStudioOpen} onClose={() => setIsAIStudioOpen(false)} documentTitle={activeDoc.title} content={activeDoc.content} onInsert={handleInsertAIResult} />
       {ocrState.active && <OcrProgress status={ocrState.status} progress={ocrState.progress} />}
     </div>
   );

@@ -25,6 +25,7 @@ interface HeaderProps {
   activeFileName: string;
   isSaving: boolean;
   onTitleChange: (newTitle: string) => void;
+  onOpenAIStudio: () => void;
 }
 
 export function Header({
@@ -35,6 +36,7 @@ export function Header({
   activeFileName,
   isSaving,
   onTitleChange,
+  onOpenAIStudio,
 }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<'file' | 'export' | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
@@ -88,6 +90,7 @@ export function Header({
     { id: 'html', label: 'Esporta in HTML', description: 'Salva una pagina web', section: 'Esporta', keywords: 'html web sito', icon: Download, action: () => onExport('html') },
     { id: 'markdown', label: 'Esporta in Markdown', description: 'Salva il testo in formato Markdown', section: 'Esporta', keywords: 'markdown md testo', icon: Download, action: () => onExport('md') },
     { id: 'text', label: 'Esporta testo semplice', description: 'Scarica un file TXT', section: 'Esporta', keywords: 'txt plain text', icon: Download, action: () => onExport('txt') },
+    { id: 'ai-studio', label: 'Apri AI Studio', description: 'Riassunti, schemi, quiz e flashcard', section: 'Intelligenza artificiale', keywords: 'ai intelligenza artificiale riassunto quiz flashcard', icon: Sparkles, action: onOpenAIStudio },
   ]
 
   const normalizedQuery = commandQuery.trim().toLocaleLowerCase('it')
@@ -219,6 +222,15 @@ export function Header({
             <kbd className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
               <CommandIcon className="h-3 w-3" /> K
             </kbd>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAIStudio}
+            className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 px-3.5 py-2.5 text-sm font-semibold text-teal-800 shadow-sm transition hover:border-teal-300 hover:from-teal-100 hover:to-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            aria-label="Apri AI Studio"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>AI Studio</span>
           </button>
           <label className="min-w-[170px] flex-1 lg:max-w-[260px]">
             <span className="sr-only">Nome documento</span>
