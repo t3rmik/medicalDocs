@@ -202,8 +202,8 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
                   toast.error('Scegli un’immagine PNG, JPG, WEBP o GIF.');
                   return;
                 }
-                if (file.size > 5 * 1024 * 1024) {
-                  toast.error('L’immagine deve essere più piccola di 5 MB.');
+                if (file.size > 1.5 * 1024 * 1024) {
+                  toast.error('Per mantenere il documento veloce da salvare ed esportare, scegli un’immagine sotto 1,5 MB.');
                   return;
                 }
                 try {
