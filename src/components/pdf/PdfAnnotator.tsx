@@ -175,6 +175,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
     }
   };
 
+  // Esportazione client-side robusta e fulminea con pdf-lib
   const handleSaveAnnotatedPdf = async () => {
     try {
       setIsExporting(true);
@@ -199,7 +200,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         } else if (ann.type === 'redact') {
           let r = 0.05, g = 0.09, b = 0.16;
           if (ann.color === '#ffffff') { r = 1; g = 1; b = 1; }
-          else if (ann.color === '#dc2626') { r = 0.86; g = 0.15; g = 0.15; }
+          else if (ann.color === '#dc2626') { r = 0.86; g = 0.15; b = 0.15; }
           else if (ann.color === '#2563eb') { r = 0.14; g = 0.39; b = 0.92; }
           else if (ann.color === '#16a34a') { r = 0.08; g = 0.63; b = 0.28; }
 
