@@ -17,13 +17,21 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
 
   if (!isOpen) return null;
 
-  const validateAndSetFile = (file: File) => {
+  const handleClose = () => {
+    setSelectedFile(null);
     setError(null);
-    const validExtensions = ['docx', 'doc', 'pdf', 'txt', 'rtf', 'html'];
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    onClose();
+  };
+
+  const validateAndSetFile = (file: File) => {
+    setSelectedFile(null);
+    setError(null);
+    const validExtensions = ['docx', 'pdf', 'txt', 'html', 'htm'];
     const ext = file.name.split('.').pop()?.toLowerCase();
 
     if (!ext || !validExtensions.includes(ext)) {
-      setError('Formato non supportato. Caricare un file .docx, .pdf, .txt, .rtf o .html.');
+      setError('Formato non supportato. Caricare un file .docx, .pdf, .txt o .html.');
       return;
     }
 
@@ -35,7 +43,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
     setSelectedFile(file);
     if (ext !== 'pdf') {
       onFileSelect(file);
-      onClose();
+      handleClose();
     }
   };
 
@@ -44,28 +52,38 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
       <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-slate-800">Apri Documento Sanitario</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+          <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
         </div>
 
-        {!selectedFile || !selectedFile.name.endsWith('.pdf') ? (
+        {!selectedFile || !selectedFile.name.toLowerCase().endsWith('.pdf') ? (
           <div 
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
               if (e.dataTransfer.files[0]) validateAndSetFile(e.dataTransfer.files[0]);
             }}
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onClick={(e) => {
+              if (e.target !== fileInputRef.current) fileInputRef.current?.click();
+            }}
+            className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
           >
             <Upload className="w-10 h-10 text-blue-600 mb-3" />
             <p className="text-sm font-semibold text-slate-700">Trascina qui il file o clicca per sfogliare</p>
-            <p className="text-xs text-slate-400 mt-1">Supportati: Word (.docx), PDF, TXT, RTF, HTML (Max 25MB)</p>
+            <p className="text-xs text-slate-400 mt-1">Supportati: Word (.docx), PDF, TXT, HTML (Max 25MB)</p>
             <input 
               ref={fileInputRef} 
               type="file" 
               className="hidden" 
-              accept=".docx,.doc,.pdf,.txt,.rtf,.html" 
-              onChange={(e) => e.target.files?.[0] && validateAndSetFile(e.target.files[0])}
+              accept=".docx,.pdf,.txt,.html,.htm" 
+              onChange={(e) => { const file = e.currentTarget.files?.[0]; if (file) validateAndSetFile(file); e.currentTarget.value = ''; }}
             />
           </div>
         ) : (
@@ -83,7 +101,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
               
               <button
                 type="button"
-                onClick={() => { onFileSelect(selectedFile, 'convert'); onClose(); }}
+                onClick={() => { onFileSelect(selectedFile, 'convert'); handleClose(); }}
                 className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition flex items-start space-x-3"
               >
                 <FileCode className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -95,7 +113,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
 
               <button
                 type="button"
-                onClick={() => { onFileSelect(selectedFile, 'annotate'); onClose(); }}
+                onClick={() => { onFileSelect(selectedFile, 'annotate'); handleClose(); }}
                 className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition flex items-start space-x-3"
               >
                 <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, rgb } from 'pdf-lib';
-import { Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit3, ShieldAlert, Stamp, CheckCircle, Move, Undo2, Redo2 } from 'lucide-react';
+import { Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit3, ShieldAlert, Stamp, CheckCircle, Move, Undo2, Redo2, PenLine } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -13,7 +13,7 @@ interface PdfAnnotatorProps {
   onClose: () => void;
 }
 
-type ToolMode = 'none' | 'text' | 'redact' | 'stamp' | 'sign';
+type ToolMode = 'none' | 'text' | 'redact' | 'stamp' | 'sign' | 'draw';
 
 interface Annotation {
   id: string;
@@ -23,6 +23,8 @@ interface Annotation {
   y: number;
   text?: string;
   color?: string;
+  points?: Array<{ x: number; y: number }>;
+  strokeWidth?: number;
 }
 
 export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
@@ -33,6 +35,10 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [loading, setLoading] = useState(true);
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
   const [redactColor, setRedactColor] = useState('#0f172a');
+  const [inkColor, setInkColor] = useState('#2563eb');
+  const [drawingPoints, setDrawingPoints] = useState<Array<{ x: number; y: number }>>([]);
+  const drawingPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const isDrawingRef = useRef(false);
   
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [history, setHistory] = useState<Annotation[][]>([]);
@@ -120,10 +126,12 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   }, [pdfDoc, pageNum, scale]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (activeTool === 'none') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if (activeTool === 'none' || activeTool === 'draw') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
 
     let textVal = '';
     if (activeTool === 'text') {
@@ -154,11 +162,75 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
     toast.success("Elemento rimosso.");
   };
 
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (activeTool !== 'draw') return;
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    isDrawingRef.current = true;
+    drawingPointsRef.current = [point];
+    setDrawingPoints([point]);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may be unavailable in a few embedded browser contexts.
+    }
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDrawingRef.current) return;
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const point = {
+      x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+      y: Math.max(0, Math.min(rect.height, event.clientY - rect.top)),
+    };
+    const nextPoints = [...drawingPointsRef.current, point];
+    drawingPointsRef.current = nextPoints;
+    setDrawingPoints(nextPoints);
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDrawingRef.current) return;
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    let points = drawingPointsRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      points = [...points, {
+        x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+        y: Math.max(0, Math.min(rect.height, event.clientY - rect.top)),
+      }];
+    }
+    isDrawingRef.current = false;
+    drawingPointsRef.current = [];
+    setDrawingPoints([]);
+
+    if (points.length < 2) return;
+    const drawing: Annotation = {
+      id: Math.random().toString(36).slice(2, 10),
+      page: pageNum,
+      type: 'draw',
+      x: points[0].x / scale,
+      y: points[0].y / scale,
+      points: points.map((point) => ({ x: point.x / scale, y: point.y / scale })),
+      color: inkColor,
+      strokeWidth: 2.5,
+    };
+    pushHistory([...annotations, drawing]);
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!draggingId) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
 
     setAnnotations(prev => prev.map(ann => {
       if (ann.id === draggingId) {
@@ -187,8 +259,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         const targetPage = pages[ann.page - 1];
         if (!targetPage) return;
         const { height } = targetPage.getSize();
-        const pdfY = height - (ann.y / scale);
-        const pdfX = ann.x / scale;
+        const pdfY = height - ann.y;
+        const pdfX = ann.x;
 
         if (ann.type === 'text') {
           targetPage.drawText(ann.text || '', {
@@ -211,6 +283,23 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             height: 15,
             color: rgb(r, g, b)
           });
+        } else if (ann.type === 'draw' && ann.points && ann.points.length > 1) {
+          const hex = (ann.color || '#2563eb').replace('#', '');
+          const strokeColor = rgb(
+            parseInt(hex.slice(0, 2), 16) / 255,
+            parseInt(hex.slice(2, 4), 16) / 255,
+            parseInt(hex.slice(4, 6), 16) / 255
+          );
+          for (let i = 1; i < ann.points.length; i++) {
+            const previous = ann.points[i - 1];
+            const current = ann.points[i];
+            targetPage.drawLine({
+              start: { x: previous.x, y: height - previous.y },
+              end: { x: current.x, y: height - current.y },
+              thickness: Math.max(0.5, (ann.strokeWidth || 2.5) / scale),
+              color: strokeColor,
+            });
+          }
         } else if (ann.type === 'stamp') {
           targetPage.drawText('APPROVATO / VISTO', {
             x: pdfX,
@@ -248,13 +337,13 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white relative select-none">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800 border-b border-slate-700 shadow-md">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 bg-slate-800 border-b border-slate-700 shadow-md">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
         </div>
 
-        <div className="flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-700 shadow-inner">
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/90 px-2 py-1.5 rounded-xl border border-slate-700 shadow-inner">
           <button onClick={handleUndo} disabled={historyStep < 0} title="Annulla" className="p-1.5 rounded hover:bg-slate-800 disabled:opacity-30 text-slate-300 transition">
             <Undo2 className="w-4 h-4" />
           </button>
@@ -270,10 +359,19 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           <button onClick={() => setActiveTool('text')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'text' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
             <Edit3 className="w-3.5 h-3.5" /><span>+ Testo</span>
           </button>
+          <button onClick={() => setActiveTool('draw')} className={\`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition \${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}\`} title="Disegna con penna, stilo o dito">
+            <PenLine className="w-3.5 h-3.5" /><span>Penna</span>
+          </button>
+          {activeTool === 'draw' && (
+            <label className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-300">
+              Colore
+              <input type="color" value={inkColor} onChange={(e) => setInkColor(e.target.value)} className="h-5 w-6 cursor-pointer bg-transparent" aria-label="Colore della penna PDF" />
+            </label>
+          )}
           
-          <div className="flex items-center space-x-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
-            <button onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
-              <ShieldAlert className="w-3.5 h-3.5" /><span>Oscura</span>
+          <div className="flex flex-wrap items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
+            <button title="Copertura visiva: non rimuove i dati originali dal PDF" onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
+              <ShieldAlert className="w-3.5 h-3.5" /><span>Copri (visivo)</span>
             </button>
             <select value={redactColor} onChange={(e) => setRedactColor(e.target.value)} className="bg-slate-900 text-xs text-slate-200 border border-slate-600 rounded px-1 py-0.5 outline-none cursor-pointer">
               <option value="#0f172a">Nero</option>
@@ -292,7 +390,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
           <button onClick={() => setScale(s => Math.min(3, s + 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomIn className="w-4 h-4" /></button>
@@ -313,12 +411,51 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         {loading ? (
           <div className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
         ) : (
-          <div ref={containerRef} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onClick={handleCanvasClick} className="shadow-2xl border border-slate-700 bg-white relative cursor-crosshair rounded-lg overflow-hidden">
+          <div
+            ref={containerRef}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onClick={handleCanvasClick}
+            className="shadow-2xl border border-slate-700 bg-white relative cursor-crosshair rounded-lg overflow-hidden touch-none"
+          >
             <canvas ref={canvasRef} className="block pointer-events-none" />
+            <svg
+              aria-hidden="true"
+              className="absolute left-0 top-0 pointer-events-none z-20"
+              width={canvasRef.current?.width || 0}
+              height={canvasRef.current?.height || 0}
+            >
+              {annotations.filter((ann) => ann.page === pageNum && ann.type === 'draw' && ann.points && ann.points.length > 1).map((ann) => (
+                <polyline
+                  key={ann.id}
+                  points={ann.points!.map((point) => `${point.x * scale},${point.y * scale}`).join(' ')}
+                  fill="none"
+                  stroke={ann.color || '#2563eb'}
+                  strokeWidth={ann.strokeWidth || 2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+              {activeTool === 'draw' && drawingPoints.length > 1 && (
+                <polyline
+                  points={drawingPoints.map((point) => `${point.x},${point.y}`).join(' ')}
+                  fill="none"
+                  stroke={inkColor}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
 
             {annotations.filter(a => a.page === pageNum).map(ann => (
-              <div key={ann.id} onMouseDown={(e) => { e.stopPropagation(); setDraggingId(ann.id); }} style={{ left: `${ann.x}px`, top: `${ann.y}px` }} className="absolute cursor-move px-2.5 py-1 rounded-lg shadow-xl border text-xs font-semibold z-30 flex items-center space-x-2 group hover:ring-2 hover:ring-blue-400 transition-all bg-white text-slate-800 border-slate-300">
+              <div key={ann.id} onMouseDown={(e) => { e.stopPropagation(); setDraggingId(ann.id); }} style={{ left: `${ann.type === 'draw' ? ann.x * scale : ann.x * scale}px`, top: `${ann.type === 'draw' ? ann.y * scale : ann.y * scale}px` }} className="absolute cursor-move px-2.5 py-1 rounded-lg shadow-xl border text-xs font-semibold z-30 flex items-center space-x-2 group hover:ring-2 hover:ring-blue-400 transition-all bg-white text-slate-800 border-slate-300">
                 {ann.type === 'text' && <span className="text-blue-700">✏️ {ann.text}</span>}
+                {ann.type === 'draw' && <span className="text-blue-700">✍️ Penna</span>}
                 {ann.type === 'redact' && <div className="w-24 h-4 rounded" style={{ backgroundColor: ann.color || '#0f172a' }} />}
                 {ann.type === 'stamp' && <span className="text-red-600 font-bold border border-red-500 px-1.5 py-0.5 rounded bg-red-50">APPROVATO</span>}
                 {ann.type === 'sign' && <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-300">✓ FIRMATO</span>}

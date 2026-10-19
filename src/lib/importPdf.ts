@@ -4,6 +4,15 @@ import { createWorker } from 'tesseract.js';
 // Configura il worker da CDN ufficiale per evitare errori 404 locali
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function extractTextFromPdf(
   file: File,
   onProgress?: (status: string, progress: number) => void
@@ -14,7 +23,7 @@ export async function extractTextFromPdf(
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdfDoc = await loadingTask.promise;
     
-    let fullHtml = `<h2>${file.name.replace(/\.[^/.]+$/, "")}</h2>`;
+    let fullHtml = `<h2>${escapeHtml(file.name.replace(/\.[^/.]+$/, ""))}</h2>`;
     const numPages = pdfDoc.numPages;
 
     const worker = await createWorker('ita+eng');
@@ -42,7 +51,7 @@ export async function extractTextFromPdf(
         }
       }
 
-      fullHtml += `<h3>Pagina ${i}</h3><p>${pageText.replace(/\n/g, '<br>')}</p>`;
+      fullHtml += `<h3>Pagina ${i}</h3><p>${escapeHtml(pageText).replace(/\r?\n/g, '<br>')}</p>`;
     }
 
     await worker.terminate();

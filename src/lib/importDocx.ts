@@ -1,5 +1,15 @@
 ﻿import mammoth from 'mammoth';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+
 export async function parseFileToHtml(file: File): Promise<string> {
   const extension = file.name.split('.').pop()?.toLowerCase();
 
@@ -9,9 +19,9 @@ export async function parseFileToHtml(file: File): Promise<string> {
     return result.value || '<p>Documento Word vuoto.</p>';
   }
 
-  if (extension === 'txt' || extension === 'rtf') {
+  if (extension === 'txt') {
     const text = await file.text();
-    return text.split('\n').map(line => `<p>${line.trim() || '&nbsp;'}</p>`).join('');
+    return text.split(/\r?\n/).map(line => `<p>${escapeHtml(line.trim()) || '&nbsp;'}</p>`).join('');
   }
 
   if (extension === 'html' || extension === 'htm') {

@@ -28,42 +28,116 @@ export default function Home() {
   
   const [editorKey, setEditorKey] = useState(Date.now());
   const [isSaving, setIsSaving] = useState(false);
+  const activeDocRef = useRef<MedicalDocument>(activeDoc);
+  const documentSessionRef = useRef(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSaveRef = useRef<{ doc: MedicalDocument; session: number } | null>(null);
+  const saveInFlightRef = useRef(false);
 
   const [loadingFormat, setLoadingFormat] = useState<string | null>(null);
   const [isFileOpenerOpen, setIsFileOpenerOpen] = useState(false);
   const [pdfAnnotatorFile, setPdfAnnotatorFile] = useState<File | null>(null);
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
 
-  const handleContentChange = (html: string) => {
-    setActiveDoc(prev => ({ ...prev, content: html }));
-    
+  const persistDocument = async (doc: MedicalDocument, session: number) => {
+    const docToSave = { ...doc, updatedAt: new Date() };
+    let savedDoc: MedicalDocument;
+
+    if (docToSave.id) {
+      await db.documents.put(docToSave);
+      savedDoc = docToSave;
+    } else {
+      const id = await db.documents.add(docToSave);
+      savedDoc = { ...docToSave, id };
+    }
+
+    // Non applicare un ID o uno stato salvato a un documento aperto nel frattempo.
+    if (documentSessionRef.current === session) {
+      const currentDoc = activeDocRef.current;
+      if (!currentDoc.id && savedDoc.id) {
+        const docWithId = { ...currentDoc, id: savedDoc.id };
+        activeDocRef.current = docWithId;
+        setActiveDoc(docWithId);
+      }
+    }
+  };
+
+  const runPendingSave = async (pending: { doc: MedicalDocument; session: number }) => {
+    if (saveInFlightRef.current) {
+      pendingSaveRef.current = pending;
+      return;
+    }
+
+    saveInFlightRef.current = true;
+    try {
+      const docToSave =
+        documentSessionRef.current === pending.session
+          ? activeDocRef.current
+          : pending.doc;
+      await persistDocument(docToSave, pending.session);
+    } catch (err) {
+      toast.error('Errore durante il salvataggio automatico.');
+    } finally {
+      saveInFlightRef.current = false;
+      const nextPending = pendingSaveRef.current;
+      if (nextPending) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        pendingSaveRef.current = null;
+        void runPendingSave(nextPending);
+      } else if (!saveTimeoutRef.current) {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  const scheduleSave = (doc: MedicalDocument) => {
+    pendingSaveRef.current = { doc, session: documentSessionRef.current };
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setIsSaving(true);
-    
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const docToSave = { ...activeDoc, content: html, updatedAt: new Date() };
-        if (docToSave.id) {
-          await db.documents.put(docToSave);
-        } else {
-          const newId = await db.documents.add(docToSave);
-          setActiveDoc(prev => ({ ...prev, id: newId }));
-        }
-      } catch (err) {
-        toast.error('Errore durante il salvataggio automatico.');
-      } finally {
-        setIsSaving(false);
+
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null;
+      const pending = pendingSaveRef.current;
+      if (pending) {
+        pendingSaveRef.current = null;
+        void runPendingSave(pending);
       }
     }, 1500);
   };
 
+  const flushPendingSave = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    const pending = pendingSaveRef.current;
+    if (pending) {
+      pendingSaveRef.current = null;
+      void runPendingSave(pending);
+    }
+  };
+
+  const handleContentChange = (html: string) => {
+    const nextDoc = { ...activeDocRef.current, content: html, updatedAt: new Date() };
+    activeDocRef.current = nextDoc;
+    setActiveDoc(nextDoc);
+    scheduleSave(nextDoc);
+  };
+
   const handleTitleChange = (newTitle: string) => {
-    setActiveDoc(prev => ({ ...prev, title: newTitle }));
-    handleContentChange(activeDoc.content);
+    const nextDoc = { ...activeDocRef.current, title: newTitle, updatedAt: new Date() };
+    activeDocRef.current = nextDoc;
+    setActiveDoc(nextDoc);
+    scheduleSave(nextDoc);
   };
 
   const loadDocument = (doc: MedicalDocument) => {
+    flushPendingSave();
+    documentSessionRef.current += 1;
+    activeDocRef.current = doc;
     setActiveDoc(doc);
     setPdfAnnotatorFile(null);
     setEditorKey(Date.now());
@@ -71,15 +145,37 @@ export default function Home() {
   };
 
   const handleNewDocument = () => {
-    const newDoc = {
+    flushPendingSave();
+    documentSessionRef.current += 1;
+    const newDoc: MedicalDocument = {
       title: 'Nuovo_Documento_Studio',
       content: '<h2>Nuovo Capitolo</h2><p>Inizia a scrivere i tuoi appunti...</p>',
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    activeDocRef.current = newDoc;
     setActiveDoc(newDoc);
     setPdfAnnotatorFile(null);
     setEditorKey(Date.now());
+  };
+
+  const handleDuplicateDocument = async (doc: MedicalDocument) => {
+    try {
+      flushPendingSave();
+      const source = doc.id && activeDocRef.current.id === doc.id ? activeDocRef.current : doc;
+      const now = new Date();
+      const duplicate: MedicalDocument = {
+        title: (source.title.trim() || 'Documento') + ' - copia',
+        content: source.content,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const id = await db.documents.add(duplicate);
+      loadDocument({ ...duplicate, id });
+      toast.success('Copia del documento creata.');
+    } catch {
+      toast.error('Impossibile duplicare il documento.');
+    }
   };
 
   const handleFileSelect = async (file: File, pdfMode?: PdfModeChoice) => {
@@ -126,32 +222,63 @@ export default function Home() {
     setLoadingFormat(format);
     const toastId = toast.loading('Generazione file in corso...');
     try {
+      const doc = activeDocRef.current;
+      if (format !== 'pdf' && doc.content.length > 2_900_000) {
+        throw new Error('Il documento è troppo grande per l’esportazione server. Riduci o dividi le immagini e riprova.');
+      }
       const res = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: activeDoc.content, format, title: activeDoc.title }),
+        body: JSON.stringify({ content: doc.content, format, title: doc.title }),
       });
-      const result = await res.json();
-      if (result.success && result.dataUrl) {
-        const link = document.createElement('a');
-        link.href = result.dataUrl;
-        link.download = result.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success(`Esportato come ${format.toUpperCase()} con successo!`, { id: toastId });
-      } else {
-        throw new Error(result.error);
+
+      if (!res.ok) {
+        const result = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof result.error === 'string'
+            ? result.error
+            : "Il server non è riuscito a esportare il documento."
+        );
       }
+
+      const blob = await res.blob();
+      if (!blob.size) throw new Error('Il file esportato è vuoto.');
+
+      const extension = format === 'word' ? 'docx' : format;
+      const safeTitle = (doc.title || 'Documento')
+        .trim()
+        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+        .replace(/^\.+/, '')
+        .slice(0, 120) || 'Documento';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeTitle}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Esportato come ${extension.toUpperCase()} con successo!`, { id: toastId });
     } catch (err) {
-      toast.error('Errore durante l\'esportazione.', { id: toastId });
+      if (format === 'pdf' && !pdfAnnotatorFile) {
+        toast.error(
+          "Il server non è riuscito a generare il PDF. Si aprirà la stampa del documento: scegli “Salva come PDF”.",
+          { id: toastId, duration: 9000 }
+        );
+        window.setTimeout(() => window.print(), 350);
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : "Errore durante l'esportazione.",
+          { id: toastId }
+        );
+      }
     } finally {
       setLoadingFormat(null);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-100">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
       <Header 
         onExport={handleExport} 
         loadingFormat={loadingFormat} 
@@ -172,12 +299,14 @@ export default function Home() {
             onLoadDocument={loadDocument} 
             activeDocId={activeDoc.id} 
             currentHtml={activeDoc.content}
+            onDuplicateDocument={handleDuplicateDocument}
           />
           <main className="flex-1 flex flex-col relative overflow-hidden print:overflow-visible print:bg-white">
             <MedicalEditor 
-              key={editorKey} 
-              onChange={handleContentChange} 
-              initialContent={activeDoc.content} 
+              key={editorKey}
+              onChange={handleContentChange}
+              initialContent={activeDoc.content}
+              isSaving={isSaving}
             />
           </main>
         </div>

@@ -1,22 +1,56 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Editor } from '@tiptap/react'
+import toast from 'react-hot-toast'
 import { 
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
   Subscript, Superscript, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, CheckSquare, Palette, Highlighter,
   Table as TableIcon, Image as ImageIcon, SplitSquareHorizontal,
-  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2
+  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp, PenLine
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface RibbonProps {
-  editor: Editor | null;
+async function readCompressedImage(file: File): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = objectUrl;
+    await image.decode();
+    const maxDimension = 1400;
+    const ratio = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Il browser non riesce a preparare l’immagine.');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Compressione immagine non riuscita.')), 'image/jpeg', 0.74);
+    });
+    if (blob.size > 600 * 1024) throw new Error('L’immagine è ancora troppo pesante: scegli una versione più piccola.');
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Lettura immagine non riuscita.'));
+      reader.onerror = () => reject(new Error('Lettura immagine non riuscita.'));
+      reader.readAsDataURL(blob);
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
-export function Ribbon({ editor }: RibbonProps) {
-  const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout'>('Home');
+interface RibbonProps {
+  editor: Editor | null;
+  onOpenDrawingPad: () => void;
+}
+
+export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
+  const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio'>('Home');
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!editor) return null;
 
@@ -25,10 +59,10 @@ export function Ribbon({ editor }: RibbonProps) {
       type="button"
       onClick={() => setActiveTab(name)}
       className={cn(
-        "px-4 py-1.5 text-xs font-semibold border-b-2 transition-colors",
+        "whitespace-nowrap rounded-t-lg border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
         activeTab === name 
-          ? "border-blue-600 text-blue-700 bg-white" 
-          : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          ? "border-blue-600 bg-blue-50/70 text-blue-700" 
+          : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"
       )}
     >
       {name}
@@ -42,8 +76,8 @@ export function Ribbon({ editor }: RibbonProps) {
       disabled={disabled}
       title={title}
       className={cn(
-        "p-1.5 rounded flex items-center justify-center transition-colors",
-        isActive ? "bg-blue-100 text-blue-700" : "text-slate-700 hover:bg-slate-200",
+        "rounded-lg p-2 flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600",
+        isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
         disabled && "opacity-40 cursor-not-allowed"
       )}
     >
@@ -52,15 +86,16 @@ export function Ribbon({ editor }: RibbonProps) {
   );
 
   return (
-    <div className="bg-slate-50 border-b border-slate-200 flex flex-col shadow-sm z-40">
-      <div className="flex px-2 pt-1 space-x-1 border-b border-slate-200">
+    <div className="z-40 flex flex-col border-b border-slate-200 bg-white shadow-sm print:hidden">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
         {editor.isActive('table') && <TabButton name="Tabella" />}
         <TabButton name="Layout" />
+        <TabButton name="Studio" />
       </div>
 
-      <div className="p-2 flex items-center gap-4 min-h-[48px]">
+      <div className="flex min-h-[54px] flex-wrap items-center gap-3 overflow-x-auto p-2.5">
         {activeTab === 'Home' && (
           <>
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
@@ -74,8 +109,9 @@ export function Ribbon({ editor }: RibbonProps) {
                 className="text-xs border border-slate-300 rounded px-2 py-1 bg-white hover:bg-slate-50 outline-none w-28"
                 onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
               >
-                <option value="Inter">Inter</option>
+                <option value="Calibri">Calibri</option>
                 <option value="Arial">Arial</option>
+                <option value="Inter">Inter</option>
                 <option value="Times New Roman">Times New Roman</option>
               </select>
               
@@ -116,6 +152,63 @@ export function Ribbon({ editor }: RibbonProps) {
           </>
         )}
 
+        {activeTab === 'Studio' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="mr-1 min-w-40">
+              <p className="text-xs font-semibold text-slate-800">Strumenti per studiare</p>
+              <p className="text-[11px] text-slate-500">Inserisci schemi pronti e poi compila gli spazi.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Schema della lezione</h2><h3>Obiettivi</h3><ul><li><p>Che cosa devo imparare?</p></li></ul><h3>Concetti chiave</h3><p>Scrivi qui i concetti principali...</p><h3>Esempi e collegamenti</h3><p>Aggiungi esempi, casi e collegamenti utili...</p><h3>Riepilogo in 3 punti</h3><ol><li><p>Primo punto</p></li><li><p>Secondo punto</p></li><li><p>Terzo punto</p></li></ol>'
+                ).run();
+                toast.success('Schema di studio inserito.');
+              }}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-100"
+            >
+              Schema lezione
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Domande di ripasso</h2><ol><li><p>Qual è il concetto più importante?</p></li><li><p>Come lo spiegherei con parole mie?</p></li><li><p>Quale esempio posso ricordare?</p></li><li><p>Che cosa devo rivedere?</p></li></ol><h3>Risposte e dubbi</h3><p>Completa qui le risposte...</p>'
+                ).run();
+                toast.success('Domande di ripasso inserite.');
+              }}
+              className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 transition hover:bg-violet-100"
+            >
+              Domande di ripasso
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Flashcard</h2><p><strong>Domanda</strong></p><p>Scrivi una domanda breve...</p><p><strong>Risposta</strong></p><p>Scrivi una risposta chiara e sintetica...</p><hr/><p><strong>Domanda successiva</strong></p><p>Scrivi qui...</p><p><strong>Risposta</strong></p><p>Scrivi qui...</p>'
+                ).run();
+                toast.success('Modello flashcard inserito.');
+              }}
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+            >
+              Flashcard
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Checklist di ripasso</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Ho letto e compreso gli appunti</p></li><li data-type="taskItem" data-checked="false"><p>So spiegare i concetti senza guardare</p></li><li data-type="taskItem" data-checked="false"><p>Ho fatto una pausa</p></li><li data-type="taskItem" data-checked="false"><p>Ho segnato i dubbi da chiarire</p></li></ul>'
+                ).run();
+                toast.success('Checklist di ripasso inserita.');
+              }}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+            >
+              Checklist di studio
+            </button>
+          </div>
+        )}
+
         {activeTab === 'Inserisci' && (
           <div className="flex items-center gap-2">
             <button 
@@ -125,15 +218,72 @@ export function Ribbon({ editor }: RibbonProps) {
             >
               <TableIcon className="w-4 h-4 text-blue-600" /> <span>Inserisci Tabella</span>
             </button>
-            <button 
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="sr-only"
+              aria-label="Scegli immagine dal dispositivo"
+              onChange={async (event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (!file) return;
+                const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                  toast.error('Scegli un’immagine PNG, JPG, WEBP o GIF.');
+                  return;
+                }
+                if (file.size > 12 * 1024 * 1024) {
+                  toast.error('Scegli un’immagine originale sotto 12 MB: verrà ridimensionata automaticamente.');
+                  return;
+                }
+                try {
+                  const src = await readCompressedImage(file);
+                  editor.chain().focus().setImage({ src, alt: file.name.replace(/\.[^.]+$/, '') }).run();
+                  toast.success('Immagine ridimensionata e inserita nel documento.');
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : 'Non è stato possibile leggere questa immagine.');
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+            >
+              <FileUp className="h-4 w-4 text-emerald-600" /> <span>Carica immagine</span>
+            </button>
+            <button
               type="button"
               onClick={() => {
-                const url = window.prompt('URL Immagine:');
-                if (url) editor.chain().focus().setImage({ src: url }).run();
+                const url = window.prompt('Incolla l’indirizzo web dell’immagine:');
+                if (!url) return;
+                try {
+                  const parsed = new URL(url);
+                  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('URL non sicuro');
+                  editor.chain().focus().setImage({ src: parsed.toString() }).run();
+                } catch {
+                  toast.error('Inserisci un URL immagine valido che inizi con https:// o http://.');
+                }
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 hover:bg-slate-200 rounded text-slate-700 text-xs font-medium bg-white border border-slate-300"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
             >
-              <ImageIcon className="w-4 h-4 text-green-600" /> <span>Inserisci Immagine</span>
+              <ImageIcon className="h-4 w-4 text-blue-600" /> <span>Da link</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+              title="Inserisce un’interruzione manuale; verrà rispettata in esportazione"
+            >
+              <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> <span>Interruzione pagina</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenDrawingPad}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-100"
+            >
+              <PenLine className="h-4 w-4" /> Scrivi a mano
             </button>
             <button 
               type="button"
@@ -166,8 +316,15 @@ export function Ribbon({ editor }: RibbonProps) {
         )}
 
         {activeTab === 'Layout' && (
-          <div className="text-xs text-slate-500 italic px-2">
-            Margini A4 Standard (2.54 cm). Orientamento Verticale.
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Formato pagina A4 · margini standard</span>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50"
+            >
+              <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> Inserisci nuova pagina
+            </button>
           </div>
         )}
       </div>

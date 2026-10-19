@@ -1,4 +1,4 @@
-﻿export type ExportFormat = 'pdf' | 'word';
+﻿export type ExportFormat = 'pdf' | 'word' | 'html' | 'md' | 'txt';
 
 export interface ExportRequestPayload {
   content: string;
@@ -7,11 +7,8 @@ export interface ExportRequestPayload {
   author?: string;
 }
 
-export interface ExportResponse {
-  success: boolean;
-  filename: string;
-  dataUrl?: string;
-  error?: string;
+export interface ExportErrorResponse {
+  error: string;
 }
 
 export type PdfModeChoice = 'convert' | 'annotate';

@@ -1,35 +1,70 @@
-﻿'use client'
+'use client'
 
 import { Editor } from '@tiptap/react'
-import { ZoomIn, ZoomOut, CheckCircle2 } from 'lucide-react'
+import { ZoomIn, ZoomOut, CheckCircle2, Loader2 } from 'lucide-react'
 
-export function StatusBar({ editor }: { editor: Editor | null }) {
-  if (!editor) return null;
+interface StatusBarProps {
+  editor: Editor | null;
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
+  isSaving: boolean;
+}
 
-  const text = editor.getText();
-  const words = text.split(/\s+/).filter(word => word.length > 0).length;
-  const chars = text.length;
+export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarProps) {
+  if (!editor) return null
+
+  const text = editor.getText()
+  const words = text.split(/\s+/).filter((word) => word.length > 0).length
+  const chars = text.length
+  const pageCount = Math.max(1, editor.view.dom.querySelector('#pages')?.querySelectorAll('.rm-page-break').length || 1)
 
   return (
-    <div className="h-8 bg-white border-t border-slate-200 flex items-center justify-between px-4 text-xs text-slate-600 shadow-sm z-40">
-      <div className="flex items-center space-x-4">
-        <span>Pagina 1 di 1</span>
+    <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm sm:px-5 print:hidden">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span>{words} parole</span>
         <span>{chars} caratteri</span>
-        <div className="flex items-center space-x-1 text-green-600">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>Salvato</span>
-        </div>
+        <span>{pageCount} {pageCount === 1 ? 'pagina' : 'pagine'}</span>
+        <span className="inline-flex items-center gap-1.5 border-l border-slate-200 pl-3" role="status" aria-live="polite">
+          {isSaving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+              <span className="text-blue-700">Salvataggio in corso</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Pronto · salvataggio automatico attivo</span>
+            </>
+          )}
+        </span>
       </div>
 
-      <div className="flex items-center space-x-3">
-        <span>Italiano</span>
-        <div className="flex items-center space-x-2 border-l border-slate-200 pl-3">
-          <button className="hover:bg-slate-100 p-1 rounded"><ZoomOut className="w-3 h-3" /></button>
-          <span>100%</span>
-          <button className="hover:bg-slate-100 p-1 rounded"><ZoomIn className="w-3 h-3" /></button>
+      <div className="flex items-center gap-3">
+        <span className="hidden sm:inline">Italiano</span>
+        <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
+          <button
+            type="button"
+            onClick={() => onZoomChange(Math.max(60, zoom - 10))}
+            disabled={zoom <= 60}
+            className="rounded-lg p-1.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label="Riduci zoom editor"
+            title="Riduci zoom"
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
+          <span className="min-w-10 text-center font-medium text-slate-700">{zoom}%</span>
+          <button
+            type="button"
+            onClick={() => onZoomChange(Math.min(160, zoom + 10))}
+            disabled={zoom >= 160}
+            className="rounded-lg p-1.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label="Aumenta zoom editor"
+            title="Aumenta zoom"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </div>
-  );
+  )
 }

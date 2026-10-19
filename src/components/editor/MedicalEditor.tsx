@@ -16,8 +16,9 @@ const EditorCore = dynamic(() => import('./EditorCore'), {
 interface MedicalEditorProps {
   onChange: (content: string) => void;
   initialContent?: string;
+  isSaving: boolean;
 }
 
-export function MedicalEditor({ onChange, initialContent = '' }: MedicalEditorProps) {
-  return <EditorCore onChange={onChange} initialContent={initialContent} />
+export function MedicalEditor({ onChange, initialContent = '', isSaving }: MedicalEditorProps) {
+  return <EditorCore onChange={onChange} initialContent={initialContent} isSaving={isSaving} />
 }
