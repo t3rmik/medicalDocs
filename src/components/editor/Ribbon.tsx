@@ -25,10 +25,10 @@ export function Ribbon({ editor }: RibbonProps) {
       type="button"
       onClick={() => setActiveTab(name)}
       className={cn(
-        "px-4 py-1.5 text-xs font-semibold border-b-2 transition-colors",
+        "whitespace-nowrap rounded-t-lg border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
         activeTab === name 
-          ? "border-blue-600 text-blue-700 bg-white" 
-          : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          ? "border-blue-600 bg-blue-50/70 text-blue-700" 
+          : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"
       )}
     >
       {name}
@@ -42,8 +42,8 @@ export function Ribbon({ editor }: RibbonProps) {
       disabled={disabled}
       title={title}
       className={cn(
-        "p-1.5 rounded flex items-center justify-center transition-colors",
-        isActive ? "bg-blue-100 text-blue-700" : "text-slate-700 hover:bg-slate-200",
+        "rounded-lg p-2 flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600",
+        isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
         disabled && "opacity-40 cursor-not-allowed"
       )}
     >
@@ -52,15 +52,15 @@ export function Ribbon({ editor }: RibbonProps) {
   );
 
   return (
-    <div className="bg-slate-50 border-b border-slate-200 flex flex-col shadow-sm z-40">
-      <div className="flex px-2 pt-1 space-x-1 border-b border-slate-200">
+    <div className="z-40 flex flex-col border-b border-slate-200 bg-white shadow-sm">
+      <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
         {editor.isActive('table') && <TabButton name="Tabella" />}
         <TabButton name="Layout" />
       </div>
 
-      <div className="p-2 flex items-center gap-4 min-h-[48px]">
+      <div className="flex min-h-[54px] flex-wrap items-center gap-3 overflow-x-auto p-2.5">
         {activeTab === 'Home' && (
           <>
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
