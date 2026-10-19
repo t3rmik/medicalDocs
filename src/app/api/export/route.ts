@@ -93,7 +93,7 @@ export async function POST(req: Request) {
         '"': '&quot;',
       };
       const escapedTitle = documentTitle.replace(/[&<>"]/g, (char) => entities[char]);
-      const htmlFile = `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${escapedTitle}</title></head><body>${content}</body></html>`;
+      const htmlFile = `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${escapedTitle}</title><style>body{font-family:Calibri,Arial,sans-serif;line-height:1.55}.page-break{break-before:page;page-break-before:always;height:0}</style></head><body>${exportContent}</body></html>`;
       return new NextResponse(htmlFile, {
         headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
       });
