@@ -8,15 +8,16 @@ import {
   Subscript, Superscript, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, CheckSquare, Palette, Highlighter,
   Table as TableIcon, Image as ImageIcon, SplitSquareHorizontal,
-  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp
+  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp, PenLine
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface RibbonProps {
   editor: Editor | null;
+  onOpenDrawingPad: () => void;
 }
 
-export function Ribbon({ editor }: RibbonProps) {
+export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout'>('Home');
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -192,6 +193,13 @@ export function Ribbon({ editor }: RibbonProps) {
               title="Inserisce un’interruzione manuale; verrà rispettata in esportazione"
             >
               <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> <span>Interruzione pagina</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenDrawingPad}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-100"
+            >
+              <PenLine className="h-4 w-4" /> Scrivi a mano
             </button>
             <button 
               type="button"
