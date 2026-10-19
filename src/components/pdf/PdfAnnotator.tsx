@@ -428,7 +428,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
               {annotations.filter((ann) => ann.page === pageNum && ann.type === 'draw' && ann.points && ann.points.length > 1).map((ann) => (
                 <polyline
                   key={ann.id}
-                  points={ann.points!.map((point) => `${point.x},${point.y}`).join(' ')}
+                  points={ann.points!.map((point) => `${point.x * scale},${point.y * scale}`).join(' ')}
                   fill="none"
                   stroke={ann.color || '#2563eb'}
                   strokeWidth={ann.strokeWidth || 2.5}
@@ -449,7 +449,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             </svg>
 
             {annotations.filter(a => a.page === pageNum).map(ann => (
-              <div key={ann.id} onMouseDown={(e) => { e.stopPropagation(); setDraggingId(ann.id); }} style={{ left: `${ann.x}px`, top: `${ann.y}px` }} className="absolute cursor-move px-2.5 py-1 rounded-lg shadow-xl border text-xs font-semibold z-30 flex items-center space-x-2 group hover:ring-2 hover:ring-blue-400 transition-all bg-white text-slate-800 border-slate-300">
+              <div key={ann.id} onMouseDown={(e) => { e.stopPropagation(); setDraggingId(ann.id); }} style={{ left: `${ann.type === 'draw' ? ann.x * scale : ann.x * scale}px`, top: `${ann.type === 'draw' ? ann.y * scale : ann.y * scale}px` }} className="absolute cursor-move px-2.5 py-1 rounded-lg shadow-xl border text-xs font-semibold z-30 flex items-center space-x-2 group hover:ring-2 hover:ring-blue-400 transition-all bg-white text-slate-800 border-slate-300">
                 {ann.type === 'text' && <span className="text-blue-700">✏️ {ann.text}</span>}
                 {ann.type === 'draw' && <span className="text-blue-700">✍️ Penna</span>}
                 {ann.type === 'redact' && <div className="w-24 h-4 rounded" style={{ backgroundColor: ann.color || '#0f172a' }} />}
