@@ -359,7 +359,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           <button onClick={() => setActiveTool('text')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'text' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
             <Edit3 className="w-3.5 h-3.5" /><span>+ Testo</span>
           </button>
-          <button onClick={() => setActiveTool('draw')} className={\`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition \${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}\`} title="Disegna con penna, stilo o dito">
+          <button onClick={() => setActiveTool('draw')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Disegna con penna, stilo o dito">
             <PenLine className="w-3.5 h-3.5" /><span>Penna</span>
           </button>
           {activeTool === 'draw' && (
