@@ -292,9 +292,10 @@ export default function Home() {
           />
           <main className="flex-1 flex flex-col relative overflow-hidden print:overflow-visible print:bg-white">
             <MedicalEditor 
-              key={editorKey} 
-              onChange={handleContentChange} 
-              initialContent={activeDoc.content} 
+              key={editorKey}
+              onChange={handleContentChange}
+              initialContent={activeDoc.content}
+              isSaving={isSaving}
             />
           </main>
         </div>
