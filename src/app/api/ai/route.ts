@@ -37,23 +37,6 @@ function isRateLimited(clientKey: string): boolean {
   return current.count > MAX_REQUESTS_PER_WINDOW;
 }
 
-function htmlToPlainText(value: string): string {
-  return value
-    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
-    .replace(/<\/\s*(p|div|h[1-6]|li|tr|section|article)\s*>/gi, '\n')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get('content-length') || 0);
@@ -80,7 +63,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Apri un documento o inserisci del testo prima di usare AI Studio.' }, { status: 400 });
   }
 
-  const sourceText = htmlToPlainText(body.content).slice(0, 50_000);
+  // The browser extracts plain text before sending it; do not parse it as HTML here,
+  // because medical formulas such as pH < 7.35 must remain intact.
+  const sourceText = body.content.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim().slice(0, 50_000);
   if (sourceText.length < 2) {
     return NextResponse.json({ error: 'Il documento non contiene testo sufficiente per questa operazione.' }, { status: 400 });
   }
