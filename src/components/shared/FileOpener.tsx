@@ -62,8 +62,18 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
               e.preventDefault();
               if (e.dataTransfer.files[0]) validateAndSetFile(e.dataTransfer.files[0]);
             }}
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onClick={(e) => {
+              if (e.target !== fileInputRef.current) fileInputRef.current?.click();
+            }}
+            className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
           >
             <Upload className="w-10 h-10 text-blue-600 mb-3" />
             <p className="text-sm font-semibold text-slate-700">Trascina qui il file o clicca per sfogliare</p>
