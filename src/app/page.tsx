@@ -167,6 +167,8 @@ export default function Home() {
       const duplicate: MedicalDocument = {
         title: (source.title.trim() || 'Documento') + ' - copia',
         content: source.content,
+        favorite: false,
+        folder: source.folder || 'Generale',
         createdAt: now,
         updatedAt: now,
       };
@@ -175,6 +177,24 @@ export default function Home() {
       toast.success('Copia del documento creata.');
     } catch {
       toast.error('Impossibile duplicare il documento.');
+    }
+  };
+
+  const handleUpdateDocumentMetadata = async (
+    docId: number,
+    updates: Partial<Pick<MedicalDocument, 'favorite' | 'folder'>>
+  ) => {
+    try {
+      if (activeDocRef.current.id === docId) {
+        const nextDoc = { ...activeDocRef.current, ...updates, updatedAt: new Date() };
+        activeDocRef.current = nextDoc;
+        setActiveDoc(nextDoc);
+        scheduleSave(nextDoc);
+      } else {
+        await db.documents.update(docId, { ...updates, updatedAt: new Date() });
+      }
+    } catch {
+      toast.error('Impossibile aggiornare preferiti o cartella.');
     }
   };
 
@@ -297,6 +317,7 @@ export default function Home() {
         <div className="flex flex-1 overflow-hidden">
           <Sidebar 
             onLoadDocument={loadDocument} 
+            onUpdateDocumentMetadata={handleUpdateDocumentMetadata}
             activeDocId={activeDoc.id} 
             currentHtml={activeDoc.content}
             onDuplicateDocument={handleDuplicateDocument}

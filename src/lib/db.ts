@@ -6,6 +6,9 @@ export interface MedicalDocument {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  /** Optional local metadata; older saved documents remain compatible. */
+  favorite?: boolean;
+  folder?: string;
 }
 
 export class MedicalDocsDatabase extends Dexie {
