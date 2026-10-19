@@ -2,10 +2,30 @@ import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 // @ts-ignore - la libreria espone un export CommonJS
 import HTMLToDOCX from 'html-to-docx';
+import TurndownService from 'turndown';
 
 export const runtime = 'nodejs';
 
 const MAX_CONTENT_LENGTH = 3_000_000;
+
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<\\s*br\\s*\\/?\\s*>/gi, '\\n')
+    .replace(/<\\/\\s*(p|div|h[1-6]|li|tr|section|article)\\s*>/gi, '\\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#(\\d+);/g, (_, code: string) => {
+      const point = Number(code);
+      return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : '';
+    })
+    .replace(/\\n{3,}/g, '\\n\\n')
+    .trim();
+}
 
 function toExactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
@@ -43,19 +63,39 @@ export async function POST(req: Request) {
       );
     }
 
-    if (format !== 'pdf' && format !== 'word') {
+    if (!['pdf', 'word', 'html', 'md', 'txt'].includes(String(format))) {
       return NextResponse.json({ error: 'Formato di esportazione non supportato.' }, { status: 400 });
     }
 
     const documentTitle =
       typeof title === 'string' && title.trim() ? title.trim().slice(0, 120) : 'Documento';
-    const extension = format === 'word' ? 'docx' : 'pdf';
+    const extension = format === 'word' ? 'docx' : String(format);
     const filename = 'document.' + extension;
 
     const headers = {
       'Content-Disposition': `attachment; filename="${filename}"`,
       'X-Content-Type-Options': 'nosniff',
     };
+
+    if (format === 'html') {
+      const htmlFile = `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${documentTitle.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char))}</title></head><body>${content}</body></html>`;
+      return new NextResponse(htmlFile, {
+        headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+
+    if (format === 'md') {
+      const markdown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(content);
+      return new NextResponse(markdown, {
+        headers: { ...headers, 'Content-Type': 'text/markdown; charset=utf-8' },
+      });
+    }
+
+    if (format === 'txt') {
+      return new NextResponse(htmlToPlainText(content), {
+        headers: { ...headers, 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
 
     if (format === 'word') {
       const fileBuffer = await HTMLToDOCX(content, null, {
