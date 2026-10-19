@@ -18,7 +18,7 @@ interface RibbonProps {
 }
 
 export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
-  const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout'>('Home');
+  const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio'>('Home');
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!editor) return null;
@@ -118,6 +118,63 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
               </div>
             </div>
           </>
+        )}
+
+        {activeTab === 'Studio' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="mr-1 min-w-40">
+              <p className="text-xs font-semibold text-slate-800">Strumenti per studiare</p>
+              <p className="text-[11px] text-slate-500">Inserisci schemi pronti e poi compila gli spazi.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Schema della lezione</h2><h3>Obiettivi</h3><ul><li><p>Che cosa devo imparare?</p></li></ul><h3>Concetti chiave</h3><p>Scrivi qui i concetti principali...</p><h3>Esempi e collegamenti</h3><p>Aggiungi esempi, casi e collegamenti utili...</p><h3>Riepilogo in 3 punti</h3><ol><li><p>Primo punto</p></li><li><p>Secondo punto</p></li><li><p>Terzo punto</p></li></ol>'
+                ).run();
+                toast.success('Schema di studio inserito.');
+              }}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-100"
+            >
+              Schema lezione
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Domande di ripasso</h2><ol><li><p>Qual è il concetto più importante?</p></li><li><p>Come lo spiegherei con parole mie?</p></li><li><p>Quale esempio posso ricordare?</p></li><li><p>Che cosa devo rivedere?</p></li></ol><h3>Risposte e dubbi</h3><p>Completa qui le risposte...</p>'
+                ).run();
+                toast.success('Domande di ripasso inserite.');
+              }}
+              className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 transition hover:bg-violet-100"
+            >
+              Domande di ripasso
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Flashcard</h2><p><strong>Domanda</strong></p><p>Scrivi una domanda breve...</p><p><strong>Risposta</strong></p><p>Scrivi una risposta chiara e sintetica...</p><hr/><p><strong>Domanda successiva</strong></p><p>Scrivi qui...</p><p><strong>Risposta</strong></p><p>Scrivi qui...</p>'
+                ).run();
+                toast.success('Modello flashcard inserito.');
+              }}
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+            >
+              Flashcard
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                editor.chain().focus().insertContent(
+                  '<h2>Checklist di ripasso</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Ho letto e compreso gli appunti</p></li><li data-type="taskItem" data-checked="false"><p>So spiegare i concetti senza guardare</p></li><li data-type="taskItem" data-checked="false"><p>Ho fatto una pausa</p></li><li data-type="taskItem" data-checked="false"><p>Ho segnato i dubbi da chiarire</p></li></ul>'
+                ).run();
+                toast.success('Checklist di ripasso inserita.');
+              }}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+            >
+              Checklist di studio
+            </button>
+          </div>
         )}
 
         {activeTab === 'Inserisci' && (
