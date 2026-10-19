@@ -4,8 +4,13 @@ import { Toaster } from 'react-hot-toast'
 import { LoveMessages } from '@/components/shared/LoveMessages'
 
 export const metadata: Metadata = {
-  title: 'MedicalDocs Pro',
-  description: 'Editor di documenti e appunti di studio per la laurea',
+  title: 'MedicalDocs Pro — Workspace documenti',
+  description: 'Uno spazio ordinato per creare, annotare e organizzare documenti e appunti.',
+  icons: {
+    icon: '/medicaldocs-mark.svg',
+    shortcut: '/medicaldocs-mark.svg',
+    apple: '/medicaldocs-mark.svg',
+  },
 }
 
 export default function RootLayout({

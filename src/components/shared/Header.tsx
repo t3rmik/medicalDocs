@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import Image from 'next/image'
 import {
-  FileText,
   FolderOpen,
   FilePlus,
   Download,
@@ -75,9 +75,9 @@ export function Header({
     setActiveMenu(null)
   }
 
-  const menuButtonClass = 'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600'
+  const menuButtonClass = 'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600'
   const menuPanelClass = 'absolute left-0 top-full z-50 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-xl shadow-slate-900/10'
-  const menuItemClass = 'flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600'
+  const menuItemClass = 'flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600'
 
   const commands = [
     { id: 'new', label: 'Nuovo documento', description: 'Inizia con un documento vuoto', section: 'Documento', keywords: 'crea nuovo file', icon: FilePlus, action: onNewDocument },
@@ -121,15 +121,13 @@ export function Header({
     <>
       <header className="relative z-50 flex flex-col gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_8px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur-xl print:hidden sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white shadow-lg shadow-blue-900/20">
-            <div className="absolute -right-2 -top-2 h-8 w-8 rounded-full border border-white/20" />
-            <div className="absolute -bottom-3 -left-2 h-8 w-8 rounded-full border border-white/20" />
-            <FileText className="relative h-5 w-5" />
+          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+            <Image src="/medicaldocs-mark.svg" alt="Logo MedicalDocs" width={48} height={48} priority className="h-12 w-12 object-contain" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <h1 className="text-base font-bold tracking-tight text-slate-950">MedicalDocs Pro</h1>
-              <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-blue-700">
+              <h1 className="text-base font-bold tracking-tight text-slate-950"><span>Medical</span><span className="text-teal-600">Docs</span><span className="ml-1 text-sm font-semibold text-slate-500">Pro</span></h1>
+              <span className="inline-flex items-center gap-1 rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-teal-700">
                 <Sparkles className="h-3 w-3" />
                 WORKSPACE
               </span>
@@ -148,10 +146,10 @@ export function Header({
                 {activeMenu === 'file' && (
                   <div className={menuPanelClass} role="menu">
                     <button type="button" role="menuitem" onClick={() => runMenuAction(onNewDocument)} className={menuItemClass}>
-                      <FilePlus className="h-4 w-4 text-blue-600" /> Nuovo documento
+                      <FilePlus className="h-4 w-4 text-teal-600" /> Nuovo documento
                     </button>
                     <button type="button" role="menuitem" onClick={() => runMenuAction(onOpenClick)} className={menuItemClass}>
-                      <FolderOpen className="h-4 w-4 text-blue-600" /> Apri / importa...
+                      <FolderOpen className="h-4 w-4 text-teal-600" /> Apri / importa...
                     </button>
                     <div className="my-1 border-t border-slate-100" />
                     <button type="button" role="menuitem" onClick={() => runMenuAction(() => window.print())} className={menuItemClass}>
@@ -174,7 +172,7 @@ export function Header({
                   <div className={menuPanelClass} role="menu">
                     <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Scarica una copia</p>
                     <button type="button" role="menuitem" onClick={() => runMenuAction(() => onExport('word'))} className={menuItemClass}>
-                      <Download className="h-4 w-4 text-blue-600" /> Documento Word (.docx)
+                      <Download className="h-4 w-4 text-teal-600" /> Documento Word (.docx)
                     </button>
                     <button type="button" role="menuitem" onClick={() => runMenuAction(() => onExport('pdf'))} className={menuItemClass}>
                       <Download className="h-4 w-4 text-rose-600" /> Documento PDF
@@ -194,7 +192,7 @@ export function Header({
               <span className="ml-1 inline-flex items-center gap-1.5 border-l border-slate-200 pl-3 text-xs text-slate-500" role="status" aria-live="polite">
                 {isSaving ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-600" />
                     Salvataggio...
                   </>
                 ) : (
@@ -212,7 +210,7 @@ export function Header({
           <button
             type="button"
             onClick={openCommandPalette}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-teal-200 hover:bg-teal-50/70 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
             aria-haspopup="dialog"
             aria-label="Apri il centro comandi"
           >
@@ -228,7 +226,7 @@ export function Header({
               type="text"
               value={activeFileName}
               onChange={(event) => onTitleChange(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
               placeholder="Nome documento..."
               aria-label="Nome documento"
             />
@@ -237,7 +235,7 @@ export function Header({
             type="button"
             onClick={() => onExport('word')}
             disabled={loadingFormat === 'word'}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-900/10 transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-900/10 transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loadingFormat === 'word' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             <span>Word</span>
@@ -268,7 +266,7 @@ export function Header({
             aria-labelledby="command-palette-title"
           >
             <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
                 <Search className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -286,8 +284,8 @@ export function Header({
             </div>
 
             <div className="border-b border-slate-100 px-4 py-3">
-              <label className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/50 px-3 py-2.5 transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-                <Search className="h-4 w-4 shrink-0 text-blue-600" />
+              <label className="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-2.5 transition focus-within:border-teal-400 focus-within:ring-2 focus-within:ring-teal-100">
+                <Search className="h-4 w-4 shrink-0 text-teal-600" />
                 <input
                   ref={commandInputRef}
                   autoFocus
@@ -336,16 +334,16 @@ export function Header({
                         aria-selected={selectedCommandIndex === index}
                         onMouseEnter={() => setSelectedCommandIndex(index)}
                         onClick={() => executeCommand(command.action)}
-                        className={'group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ' + (selectedCommandIndex === index ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50')}
+                        className={'group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ' + (selectedCommandIndex === index ? 'bg-teal-50 text-teal-900' : 'text-slate-700 hover:bg-slate-50')}
                       >
-                        <span className={'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ' + (selectedCommandIndex === index ? 'bg-white text-blue-700 shadow-sm' : 'bg-slate-100 text-slate-500 group-hover:bg-white')}>
+                        <span className={'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ' + (selectedCommandIndex === index ? 'bg-white text-teal-700 shadow-sm' : 'bg-slate-100 text-slate-500 group-hover:bg-white')}>
                           <Icon className="h-4 w-4" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold">{command.label}</span>
                           <span className="mt-0.5 block text-xs text-slate-500">{command.description}</span>
                         </span>
-                        <ArrowUpRight className={'h-4 w-4 shrink-0 transition ' + (selectedCommandIndex === index ? 'text-blue-600' : 'text-slate-300')} />
+                        <ArrowUpRight className={'h-4 w-4 shrink-0 transition ' + (selectedCommandIndex === index ? 'text-teal-600' : 'text-slate-300')} />
                       </button>
                     </div>
                   )

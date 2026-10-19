@@ -101,7 +101,7 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
   });
 
   return (
-    <div className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-200">
+    <div className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-teal-50 to-[#e5eff2]">
       <Ribbon editor={editor} onOpenDrawingPad={() => setDrawingPadOpen(true)} />
       
       <div className="min-h-0 flex-1 overflow-auto">
