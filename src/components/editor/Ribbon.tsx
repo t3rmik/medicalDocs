@@ -61,6 +61,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
         <TabButton name="Inserisci" />
         {editor.isActive('table') && <TabButton name="Tabella" />}
         <TabButton name="Layout" />
+        <TabButton name="Studio" />
       </div>
 
       <div className="flex min-h-[54px] flex-wrap items-center gap-3 overflow-x-auto p-2.5">
