@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TextStyle from '@tiptap/extension-text-style'
@@ -25,9 +26,11 @@ import { StatusBar } from './StatusBar'
 interface EditorCoreProps {
   initialContent: string;
   onChange: (html: string) => void;
+  isSaving: boolean;
 }
 
-export default function EditorCore({ initialContent, onChange }: EditorCoreProps) {
+export default function EditorCore({ initialContent, onChange, isSaving }: EditorCoreProps) {
+  const [zoom, setZoom] = useState(100)
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -52,14 +55,16 @@ export default function EditorCore({ initialContent, onChange }: EditorCoreProps
   });
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-200">
+    <div className="flex h-full w-full flex-col bg-slate-100">
       <Ribbon editor={editor} />
       
-      <div className="flex-1 overflow-y-auto">
-        <EditorContent editor={editor} />
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div style={{ zoom: zoom / 100 }}>
+          <EditorContent editor={editor} />
+        </div>
       </div>
 
-      <StatusBar editor={editor} />
+      <StatusBar editor={editor} zoom={zoom} onZoomChange={setZoom} isSaving={isSaving} />
     </div>
   );
 }
