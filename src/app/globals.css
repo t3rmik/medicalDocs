@@ -14,12 +14,31 @@ body {
 }
 
 .editor-page {
-  width: 210mm;
+  width: min(210mm, calc(100% - 1.5rem));
   min-height: 297mm;
-  padding: 25.4mm;
-  margin: 2rem auto;
+  padding: clamp(1rem, 5vw, 25.4mm);
+  margin: 1rem auto;
   background-color: white;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 900px) {
+  .editor-page {
+    width: 210mm;
+    padding: 25.4mm;
+    margin: 2rem auto;
+  }
+}
+
+@media print {
+  .editor-page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 25.4mm;
+    margin: 0;
+    box-shadow: none;
+  }
 }
 
 .ProseMirror table {
