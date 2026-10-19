@@ -31,7 +31,7 @@ export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarPro
           ) : (
             <>
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Modifiche salvate o in attesa di modifica</span>
+              <span>Pronto · salvataggio automatico attivo</span>
             </>
           )}
         </span>
