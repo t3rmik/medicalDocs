@@ -19,7 +19,7 @@ export async function parseFileToHtml(file: File): Promise<string> {
     return result.value || '<p>Documento Word vuoto.</p>';
   }
 
-  if (extension === 'txt' || extension === 'rtf') {
+  if (extension === 'txt') {
     const text = await file.text();
     return text.split(/\r?\n/).map(line => `<p>${escapeHtml(line.trim()) || '&nbsp;'}</p>`).join('');
   }
