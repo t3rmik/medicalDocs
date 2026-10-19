@@ -37,7 +37,7 @@ body {
     min-height: 297mm;
     padding: 25.4mm;
     margin: 0;
-    box-shadow: none;
+    border: 0;\n    border-radius: 0;\n    box-shadow: none;
   }
 }
 
@@ -83,4 +83,44 @@ ul[data-type="taskList"] li {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.ProseMirror :is(h1, h2, h3) {
+  color: #0f172a;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin-top: 1.4em;
+  margin-bottom: 0.55em;
+}
+
+.ProseMirror h1 { font-size: 2rem; }
+.ProseMirror h2 { font-size: 1.55rem; }
+.ProseMirror h3 { font-size: 1.2rem; }
+
+.ProseMirror p { margin: 0.7em 0; }
+.ProseMirror a { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+.ProseMirror blockquote {
+  border-left: 3px solid #93c5fd;
+  margin: 1.25rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  color: #475569;
+}
+.ProseMirror :is(ul, ol) { padding-left: 1.5rem; }
+.ProseMirror li { margin: 0.25rem 0; }
+.ProseMirror table { display: block; overflow-x: auto; }
+.ProseMirror td, .ProseMirror th { overflow-wrap: anywhere; }
+.ProseMirror :focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .editor-page {
+    width: calc(100% - 1rem);
+    min-height: 70vh;
+    padding: 1.1rem;
+    margin: 0.5rem auto;
+    border-radius: 6px;
+  }
+  .ProseMirror { font-size: 10.5pt; }
+  .ProseMirror h1 { font-size: 1.65rem; }
+  .ProseMirror h2 { font-size: 1.35rem; }
 }
