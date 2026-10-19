@@ -108,7 +108,7 @@ export function Header({
               ) : (
                 <>
                   <Save className="h-3.5 w-3.5 text-emerald-600" />
-                  Salvataggio automatico
+                  Editor pronto
                 </>
               )}
             </span>
