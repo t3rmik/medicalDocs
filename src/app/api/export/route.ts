@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    await page.setContent(htmlTemplate, { waitUntil: 'networkidle2' });
+    await page.setContent(htmlTemplate, { waitUntil: 'load' });
     
     const pdfBuffer = await page.pdf({
       format: 'A4',
