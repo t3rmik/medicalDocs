@@ -79,6 +79,12 @@ export async function POST(req: Request) {
       'X-Content-Type-Options': 'nosniff',
     };
 
+    // Translate manual Tiptap page-break blocks to export-compatible markup.
+    const exportContent = content.replace(
+      /<div\b(?=[^>]*data-page-break=["']true["'])[^>]*>\s*<\/div>/gi,
+      '<div class="page-break" style="page-break-after: always;"></div>'
+    );
+
     if (format === 'html') {
       const entities: Record<string, string> = {
         '&': '&amp;',
@@ -94,22 +100,26 @@ export async function POST(req: Request) {
     }
 
     if (format === 'md') {
-      const markdown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(content);
+      const markdown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' }).turndown(exportContent);
       return new NextResponse(markdown, {
         headers: { ...headers, 'Content-Type': 'text/markdown; charset=utf-8' },
       });
     }
 
     if (format === 'txt') {
-      return new NextResponse(htmlToPlainText(content), {
+      return new NextResponse(htmlToPlainText(exportContent), {
         headers: { ...headers, 'Content-Type': 'text/plain; charset=utf-8' },
       });
     }
 
     if (format === 'word') {
-      const fileBuffer = await HTMLToDOCX(content, null, {
+      const fileBuffer = await HTMLToDOCX(exportContent, null, {
         orientation: 'portrait',
-        margins: { top: 720, right: 720, bottom: 720, left: 720 },
+        pageSize: { width: 11906, height: 16838 },
+        margins: { top: 1134, right: 1134, bottom: 1134, left: 1134 },
+        font: 'Calibri',
+        fontSize: 22,
+        lang: 'it-IT',
       });
 
       return new NextResponse(toExactArrayBuffer(new Uint8Array(fileBuffer)), {
@@ -167,15 +177,15 @@ export async function POST(req: Request) {
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <title>${safeTitle}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; overflow-wrap: anywhere; }
+            body { font-family: Calibri, Arial, sans-serif; margin: 0; color: #1e293b; line-height: 1.55; overflow-wrap: anywhere; }
             h1, h2, h3 { color: #0f172a; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: top; }
-            img { max-width: 100%; height: auto; }
+            img { max-width: 100%; height: auto; }\n            .page-break { break-before: page; page-break-before: always; height: 0; }
           </style>
         </head>
         <body>
-          ${content}
+          ${exportContent}
         </body>
       </html>
     `;
