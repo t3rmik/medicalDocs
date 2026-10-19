@@ -159,6 +159,25 @@ export default function Home() {
     setEditorKey(Date.now());
   };
 
+  const handleDuplicateDocument = async (doc: MedicalDocument) => {
+    try {
+      flushPendingSave();
+      const source = doc.id && activeDocRef.current.id === doc.id ? activeDocRef.current : doc;
+      const now = new Date();
+      const duplicate: MedicalDocument = {
+        title: (source.title.trim() || 'Documento') + ' - copia',
+        content: source.content,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const id = await db.documents.add(duplicate);
+      loadDocument({ ...duplicate, id });
+      toast.success('Copia del documento creata.');
+    } catch {
+      toast.error('Impossibile duplicare il documento.');
+    }
+  };
+
   const handleFileSelect = async (file: File, pdfMode?: PdfModeChoice) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
     
@@ -248,7 +267,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-100">
+    <div className="flex flex-col h-dvh min-h-[480px] overflow-hidden bg-slate-50">
       <Header 
         onExport={handleExport} 
         loadingFormat={loadingFormat} 
@@ -269,6 +288,7 @@ export default function Home() {
             onLoadDocument={loadDocument} 
             activeDocId={activeDoc.id} 
             currentHtml={activeDoc.content}
+            onDuplicateDocument={handleDuplicateDocument}
           />
           <main className="flex-1 flex flex-col relative overflow-hidden print:overflow-visible print:bg-white">
             <MedicalEditor 
