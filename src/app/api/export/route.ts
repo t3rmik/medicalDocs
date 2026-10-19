@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
-import { asBlob } from 'html-to-docx';
+//@ts-ignore
+import HTMLToDOCX from 'html-to-docx';
 
 export async function POST(req: Request) {
   try {
     const { html, title, format } = await req.json();
 
     if (format === 'docx') {
-      const fileBuffer = await asBlob(html, {
+      const fileBuffer = await HTMLToDOCX(html, null, {
         orientation: 'portrait',
         margins: { top: 720, right: 720, bottom: 720, left: 720 },
       });
