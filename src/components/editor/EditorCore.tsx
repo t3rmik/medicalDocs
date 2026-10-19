@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useState } from 'react'
+import { Node, mergeAttributes } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TextStyle from '@tiptap/extension-text-style'
@@ -22,6 +23,30 @@ import TaskItem from '@tiptap/extension-task-item'
 
 import { Ribbon } from './Ribbon'
 import { StatusBar } from './StatusBar'
+import { DrawingPad } from './DrawingPad'
+
+
+const PageBreak = Node.create({
+  name: 'pageBreak',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: false,
+  parseHTML() {
+    return [{ tag: 'div[data-page-break="true"]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, {
+        'data-page-break': 'true',
+        class: 'page-break-marker',
+        contenteditable: 'false',
+        'aria-label': 'Interruzione di pagina',
+      }),
+    ]
+  },
+})
 
 interface EditorCoreProps {
   initialContent: string;
@@ -31,6 +56,7 @@ interface EditorCoreProps {
 
 export default function EditorCore({ initialContent, onChange, isSaving }: EditorCoreProps) {
   const [zoom, setZoom] = useState(100)
+  const [drawingPadOpen, setDrawingPadOpen] = useState(false)
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -39,7 +65,8 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
-      Image,
+      Image.configure({ allowBase64: true, HTMLAttributes: { class: 'editor-image' } }),
+      PageBreak,
       Link.configure({ openOnClick: false }),
       TaskList, TaskItem.configure({ nested: true }),
     ],
@@ -56,7 +83,7 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
 
   return (
     <div className="flex h-full w-full flex-col bg-slate-100">
-      <Ribbon editor={editor} />
+      <Ribbon editor={editor} onOpenDrawingPad={() => setDrawingPadOpen(true)} />
       
       <div className="min-h-0 flex-1 overflow-auto">
         <div style={{ zoom: zoom / 100 }}>
@@ -65,6 +92,12 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
       </div>
 
       <StatusBar editor={editor} zoom={zoom} onZoomChange={setZoom} isSaving={isSaving} />
+      {drawingPadOpen && (
+        <DrawingPad
+          onClose={() => setDrawingPadOpen(false)}
+          onInsert={(src) => editor?.chain().focus().setImage({ src, alt: 'Disegno a mano libera' }).run()}
+        />
+      )}
     </div>
   );
 }
