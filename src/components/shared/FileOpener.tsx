@@ -1,0 +1,120 @@
+﻿'use client'
+
+import { useState, useRef } from 'react'
+import { Upload, FileText, FileCode, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { PdfModeChoice } from '@/types'
+
+interface FileOpenerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onFileSelect: (file: File, pdfMode?: PdfModeChoice) => void;
+}
+
+export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!isOpen) return null;
+
+  const validateAndSetFile = (file: File) => {
+    setError(null);
+    const validExtensions = ['docx', 'doc', 'pdf', 'txt', 'rtf', 'html'];
+    const ext = file.name.split('.').pop()?.toLowerCase();
+
+    if (!ext || !validExtensions.includes(ext)) {
+      setError('Formato non supportato. Caricare un file .docx, .pdf, .txt, .rtf o .html.');
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      setError('Dimensione massima superata. Il file non può eccedere i 25 MB.');
+      return;
+    }
+
+    setSelectedFile(file);
+    if (ext !== 'pdf') {
+      onFileSelect(file);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-slate-800">Apri Documento Sanitario</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+        </div>
+
+        {!selectedFile || !selectedFile.name.endsWith('.pdf') ? (
+          <div 
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.files[0]) validateAndSetFile(e.dataTransfer.files[0]);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center"
+          >
+            <Upload className="w-10 h-10 text-blue-600 mb-3" />
+            <p className="text-sm font-semibold text-slate-700">Trascina qui il file o clicca per sfogliare</p>
+            <p className="text-xs text-slate-400 mt-1">Supportati: Word (.docx), PDF, TXT, RTF, HTML (Max 25MB)</p>
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              className="hidden" 
+              accept=".docx,.doc,.pdf,.txt,.rtf,.html" 
+              onChange={(e) => e.target.files?.[0] && validateAndSetFile(e.target.files[0])}
+            />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 rounded-xl flex items-center space-x-3 border border-blue-200">
+              <FileText className="w-8 h-8 text-blue-600" />
+              <div>
+                <p className="text-sm font-bold text-slate-800">{selectedFile.name}</p>
+                <p className="text-xs text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Scegli come gestire il PDF:</p>
+              
+              <button
+                type="button"
+                onClick={() => { onFileSelect(selectedFile, 'convert'); onClose(); }}
+                className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition flex items-start space-x-3"
+              >
+                <FileCode className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Converti in Testo Modificabile (con OCR)</p>
+                  <p className="text-xs text-slate-500">Estrae il testo ed i paragrafi nell'editor Word per modificarli liberamente.</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { onFileSelect(selectedFile, 'annotate'); onClose(); }}
+                className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition flex items-start space-x-3"
+              >
+                <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Modifica ed Annota PDF Originale</p>
+                  <p className="text-xs text-slate-500">Mantiene la grafica originale e permette di firmare, oscurare e timbrare.</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 text-red-700 text-xs rounded-lg flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
