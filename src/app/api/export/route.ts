@@ -181,7 +181,8 @@ export async function POST(req: Request) {
             h1, h2, h3 { color: #0f172a; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: top; }
-            img { max-width: 100%; height: auto; }\n            .page-break { break-before: page; page-break-before: always; height: 0; }
+            img { max-width: 100%; height: auto; }
+            .page-break { break-before: page; page-break-before: always; height: 0; }
           </style>
         </head>
         <body>
