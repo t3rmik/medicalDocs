@@ -21,7 +21,7 @@ export async function parseFileToHtml(file: File): Promise<string> {
 
   if (extension === 'txt' || extension === 'rtf') {
     const text = await file.text();
-    return text.split('\n').map(line => `<p>${line.trim() || '&nbsp;'}</p>`).join('');
+    return text.split(/\r?\n/).map(line => `<p>${escapeHtml(line.trim()) || '&nbsp;'}</p>`).join('');
   }
 
   if (extension === 'html' || extension === 'htm') {
