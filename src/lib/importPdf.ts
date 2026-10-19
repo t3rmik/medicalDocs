@@ -4,6 +4,15 @@ import { createWorker } from 'tesseract.js';
 // Configura il worker da CDN ufficiale per evitare errori 404 locali
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function extractTextFromPdf(
   file: File,
   onProgress?: (status: string, progress: number) => void
