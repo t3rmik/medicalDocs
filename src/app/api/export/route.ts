@@ -78,7 +78,14 @@ export async function POST(req: Request) {
     };
 
     if (format === 'html') {
-      const htmlFile = `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${documentTitle.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char))}</title></head><body>${content}</body></html>`;
+      const entities: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+      };
+      const escapedTitle = documentTitle.replace(/[&<>"]/g, (char) => entities[char]);
+      const htmlFile = `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${escapedTitle}</title></head><body>${content}</body></html>`;
       return new NextResponse(htmlFile, {
         headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
       });
@@ -116,8 +123,17 @@ export async function POST(req: Request) {
       headless: true,
     });
     const page = await browser.newPage();
-    // Il contenuto è fornito dall'utente: non eseguire script durante il rendering.
+    // Il contenuto è fornito dall'utente: non eseguire script né inviare dati a host esterni.
     await page.setJavaScriptEnabled(false);
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const url = request.url();
+      if (url.startsWith('data:') || url === 'about:blank') {
+        void request.continue();
+      } else {
+        void request.abort();
+      }
+    });
 
     const safeTitle = documentTitle.replace(/[&<>"]/g, (char) => {
       const entities: Record<string, string> = {
