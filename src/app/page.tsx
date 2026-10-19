@@ -267,7 +267,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-dvh min-h-[480px] overflow-hidden bg-slate-50">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
       <Header 
         onExport={handleExport} 
         loadingFormat={loadingFormat} 
