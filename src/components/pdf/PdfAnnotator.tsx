@@ -126,10 +126,12 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   }, [pdfDoc, pageNum, scale]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (activeTool === 'none') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if (activeTool === 'none' || activeTool === 'draw') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
 
     let textVal = '';
     if (activeTool === 'text') {
@@ -215,7 +217,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       type: 'draw',
       x: points[0].x,
       y: points[0].y,
-      points,
+      points: points.map((point) => ({ x: point.x / scale, y: point.y / scale })),
       color: inkColor,
       strokeWidth: 2.5,
     };
@@ -224,9 +226,11 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!draggingId) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
 
     setAnnotations(prev => prev.map(ann => {
       if (ann.id === draggingId) {
@@ -255,8 +259,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         const targetPage = pages[ann.page - 1];
         if (!targetPage) return;
         const { height } = targetPage.getSize();
-        const pdfY = height - (ann.y / scale);
-        const pdfX = ann.x / scale;
+        const pdfY = height - ann.y;
+        const pdfX = ann.x;
 
         if (ann.type === 'text') {
           targetPage.drawText(ann.text || '', {
@@ -290,9 +294,9 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             const previous = ann.points[i - 1];
             const current = ann.points[i];
             targetPage.drawLine({
-              start: { x: previous.x / scale, y: height - previous.y / scale },
-              end: { x: current.x / scale, y: height - current.y / scale },
-              thickness: Math.max(0.5, (ann.strokeWidth || 2) / scale),
+              start: { x: previous.x, y: height - previous.y },
+              end: { x: current.x, y: height - current.y },
+              thickness: Math.max(0.5, (ann.strokeWidth || 2.5) / scale),
               color: strokeColor,
             });
           }
