@@ -10,8 +10,8 @@ const MAX_CONTENT_LENGTH = 3_000_000;
 
 function htmlToPlainText(html: string): string {
   return html
-    .replace(/<\\s*br\\s*\\/?\\s*>/gi, '\\n')
-    .replace(/<\\/\\s*(p|div|h[1-6]|li|tr|section|article)\\s*>/gi, '\\n')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|h[1-6]|li|tr|section|article)\s*>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -19,11 +19,11 @@ function htmlToPlainText(html: string): string {
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/&#(\\d+);/g, (_, code: string) => {
+    .replace(/&#(\d+);/g, (_, code: string) => {
       const point = Number(code);
       return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : '';
     })
-    .replace(/\\n{3,}/g, '\\n\\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
