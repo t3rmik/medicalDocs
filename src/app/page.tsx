@@ -81,6 +81,10 @@ export default function Home() {
       saveInFlightRef.current = false;
       const nextPending = pendingSaveRef.current;
       if (nextPending) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
         pendingSaveRef.current = null;
         void runPendingSave(nextPending);
       } else if (!saveTimeoutRef.current) {
