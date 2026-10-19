@@ -216,3 +216,31 @@ ul[data-type="taskList"] li {
   .page-break-marker::after { display: none; }
   .ProseMirror .editor-image { break-inside: avoid; }
 }
+
+/* PaginationPlus: page gutters and restrained page-number furniture. */
+.ProseMirror.rm-with-pagination {
+  max-width: none;
+  margin: 0 auto;
+  background: #fff;
+  border-color: #d7e0ed !important;
+  box-shadow: 0 18px 46px -22px rgb(30 41 59 / 30%), 0 4px 12px -6px rgb(30 41 59 / 10%);
+}
+.ProseMirror.rm-with-pagination .rm-page-footer,
+.ProseMirror.rm-with-pagination .rm-page-header {
+  color: #94a3b8;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  font-size: 9pt;
+}
+.ProseMirror.rm-with-pagination .rm-page-footer { border-top: 1px solid #e2e8f0; }
+.rm-pagination-gap {
+  background-color: #e9eef7 !important;
+  border-color: #d8e1ef !important;
+}
+.rm-page-break .breaker { border-color: #d8e1ef; }
+@media print {
+  .rm-pages-wrapper,
+  .rm-first-page-header { display: none !important; }
+  .rm-pagination-gap,
+  .rm-page-header,
+  .rm-page-footer { display: none !important; }
+}

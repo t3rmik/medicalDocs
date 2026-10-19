@@ -7,6 +7,7 @@ import HTMLToDOCX from 'html-to-docx';
 import TurndownService from 'turndown';
 
 export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 const MAX_CONTENT_LENGTH = 3_000_000;
 

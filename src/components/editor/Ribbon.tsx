@@ -12,6 +12,37 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+async function readCompressedImage(file: File): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = objectUrl;
+    await image.decode();
+    const maxDimension = 1400;
+    const ratio = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Il browser non riesce a preparare l’immagine.');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Compressione immagine non riuscita.')), 'image/jpeg', 0.74);
+    });
+    if (blob.size > 600 * 1024) throw new Error('L’immagine è ancora troppo pesante: scegli una versione più piccola.');
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Lettura immagine non riuscita.'));
+      reader.onerror = () => reject(new Error('Lettura immagine non riuscita.'));
+      reader.readAsDataURL(blob);
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 interface RibbonProps {
   editor: Editor | null;
   onOpenDrawingPad: () => void;
@@ -55,7 +86,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
   );
 
   return (
-    <div className="z-40 flex flex-col border-b border-slate-200 bg-white shadow-sm">
+    <div className="z-40 flex flex-col border-b border-slate-200 bg-white shadow-sm print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
@@ -202,21 +233,16 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
                   toast.error('Scegli un’immagine PNG, JPG, WEBP o GIF.');
                   return;
                 }
-                if (file.size > 1.5 * 1024 * 1024) {
-                  toast.error('Per mantenere il documento veloce da salvare ed esportare, scegli un’immagine sotto 1,5 MB.');
+                if (file.size > 12 * 1024 * 1024) {
+                  toast.error('Scegli un’immagine originale sotto 12 MB: verrà ridimensionata automaticamente.');
                   return;
                 }
                 try {
-                  const src = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Lettura immagine non riuscita.'));
-                    reader.onerror = () => reject(new Error('Lettura immagine non riuscita.'));
-                    reader.readAsDataURL(file);
-                  });
+                  const src = await readCompressedImage(file);
                   editor.chain().focus().setImage({ src, alt: file.name.replace(/\.[^.]+$/, '') }).run();
-                  toast.success('Immagine inserita nel documento.');
-                } catch {
-                  toast.error('Non è stato possibile leggere questa immagine.');
+                  toast.success('Immagine ridimensionata e inserita nel documento.');
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : 'Non è stato possibile leggere questa immagine.');
                 }
               }}
             />

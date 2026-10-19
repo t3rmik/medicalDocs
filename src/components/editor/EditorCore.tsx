@@ -24,6 +24,7 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Ribbon } from './Ribbon'
 import { StatusBar } from './StatusBar'
 import { DrawingPad } from './DrawingPad'
+import { PaginationPlus, PAGE_SIZES } from 'tiptap-pagination-plus'
 
 
 const PageBreak = Node.create({
@@ -67,6 +68,24 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
       Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
       Image.configure({ allowBase64: true, HTMLAttributes: { class: 'editor-image' } }),
       PageBreak,
+      PaginationPlus.configure({
+        ...PAGE_SIZES.A4,
+        enabled: true,
+        marginTop: 96,
+        marginBottom: 96,
+        marginLeft: 96,
+        marginRight: 96,
+        pageGap: 30,
+        pageGapBorderSize: 1,
+        pageGapBorderColor: '#d7e0ed',
+        pageBreakBackground: '#e9eef7',
+        contentMarginTop: 16,
+        contentMarginBottom: 16,
+        headerLeft: '',
+        headerRight: '',
+        footerLeft: '',
+        footerRight: 'Pagina {page}',
+      }),
       Link.configure({ openOnClick: false }),
       TaskList, TaskItem.configure({ nested: true }),
     ],
@@ -82,7 +101,7 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
   });
 
   return (
-    <div className="flex h-full w-full flex-col bg-slate-100">
+    <div className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-200">
       <Ribbon editor={editor} onOpenDrawingPad={() => setDrawingPadOpen(true)} />
       
       <div className="min-h-0 flex-1 overflow-auto">

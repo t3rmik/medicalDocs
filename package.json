@@ -47,7 +47,8 @@
     "tesseract.js": "^5.0.5",
     "turndown": "^7.2.4",
     "@sparticuz/chromium": "153.0.0",
-    "puppeteer-core": "25.14.0"
+    "puppeteer-core": "25.14.0",
+    "tiptap-pagination-plus": "2.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

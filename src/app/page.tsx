@@ -223,6 +223,9 @@ export default function Home() {
     const toastId = toast.loading('Generazione file in corso...');
     try {
       const doc = activeDocRef.current;
+      if (format !== 'pdf' && doc.content.length > 2_900_000) {
+        throw new Error('Il documento è troppo grande per l’esportazione server. Riduci o dividi le immagini e riprova.');
+      }
       const res = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -257,10 +260,18 @@ export default function Home() {
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success(`Esportato come ${extension.toUpperCase()} con successo!`, { id: toastId });
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Errore durante l'esportazione.",
-        { id: toastId }
-      );
+      if (format === 'pdf' && !pdfAnnotatorFile) {
+        toast.error(
+          "Il server non è riuscito a generare il PDF. Si aprirà la stampa del documento: scegli “Salva come PDF”.",
+          { id: toastId, duration: 9000 }
+        );
+        window.setTimeout(() => window.print(), 350);
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : "Errore durante l'esportazione.",
+          { id: toastId }
+        );
+      }
     } finally {
       setLoadingFormat(null);
     }

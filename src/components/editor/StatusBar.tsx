@@ -16,12 +16,14 @@ export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarPro
   const text = editor.getText()
   const words = text.split(/\s+/).filter((word) => word.length > 0).length
   const chars = text.length
+  const pageCount = Math.max(1, editor.view.dom.querySelector('#pages')?.querySelectorAll('.rm-page-break').length || 1)
 
   return (
-    <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm sm:px-5">
+    <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm sm:px-5 print:hidden">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span>{words} parole</span>
         <span>{chars} caratteri</span>
+        <span>{pageCount} {pageCount === 1 ? 'pagina' : 'pagine'}</span>
         <span className="inline-flex items-center gap-1.5 border-l border-slate-200 pl-3" role="status" aria-live="polite">
           {isSaving ? (
             <>
