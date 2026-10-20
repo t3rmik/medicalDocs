@@ -84,13 +84,46 @@ textarea:focus-visible {
 .ProseMirror :is(ul, ol) { padding-left: 1.5rem; }
 .ProseMirror li { margin: 0.25rem 0; }
 
+.ProseMirror .tableWrapper {
+  width: 100%;
+  max-width: 100%;
+  margin: 1rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 6px;
+}
+
 .ProseMirror table {
-  display: block;
+  display: table;
   border-collapse: collapse;
   table-layout: fixed;
   width: 100%;
-  margin: 1rem 0;
-  overflow-x: auto;
+  min-width: 100%;
+  margin: 0;
+}
+
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: -2px;
+  bottom: -1px;
+  width: 4px;
+  background: rgba(13, 148, 136, 0.55);
+  pointer-events: none;
+}
+
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+.ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(13, 148, 136, 0.12);
 }
 
 .ProseMirror table td,
