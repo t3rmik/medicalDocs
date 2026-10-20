@@ -329,3 +329,12 @@ html{scroll-behavior:smooth}button,[role="button"],input,select,textarea,summary
  .medicaldocs-image-toolbar button { min-width:38px; min-height:38px; }
  .medicaldocs-image-resize-handle { width:30px; height:30px; right:-8px; bottom:-8px; }
 }
+
+/* Page margin controls apply to all four paper edges, including narrow tablet layouts. */
+.ProseMirror.editor-page {
+  padding: var(--md-page-padding-top, 4mm) var(--md-page-padding-right, 4mm)
+           var(--md-page-padding-bottom, 4mm) var(--md-page-padding-left, 4mm) !important;
+  background-color: #ffffff !important;
+}
+.ProseMirror.rm-with-pagination { background-color: #ffffff !important; }
+.rm-pagination-gap { background-color: #edf3f6 !important; }

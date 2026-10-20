@@ -14,12 +14,20 @@ import { cn } from '@/lib/utils'
 
 type PageFormat = 'A4' | 'A5' | 'A3' | 'Letter';
 type PageOrientation = 'portrait' | 'landscape';
-type PageMargins = 'normal' | 'narrow' | 'wide';
+type PageMargins = 'normal' | 'narrow' | 'wide' | 'custom';
+type PageMarginSide = 'top' | 'right' | 'bottom' | 'left';
+type PageMarginValues = Record<PageMarginSide, number>;
 type EditorTemplate = { id: string; name: string; category: string; content: string; custom?: boolean };
-const PAGE_LAYOUT_KEY = 'medicaldocs.pageLayout.v1';
+const PAGE_LAYOUT_KEY = 'medicaldocs.pageLayout.v2';
+const LEGACY_PAGE_LAYOUT_KEY = 'medicaldocs.pageLayout.v1';
 const CUSTOM_TEMPLATE_KEY = 'medicaldocs.customTemplates.v1';
 const PAGE_DIMENSIONS: Record<PageFormat, { width: number; height: number }> = { A4: { width: 210, height: 297 }, A5: { width: 148, height: 210 }, A3: { width: 297, height: 420 }, Letter: { width: 216, height: 279 } };
-const PAGE_MARGIN_MM: Record<PageMargins, number> = { normal: 25.4, narrow: 12.7, wide: 31.8 };
+const PAGE_MARGIN_MM: Record<Exclude<PageMargins, 'custom'>, number> = { normal: 12, narrow: 3, wide: 25.4 };
+const DEFAULT_CUSTOM_MARGINS: PageMarginValues = { top: 4, right: 4, bottom: 4, left: 4 };
+const clampMargin = (value: unknown, fallback = 4) => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.round(Math.min(40, Math.max(0, parsed)) * 10) / 10 : fallback;
+};
 const BUILTIN_TEMPLATES: EditorTemplate[] = [
  { id: 'nursing-notes', name: 'Appunti di lezione', category: 'Infermieristica', content: '<h1>Appunti di lezione</h1><p><strong>Insegnamento:</strong> …</p><p><strong>Argomento:</strong> …</p><h2>Obiettivi</h2><ul><li><p>…</p></li></ul><h2>Concetti chiave</h2><p>…</p><h2>Terminologia</h2><p>…</p><h2>Dubbi da chiarire</h2><p>…</p>' },
  { id: 'nursing-procedure', name: 'Procedura infermieristica', category: 'Infermieristica · didattica', content: '<h1>Scheda didattica di procedura</h1><p><em>Verificare protocolli ufficiali e indicazioni dei docenti.</em></p><h2>Obiettivo e razionale</h2><p>…</p><h2>Materiali</h2><ul><li><p>…</p></li></ul><h2>Fasi e controlli</h2><ol><li><p>…</p></li></ol><h2>Sicurezza</h2><p>…</p><h2>Domande di ripasso</h2><p>…</p>' },
@@ -75,7 +83,9 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
   const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
-  const [pageMargins, setPageMargins] = useState<PageMargins>('normal');
+  const [pageMargins, setPageMargins] = useState<PageMargins>('custom');
+  const [customMargins, setCustomMargins] = useState<PageMarginValues>(DEFAULT_CUSTOM_MARGINS);
+  const [layoutLoaded, setLayoutLoaded] = useState(false);
   const [customTemplates, setCustomTemplates] = useState<EditorTemplate[]>([]);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -83,23 +93,63 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
 
   useEffect(() => {
     try {
-      const rawLayout = window.localStorage.getItem(PAGE_LAYOUT_KEY);
-      if (rawLayout) { const value = JSON.parse(rawLayout); if (['A4','A5','A3','Letter'].includes(value?.format)) setPageFormat(value.format); if (['portrait','landscape'].includes(value?.orientation)) setPageOrientation(value.orientation); if (['normal','narrow','wide'].includes(value?.margins)) setPageMargins(value.margins); }
+      const savedLayout = window.localStorage.getItem(PAGE_LAYOUT_KEY);
+      const rawLayout = savedLayout || window.localStorage.getItem(LEGACY_PAGE_LAYOUT_KEY);
+      if (rawLayout) {
+        const value = JSON.parse(rawLayout);
+        if (['A4','A5','A3','Letter'].includes(value?.format)) setPageFormat(value.format);
+        if (['portrait','landscape'].includes(value?.orientation)) setPageOrientation(value.orientation);
+        if (savedLayout) {
+          if (['normal','narrow','wide','custom'].includes(value?.margins)) setPageMargins(value.margins);
+          if (value?.customMargins && typeof value.customMargins === 'object') {
+            setCustomMargins({
+              top: clampMargin(value.customMargins.top),
+              right: clampMargin(value.customMargins.right),
+              bottom: clampMargin(value.customMargins.bottom),
+              left: clampMargin(value.customMargins.left),
+            });
+          }
+        } else {
+          // Old versions only stored a preset, not four independent sides. Start with compact margins.
+          setPageMargins('custom');
+          setCustomMargins(DEFAULT_CUSTOM_MARGINS);
+        }
+      }
       const rawTemplates = window.localStorage.getItem(CUSTOM_TEMPLATE_KEY);
       if (rawTemplates) { const value = JSON.parse(rawTemplates); if (Array.isArray(value)) setCustomTemplates(value.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.category === 'string' && typeof item.content === 'string' && item.custom === true)); }
     } catch { toast.error('Alcune preferenze locali non sono state caricate.'); }
-    finally { setTemplatesLoaded(true); }
+    finally { setTemplatesLoaded(true); setLayoutLoaded(true); }
   }, []);
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !layoutLoaded) return;
     const dimensions = PAGE_DIMENSIONS[pageFormat];
     const width = pageOrientation === 'portrait' ? dimensions.width : dimensions.height;
     const height = pageOrientation === 'portrait' ? dimensions.height : dimensions.width;
+    const presetMargin = pageMargins === 'custom' ? null : PAGE_MARGIN_MM[pageMargins];
+    const margins = presetMargin === null
+      ? customMargins
+      : { top: presetMargin, right: presetMargin, bottom: presetMargin, left: presetMargin };
     editor.view.dom.style.setProperty('--md-page-width', width + 'mm');
     editor.view.dom.style.setProperty('--md-page-height', height + 'mm');
-    editor.view.dom.style.setProperty('--md-page-padding', PAGE_MARGIN_MM[pageMargins] + 'mm');
-    try { window.localStorage.setItem(PAGE_LAYOUT_KEY, JSON.stringify({ format: pageFormat, orientation: pageOrientation, margins: pageMargins })); } catch {}
-  }, [editor, pageFormat, pageOrientation, pageMargins]);
+    (Object.keys(margins) as PageMarginSide[]).forEach((side) => {
+      editor.view.dom.style.setProperty('--md-page-padding-' + side, margins[side] + 'mm');
+    });
+    // PaginationPlus calculates page breaks separately from CSS; keep both models in sync (mm -> CSS px).
+    editor.commands.updateMargins({
+      top: margins.top * 96 / 25.4,
+      right: margins.right * 96 / 25.4,
+      bottom: margins.bottom * 96 / 25.4,
+      left: margins.left * 96 / 25.4,
+    });
+    try {
+      window.localStorage.setItem(PAGE_LAYOUT_KEY, JSON.stringify({
+        format: pageFormat,
+        orientation: pageOrientation,
+        margins: pageMargins,
+        customMargins,
+      }));
+    } catch {}
+  }, [editor, pageFormat, pageOrientation, pageMargins, customMargins, layoutLoaded]);
   useEffect(() => { if (!templatesLoaded) return; try { window.localStorage.setItem(CUSTOM_TEMPLATE_KEY, JSON.stringify(customTemplates)); } catch { toast.error('Spazio locale insufficiente per salvare il modello personale.'); } }, [customTemplates, templatesLoaded]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || !event.altKey) return; if (event.key.toLowerCase() === 'p') { event.preventDefault(); setActiveTab('Pagine'); } if (event.key.toLowerCase() === 'm') { event.preventDefault(); setActiveTab('Modelli'); } };
@@ -399,17 +449,61 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         )}
 
         {activeTab === 'Layout' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="grid gap-1 text-xs font-semibold text-slate-700">Formato<select value={pageFormat} onChange={(e) => setPageFormat(e.target.value as PageFormat)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="A4">A4</option><option value="A5">A5</option><option value="A3">A3</option><option value="Letter">Letter</option></select></label>
-            <label className="grid gap-1 text-xs font-semibold text-slate-700">Orientamento<select value={pageOrientation} onChange={(e) => setPageOrientation(e.target.value as PageOrientation)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="portrait">Verticale</option><option value="landscape">Orizzontale</option></select></label>
-            <label className="grid gap-1 text-xs font-semibold text-slate-700">Margini<select value={pageMargins} onChange={(e) => setPageMargins(e.target.value as PageMargins)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="normal">Normali</option><option value="narrow">Stretti</option><option value="wide">Larghi</option></select></label>
-            <button
-              type="button"
-              onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50"
-            >
-              <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> Inserisci nuova pagina
-            </button>
+          <div className="flex w-full flex-col gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="grid gap-1 text-xs font-semibold text-slate-700">Formato
+                <select value={pageFormat} onChange={(e) => setPageFormat(e.target.value as PageFormat)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                  <option value="A4">A4</option><option value="A5">A5</option><option value="A3">A3</option><option value="Letter">Letter</option>
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs font-semibold text-slate-700">Orientamento
+                <select value={pageOrientation} onChange={(e) => setPageOrientation(e.target.value as PageOrientation)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                  <option value="portrait">Verticale</option><option value="landscape">Orizzontale</option>
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs font-semibold text-slate-700">Margini
+                <select value={pageMargins} onChange={(e) => setPageMargins(e.target.value as PageMargins)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                  <option value="custom">Personalizzati</option><option value="narrow">Minimi · 3 mm</option><option value="normal">Compatti · 12 mm</option><option value="wide">Larghi · 25,4 mm</option>
+                </select>
+              </label>
+              <button type="button" onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+                className="flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50">
+                <SplitSquareHorizontal className="h-4 w-4 text-indigo-600" /> Inserisci nuova pagina
+              </button>
+            </div>
+            {pageMargins === 'custom' && (
+              <div className="rounded-xl border border-teal-100 bg-teal-50/70 p-3 sm:p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div><p className="text-xs font-bold text-slate-800">Margini personalizzati</p><p className="text-[11px] text-slate-500">Imposta ogni lato in millimetri · da 0 a 40 mm</p></div>
+                  <button type="button" onClick={() => setCustomMargins({ top: 4, right: 4, bottom: 4, left: 4 })} className="min-h-9 rounded-lg border border-teal-200 bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100">Ripristina 4 mm</button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {([
+                    { side: 'top', label: 'Superiore' },
+                    { side: 'right', label: 'Destro' },
+                    { side: 'bottom', label: 'Inferiore' },
+                    { side: 'left', label: 'Sinistro' },
+                  ] as Array<{ side: PageMarginSide; label: string }>).map(({ side, label }) => (
+                    <label key={side} className="grid gap-1 text-[11px] font-semibold text-slate-700">
+                      {label}
+                      <div className="flex items-center rounded-lg border border-slate-200 bg-white pr-2 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
+                        <input type="number" min="0" max="40" step="0.5" value={customMargins[side]}
+                          onChange={(event) => {
+                            const value = Number(event.target.value);
+                            if (event.target.value !== '' && Number.isFinite(value)) {
+                              setCustomMargins((current) => ({ ...current, [side]: clampMargin(value) }));
+                              setPageMargins('custom');
+                            }
+                          }}
+                          className="min-h-10 w-full min-w-0 border-0 bg-transparent px-3 py-2 text-sm font-semibold outline-none"
+                          aria-label={'Margine ' + label.toLowerCase() + ' in millimetri'} />
+                        <span className="text-xs text-slate-400">mm</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
