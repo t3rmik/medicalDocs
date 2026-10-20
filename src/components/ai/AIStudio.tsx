@@ -39,6 +39,19 @@ const ACTIONS: Array<{ id: AIAction; label: string; description: string; icon: t
   { id: 'ask', label: 'Domanda libera', description: 'Fai una domanda sul documento', icon: MessageSquare },
 ]
 
+function normalizeAIOutput(markdown: string): string {
+  return markdown
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+    // Preserve paragraph separation when the model puts a single newline after a sentence.
+    .replace(/([.!?;:])\n(?=[A-ZÀ-ÖØ-Þ0-9“"'(])/g, '$1\n\n')
+    .replace(/([^\n])\n(?=#{1,6}\s)/g, '$1\n\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 function extractPlainText(markup: string): string {
   if (typeof window === 'undefined') {
     return markup.replace(/<[^>]*>/g, ' ').replace(/\u00a0/g, ' ').trim()
@@ -112,7 +125,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
       }
       if (!response.ok) throw new Error(payload.error || 'La richiesta AI non è riuscita.');
       if (typeof payload.result !== 'string' || !payload.result.trim()) throw new Error('Il servizio AI non ha restituito testo.');
-      setResult(payload.result.trim());
+      setResult(normalizeAIOutput(payload.result.trim()));
       if (typeof payload.provider === 'string' && typeof payload.model === 'string') {
         setGenerationInfo({
           provider: payload.provider,
