@@ -193,12 +193,12 @@ function MathEquationView({ node, updateAttributes }: NodeViewProps) {
         margin: '14px auto',
         textAlign: 'center',
         transform: 'translate(' + dragOffset.x + 'px, ' + dragOffset.y + 'px)',
-        zIndex: dragging ? 30 : 1,
+        zIndex: dragging ? 80 : 60,
       }}>
       <button type="button" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag}
         onPointerCancel={finishDrag} title="Trascina per spostare l'equazione"
         aria-label="Trascina per spostare l'equazione"
-        className="absolute -left-8 top-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-sm text-slate-500 shadow-sm hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+        className="absolute -left-8 top-1 z-50 inline-flex h-7 w-7 items-center justify-center rounded-md border border-indigo-200 bg-white text-sm font-bold text-indigo-700 shadow-md hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-900"
         style={{ touchAction: 'none', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}>
         ⠿
       </button>
