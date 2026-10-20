@@ -28,7 +28,7 @@ export default function Home() {
     updatedAt: new Date()
   });
   
-  const [editorKey, setEditorKey] = useState(Date.now());
+  const [documentVersion, setDocumentVersion] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const activeDocRef = useRef<MedicalDocument>(activeDoc);
   const documentSessionRef = useRef(0);
@@ -148,7 +148,7 @@ export default function Home() {
     activeDocRef.current = doc;
     setActiveDoc(doc);
     setPdfAnnotatorFile(null);
-    setEditorKey(Date.now());
+    setDocumentVersion((version) => version + 1);
     toast.success('Documento caricato con successo.');
   };
 
@@ -164,7 +164,7 @@ export default function Home() {
     activeDocRef.current = newDoc;
     setActiveDoc(newDoc);
     setPdfAnnotatorFile(null);
-    setEditorKey(Date.now());
+    setDocumentVersion((version) => version + 1);
   };
 
   const handleDuplicateDocument = async (doc: MedicalDocument) => {
@@ -350,7 +350,7 @@ export default function Home() {
           />
           <main className="flex-1 flex flex-col relative overflow-hidden print:overflow-visible print:bg-white">
             <MedicalEditor 
-              key={editorKey}
+              documentVersion={documentVersion}
               onChange={handleContentChange}
               initialContent={activeDoc.content}
               isSaving={isSaving}
