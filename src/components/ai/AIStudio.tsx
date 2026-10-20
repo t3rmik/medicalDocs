@@ -39,6 +39,31 @@ const ACTIONS: Array<{ id: AIAction; label: string; description: string; icon: t
   { id: 'ask', label: 'Domanda libera', description: 'Fai una domanda sul documento', icon: MessageSquare },
 ]
 
+interface PdfPageSection {
+  number: number;
+  text: string;
+}
+
+function detectPdfPageSections(text: string): PdfPageSection[] {
+  const matches = Array.from(text.matchAll(/(?:^|\\n)\\s*Pagina\\s+(\\d+)\\s*(?=\\n)/gi));
+  if (matches.length < 2) return [];
+
+  return matches.map((match, index) => {
+    const wholeMatch = match[0] || '';
+    const matchIndex = match.index ?? 0;
+    const markerOffset = wholeMatch.toLowerCase().lastIndexOf('pagina');
+    const start = matchIndex + markerOffset;
+    const next = matches[index + 1];
+    const nextStart = next
+      ? (next.index ?? text.length) + (next[0] || '').toLowerCase().lastIndexOf('pagina')
+      : text.length;
+    return {
+      number: Number(match[1]),
+      text: text.slice(start, nextStart).trim(),
+    };
+  }).filter((page) => Number.isInteger(page.number) && page.number > 0 && page.text.length > 0);
+}
+
 function normalizeAIOutput(markdown: string): string {
   return markdown
     .replace(/\r\n?/g, '\n')
@@ -92,17 +117,39 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [isLoading, setIsLoading] = useState(false)
   const [retryMessage, setRetryMessage] = useState('')
   const [copied, setCopied] = useState(false)
+  const [usePageRange, setUsePageRange] = useState(false)
+  const [pageFrom, setPageFrom] = useState(1)
+  const [pageTo, setPageTo] = useState(1)
 
   if (!isOpen) return null
 
+  const plainText = extractPlainText(content)
+  const pageSections = detectPdfPageSections(plainText)
+  const firstPage = pageSections[0]?.number ?? 1
+  const lastPage = pageSections[pageSections.length - 1]?.number ?? 1
+  const normalizedPageFrom = Math.min(pageFrom, pageTo)
+  const normalizedPageTo = Math.max(pageFrom, pageTo)
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
   const runAction = async (action: AIAction = selectedAction) => {
     setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setGenerationInfo(null); setRetryMessage(''); setCopied(false);
-    const plainText = extractPlainText(content);
-    if (plainText.length < 2) { setError('Questo documento non contiene testo sufficiente. Aggiungi del testo e riprova.'); setIsLoading(false); return; }
+    const selectedPages = usePageRange
+      ? pageSections.filter((page) => page.number >= normalizedPageFrom && page.number <= normalizedPageTo)
+      : []
+    const sourceText = usePageRange
+      ? selectedPages.map((page) => page.text).join('\\n\\n')
+      : plainText
+    if (usePageRange && selectedPages.length === 0) {
+      setError('Non riesco a trovare le pagine selezionate nel testo importato. Reimporta il PDF in modalità conversione testo e riprova.')
+      setIsLoading(false)
+      return
+    }
+    if (sourceText.length < 2) { setError('Il testo selezionato non contiene contenuto sufficiente. Seleziona altre pagine e riprova.'); setIsLoading(false); return; }
     try {
-      const body = JSON.stringify({ action, content: plainText, instruction: instruction.trim() });
+      const pageRange = usePageRange && selectedPages.length
+        ? { from: selectedPages[0].number, to: selectedPages[selectedPages.length - 1].number }
+        : undefined
+      const body = JSON.stringify({ action, content: sourceText, instruction: instruction.trim(), pageRange });
       const send = () => fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       let response = await send();
       type AIResponse = {
@@ -215,6 +262,82 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                 Testo del documento
               </span>
             </div>
+
+            {pageSections.length > 1 && (
+              <section className="mb-4 rounded-2xl border border-teal-100 bg-teal-50/70 p-3.5 sm:p-4" aria-label="Selezione pagine per AI">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.13em] text-teal-800">Pagine da analizzare</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Ho rilevato {pageSections.length} pagine nel PDF convertito. Puoi inviare all'AI solo la parte che ti interessa.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={usePageRange}
+                      onChange={(event) => {
+                        const checked = event.target.checked
+                        setUsePageRange(checked)
+                        if (checked) { setPageFrom(firstPage); setPageTo(lastPage) }
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 accent-teal-700"
+                    />
+                    Seleziona un intervallo
+                  </label>
+                </div>
+                {usePageRange && (
+                  <div className="mt-3">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] font-semibold text-slate-600">Dalla pagina</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={firstPage}
+                          max={lastPage}
+                          value={pageFrom}
+                          onChange={(event) => {
+                            const value = Number(event.target.value)
+                            if (!Number.isFinite(value)) return
+                            const next = Math.min(lastPage, Math.max(firstPage, Math.trunc(value)))
+                            setPageFrom(next)
+                            if (next > pageTo) setPageTo(next)
+                          }}
+                          className="w-24 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                          aria-label="Pagina iniziale"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] font-semibold text-slate-600">Alla pagina</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={firstPage}
+                          max={lastPage}
+                          value={pageTo}
+                          onChange={(event) => {
+                            const value = Number(event.target.value)
+                            if (!Number.isFinite(value)) return
+                            const next = Math.min(lastPage, Math.max(firstPage, Math.trunc(value)))
+                            setPageTo(next)
+                            if (next < pageFrom) setPageFrom(next)
+                          }}
+                          className="w-24 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                          aria-label="Pagina finale"
+                        />
+                      </label>
+                      <p className="pb-2 text-xs text-teal-900">
+                        Verranno inviate solo le pagine {normalizedPageFrom}–{normalizedPageTo} ({normalizedPageTo - normalizedPageFrom + 1} pagine).
+                      </p>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-600">
+                      Disponibile per PDF importati in modalità conversione testo. I PDF scansionati usano il testo riconosciuto dall'OCR.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
 
             <label className="mb-3 block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-700">
