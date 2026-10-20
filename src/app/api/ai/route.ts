@@ -228,6 +228,19 @@ export async function POST(request: Request) {
     const attemptTimeoutMs = Math.min(32_000, remainingMs - 500);
     attempts += 1;
     const attemptStartedAt = Date.now();
+    // Groq's current free/on-demand TPM for these models is 8K. The API reserves
+    // prompt tokens plus max_tokens, so long summaries need a smaller output budget.
+    const maxOutputTokens = sourceText.length > 8_000 && selectedAction !== 'rewrite'
+      ? (candidate.provider === 'groq' ? 1_100 : 1_600)
+      : sourceText.length > 30_000 && selectedAction !== 'rewrite' ? 1_800 : 2_400;
+
+    console.info('[MedicalDocs] AI provider attempt started', {
+      provider: candidate.provider,
+      model: candidate.model,
+      attempt: attempts,
+      sourceChars: sourceText.length,
+      maxOutputTokens,
+    });
 
     try {
       const upstream = await fetch(candidate.baseUrl + '/chat/completions', {
@@ -239,7 +252,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model: candidate.model,
           temperature: 0.3,
-          max_tokens: sourceText.length > 30_000 && selectedAction !== 'rewrite' ? 1_800 : 2_400,
+          max_tokens: maxOutputTokens,
           messages: [
             {
               role: 'system',
@@ -323,6 +336,14 @@ export async function POST(request: Request) {
         continue;
       }
 
+      console.info('[MedicalDocs] AI provider attempt succeeded', {
+        provider: candidate.provider,
+        model: candidate.model,
+        attempt: attempts,
+        durationMs: Date.now() - attemptStartedAt,
+        sourceChars: sourceText.length,
+        outputChars: answer.length,
+      });
       return NextResponse.json({
         result: answer,
         provider: candidate.provider,
