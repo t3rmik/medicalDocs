@@ -199,7 +199,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   );
 
   return (
-    <div data-md-ribbon="true" className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
+    <div data-md-ribbon="true" data-md-active-tab={activeTab} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
@@ -364,6 +364,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                   toast.error('Scegli un’immagine originale sotto 12 MB: verrà ridimensionata automaticamente.');
                   return;
                 }
+                let imageStage: 'preparazione' | 'inserimento' = 'preparazione';
                 try {
                   const src = await readCompressedImage(file);
                   // Compression is async: the user may have switched or closed the editor meanwhile.
@@ -371,12 +372,14 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                     toast.error('Il documento è cambiato mentre preparavo l’immagine. Riapri il documento corretto e riprova.');
                     return;
                   }
+                  imageStage = 'inserimento';
                   const inserted = targetEditor.chain().focus().setImage({
                     src, alt: file.name.replace(/\.[^.]+$/, ''),
                   }).run();
                   if (!inserted) throw new Error('L’immagine non è stata inserita. Clicca nel foglio e riprova.');
                   toast.success('Immagine ridimensionata e inserita nel documento.');
                 } catch (error) {
+                  console.error('[MedicalDocs] Errore durante ' + imageStage + ' dell’immagine.', error);
                   toast.error(error instanceof Error ? error.message : 'Non è stato possibile leggere questa immagine.');
                 }
               }}

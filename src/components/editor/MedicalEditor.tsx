@@ -18,16 +18,18 @@ interface MedicalEditorProps {
   onChange: (content: string) => void;
   initialContent?: string;
   isSaving: boolean;
+  documentVersion: number;
   onRegisterInsert?: (handler: ((html: string) => void) | null) => void;
 }
 
-export function MedicalEditor({ onChange, initialContent = '', isSaving, onRegisterInsert }: MedicalEditorProps) {
+export function MedicalEditor({ onChange, initialContent = '', isSaving, documentVersion, onRegisterInsert }: MedicalEditorProps) {
   return (
-    <EditorErrorBoundary>
+    <EditorErrorBoundary documentKey={documentVersion}>
       <EditorCore
         onChange={onChange}
         initialContent={initialContent}
         isSaving={isSaving}
+        documentVersion={documentVersion}
         onRegisterInsert={onRegisterInsert}
       />
     </EditorErrorBoundary>

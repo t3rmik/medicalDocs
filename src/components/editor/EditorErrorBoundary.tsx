@@ -4,6 +4,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface EditorErrorBoundaryProps {
   children: ReactNode
+  documentKey?: number
 }
 interface EditorErrorBoundaryState {
   hasError: boolean
@@ -23,6 +24,12 @@ export class EditorErrorBoundary extends Component<EditorErrorBoundaryProps, Edi
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[MedicalDocs] Errore nel componente editor; il resto della pagina è stato preservato.', error, info.componentStack)
+  }
+
+  componentDidUpdate(previousProps: EditorErrorBoundaryProps) {
+    if (previousProps.documentKey !== this.props.documentKey && this.state.hasError) {
+      this.setState((state) => ({ hasError: false, resetKey: state.resetKey + 1 }))
+    }
   }
 
   retryEditor = () => {

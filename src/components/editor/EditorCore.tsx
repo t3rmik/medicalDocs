@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -53,10 +53,14 @@ interface EditorCoreProps {
   initialContent: string;
   onChange: (html: string) => void;
   isSaving: boolean;
+  documentVersion: number;
   onRegisterInsert?: (handler: ((html: string) => void) | null) => void;
 }
 
-export default function EditorCore({ initialContent, onChange, isSaving, onRegisterInsert }: EditorCoreProps) {
+export default function EditorCore({ initialContent, onChange, isSaving, documentVersion, onRegisterInsert }: EditorCoreProps) {
+  const lastDocumentVersionRef = useRef(documentVersion)
+  const initialContentRef = useRef(initialContent)
+  initialContentRef.current = initialContent
   const [zoom, setZoom] = useState(100)
   const [inkMode, setInkMode] = useState(false)
   const [inkColor, setInkColor] = useState('#154e73')
@@ -105,6 +109,18 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
       },
     },
   });
+
+  // Reuse the ProseMirror instance when changing notes instead of rebuilding all extensions.
+  // emitUpdate=false is important: loading an existing note must not schedule a save as a new edit.
+  useEffect(() => {
+    if (!editor || lastDocumentVersionRef.current === documentVersion) return
+    lastDocumentVersionRef.current = documentVersion
+    editor.commands.setContent(initialContentRef.current, false)
+    setZoom(100)
+    setInkMode(false)
+    setInkTool('pen')
+    setInkInputMode('pen')
+  }, [editor, documentVersion])
 
   const findInkLayer = useCallback(() => {
     if (!editor) return null;
