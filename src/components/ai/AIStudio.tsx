@@ -47,7 +47,7 @@ interface PdfPageSection {
 
 function detectPdfPageSections(text: string): PdfPageSection[] {
   const matches = Array.from(text.matchAll(/(?:^|\n)\s*Pagina\s+(\d+)\s*(?=\n)/gi));
-  if (matches.length < 2) return [];
+  if (matches.length === 0) return [];
 
   return matches.map((match, index) => {
     const wholeMatch = match[0] || '';
@@ -230,8 +230,8 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const plainText = extractPlainText(content)
   const markedPages = detectPdfPageSections(plainText)
   const explicitPages = detectExplicitPageSections(content)
-  const hasExactPageBoundaries = markedPages.length > 1 || explicitPages.length > 1
-  const pageSections = markedPages.length > 1
+  const hasExactPageBoundaries = markedPages.length > 0 || explicitPages.length > 1
+  const pageSections = markedPages.length > 0
     ? markedPages
     : explicitPages.length > 1
       ? explicitPages
