@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react'
 
@@ -116,12 +116,27 @@ function mathSpecToHtml(spec: MathSpec | string): string {
 
 function MathEquationView({ node, updateAttributes }: NodeViewProps) {
   const latex = String(node.attrs.latex || 'x = y')
+  const offsetX = Number(node.attrs.offsetX || 0)
+  const offsetY = Number(node.attrs.offsetY || 0)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(latex)
+  const [dragOffset, setDragOffset] = useState({ x: offsetX, y: offsetY })
+  const [dragging, setDragging] = useState(false)
+  const dragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    originX: number
+    originY: number
+  } | null>(null)
 
   useEffect(() => {
     if (!editing) setDraft(latex)
   }, [latex, editing])
+
+  useEffect(() => {
+    if (!dragRef.current) setDragOffset({ x: offsetX, y: offsetY })
+  }, [offsetX, offsetY])
 
   const save = () => {
     const value = draft.trim()
@@ -130,11 +145,65 @@ function MathEquationView({ node, updateAttributes }: NodeViewProps) {
     setEditing(false)
   }
 
+  const startDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: dragOffset.x,
+      originY: dragOffset.y,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDragging(true)
+  }
+
+  const moveDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current
+    if (!drag || event.pointerId !== drag.pointerId) return
+    event.preventDefault()
+    event.stopPropagation()
+    setDragOffset({
+      x: Math.round(drag.originX + event.clientX - drag.startX),
+      y: Math.round(drag.originY + event.clientY - drag.startY),
+    })
+  }
+
+  const finishDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current
+    if (!drag || event.pointerId !== drag.pointerId) return
+    event.preventDefault()
+    event.stopPropagation()
+    const nextX = Math.round(drag.originX + event.clientX - drag.startX)
+    const nextY = Math.round(drag.originY + event.clientY - drag.startY)
+    dragRef.current = null
+    setDragging(false)
+    setDragOffset({ x: nextX, y: nextY })
+    updateAttributes({ offsetX: nextX, offsetY: nextY })
+  }
+
   return (
     <NodeViewWrapper as="div" className="md-equation-node" contentEditable={false} data-md-equation="true" data-latex={latex}
-      style={{ display: 'block', width: '100%', margin: '14px 0', textAlign: 'center' }}>
+      style={{
+        display: 'block',
+        position: 'relative',
+        width: 'max-content',
+        maxWidth: '100%',
+        margin: '14px auto',
+        textAlign: 'center',
+        transform: 'translate(' + dragOffset.x + 'px, ' + dragOffset.y + 'px)',
+        zIndex: dragging ? 30 : 1,
+      }}>
+      <button type="button" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={finishDrag}
+        onPointerCancel={finishDrag} title="Trascina per spostare l'equazione"
+        aria-label="Trascina per spostare l'equazione"
+        className="absolute -left-8 top-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-sm text-slate-500 shadow-sm hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+        style={{ touchAction: 'none', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}>
+        ⠿
+      </button>
       {editing ? (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-left shadow-sm" style={{ maxWidth: 680, margin: '0 auto' }}>
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-left shadow-sm" style={{ width: 'min(680px, 90vw)', margin: '0 auto' }}>
           <label className="mb-1 block text-xs font-semibold text-slate-700" htmlFor="md-equation-edit-source">Modifica equazione (LaTeX)</label>
           <input id="md-equation-edit-source" value={draft} onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -165,13 +234,23 @@ export const MathEquation = Node.create({
   group: 'block',
   atom: true,
   selectable: true,
-  draggable: true,
+  draggable: false,
   addAttributes() {
     return {
       latex: {
         default: 'x^2 + y^2 = z^2',
         parseHTML: (element: HTMLElement) => element.getAttribute('data-latex') || 'x = y',
         renderHTML: (attributes: Record<string, unknown>) => ({ 'data-latex': String(attributes.latex || 'x = y') }),
+      },
+      offsetX: {
+        default: 0,
+        parseHTML: (element: HTMLElement) => Number(element.getAttribute('data-offset-x') || 0),
+        renderHTML: (attributes: Record<string, unknown>) => ({ 'data-offset-x': String(Number(attributes.offsetX) || 0) }),
+      },
+      offsetY: {
+        default: 0,
+        parseHTML: (element: HTMLElement) => Number(element.getAttribute('data-offset-y') || 0),
+        renderHTML: (attributes: Record<string, unknown>) => ({ 'data-offset-y': String(Number(attributes.offsetY) || 0) }),
       },
     }
   },
@@ -191,6 +270,8 @@ export const MathEquation = Node.create({
         class: 'md-equation-node',
         contenteditable: 'false',
         'aria-label': 'Equazione matematica',
+        style: 'position:relative;display:block;width:max-content;max-width:100%;margin:14px auto;transform:translate(' +
+          Number(node.attrs.offsetX || 0) + 'px,' + Number(node.attrs.offsetY || 0) + 'px)',
       }),
       latexToMathMLSpec(latex),
     ]
