@@ -94,20 +94,20 @@ function detectExplicitPageSections(markup: string): PdfPageSection[] {
 
 function estimateTextPages(text: string): PdfPageSection[] {
   const normalized = (text || '').trim()
-  if (normalized.length < 1800) return []
+  if (normalized.length < 1200) return []
 
   const sections: PdfPageSection[] = []
   let start = 0
-  const targetLength = 2300
+  const targetLength = 1600
   while (start < normalized.length) {
     let end = Math.min(normalized.length, start + targetLength)
     if (end < normalized.length) {
       const paragraphBreak = normalized.lastIndexOf('\n\n', end)
-      if (paragraphBreak > start + 1100) {
+      if (paragraphBreak > start + 700) {
         end = paragraphBreak
       } else {
         const wordBreak = normalized.lastIndexOf(' ', end)
-        if (wordBreak > start + 1500) end = wordBreak
+        if (wordBreak > start + 1000) end = wordBreak
       }
     }
     const part = normalized.slice(start, end).trim()
@@ -403,7 +403,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
               <section className="mb-4 rounded-2xl border border-teal-100 bg-teal-50/70 p-3.5 sm:p-4" aria-label="Selezione della fonte per AI">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.13em] text-teal-800">Su quale parte deve lavorare l’AI?</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">Scegli il documento intero, un intervallo di pagine oppure uno o più argomenti dai titoli presenti nel documento.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Scegli il documento intero, singole pagine oppure uno o più argomenti.</p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Parte del documento da analizzare">
                   <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
