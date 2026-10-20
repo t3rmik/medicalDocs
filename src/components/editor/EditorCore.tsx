@@ -16,7 +16,7 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
-import Image from '@tiptap/extension-image'
+import { ResizableImage } from './ResizableImage'
 import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
@@ -71,7 +71,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
-      Image.configure({ allowBase64: true, HTMLAttributes: { class: 'editor-image' } }),
+      ResizableImage,
       PageBreak,
       InkLayer,
       PaginationPlus.configure({

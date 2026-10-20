@@ -138,11 +138,23 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
     return () => observer.disconnect()
   }, [root, node.attrs.width, node.attrs.height, updateAttributes])
 
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const getPoint = (event: React.PointerEvent<HTMLDivElement>): Point => {
-    const rect = root.getBoundingClientRect()
+    const svg = svgRef.current
+    const matrix = svg?.getScreenCTM()
+    if (svg && matrix) {
+      try {
+        const screenPoint = svg.createSVGPoint()
+        screenPoint.x = event.clientX
+        screenPoint.y = event.clientY
+        const local = screenPoint.matrixTransform(matrix.inverse())
+        return { x:Math.max(0,Math.min(width,local.x)), y:Math.max(0,Math.min(height,local.y)) }
+      } catch { /* Fallback for browsers without a usable screen matrix. */ }
+    }
+    const rect=svg?.getBoundingClientRect()??root.getBoundingClientRect()
     return {
-      x: Math.max(0, Math.min(width, (event.clientX - rect.left) * width / Math.max(1, rect.width))),
-      y: Math.max(0, Math.min(height, (event.clientY - rect.top) * height / Math.max(1, rect.height))),
+      x:Math.max(0,Math.min(width,(event.clientX-rect.left)*width/Math.max(1,rect.width))),
+      y:Math.max(0,Math.min(height,(event.clientY-rect.top)*height/Math.max(1,rect.height))),
     }
   }
   const commitPaths = (nextPaths: InkStroke[]) => {
@@ -298,7 +310,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
       onPointerCancel={finishGesture} onLostPointerCapture={() => finishGesture()}
       aria-label={enabled ? 'Strumenti penna attivi sul foglio' : 'Livello di scrittura a mano'}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox={'0 0 ' + width + ' ' + height}
+      <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" viewBox={'0 0 ' + width + ' ' + height}
         preserveAspectRatio="none" aria-hidden="true"
         style={{ display: 'block', width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
         {visiblePaths.map((stroke) => {
