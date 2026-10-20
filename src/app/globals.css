@@ -430,3 +430,55 @@ html{scroll-behavior:smooth}button,[role="button"],input,select,textarea,summary
   }
 }
 
+
+
+/* Unified, light native controls: browsers otherwise render some option lists in dark colours. */
+select,
+select:focus,
+input,
+textarea {
+  color-scheme: light;
+}
+
+select:not(.bg-transparent) {
+  color: #334155;
+  background-color: #fff;
+  border-color: #cbd5e1;
+}
+
+select option,
+select optgroup {
+  color: #1e293b !important;
+  background-color: #fff !important;
+  font-weight: 500;
+}
+
+select option:checked {
+  color: #134e4a !important;
+  background-color: #ccfbf1 !important;
+}
+
+select:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea {
+  color: #1e293b;
+  background-color: #fff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  [role="dialog"] select,
+  [role="dialog"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  [role="dialog"] textarea {
+    font-size: 16px;
+  }
+}
