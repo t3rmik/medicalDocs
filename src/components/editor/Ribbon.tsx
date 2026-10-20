@@ -364,6 +364,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                   toast.error('Scegli un’immagine originale sotto 12 MB: verrà ridimensionata automaticamente.');
                   return;
                 }
+                let imageStage: 'preparazione' | 'inserimento' = 'preparazione';
                 try {
                   const src = await readCompressedImage(file);
                   // Compression is async: the user may have switched or closed the editor meanwhile.
@@ -371,12 +372,14 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                     toast.error('Il documento è cambiato mentre preparavo l’immagine. Riapri il documento corretto e riprova.');
                     return;
                   }
+                  imageStage = 'inserimento';
                   const inserted = targetEditor.chain().focus().setImage({
                     src, alt: file.name.replace(/\.[^.]+$/, ''),
                   }).run();
                   if (!inserted) throw new Error('L’immagine non è stata inserita. Clicca nel foglio e riprova.');
                   toast.success('Immagine ridimensionata e inserita nel documento.');
                 } catch (error) {
+                  console.error('[MedicalDocs] Errore durante ' + imageStage + ' dell’immagine.', error);
                   toast.error(error instanceof Error ? error.message : 'Non è stato possibile leggere questa immagine.');
                 }
               }}
