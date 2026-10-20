@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { FileBox, X, FileText, Trash2, ListTree, Copy, Search, Star, Folder, ChevronDown } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -42,20 +42,21 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
     }
   }
 
-  const getOutline = () => {
-    if (typeof window === 'undefined' || !currentHtml) return []
+  // Parsing HTML for the outline can be expensive on large notes (especially with embedded images).
+  // Defer it so editing stays responsive, and skip it entirely while the outline panel is closed.
+  const deferredHtml = useDeferredValue(currentHtml)
+  const outline = useMemo(() => {
+    if (activeTab !== 'outline' || typeof window === 'undefined' || !deferredHtml) return []
     try {
       const parser = new DOMParser()
-      const parsed = parser.parseFromString(currentHtml, 'text/html')
+      const parsed = parser.parseFromString(deferredHtml, 'text/html')
       return Array.from(parsed.querySelectorAll('h1, h2, h3')).map((heading, index) => ({
         id: index,
         text: heading.textContent || 'Intestazione senza titolo',
         level: Number(heading.tagName.replace('H', '')),
       }))
     } catch { return [] }
-  }
-
-  const outline = getOutline()
+  }, [activeTab, deferredHtml])
   const openTab = (tab: Exclude<SidebarTab, null>) => setActiveTab(activeTab === tab ? null : tab)
   const railButtonClass = (selected: boolean) =>
     'relative flex items-center justify-center rounded-xl p-2.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-400 ' +
