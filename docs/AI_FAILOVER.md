@@ -26,12 +26,16 @@ Modello predefinito: `gemini-3.8-flash`, configurabile con `GEMINI_MODEL_PRIMARY
 
 ## Limiti e diagnostica
 
-- Massimo 4 tentativi entro un budget di circa 27 secondi; timeout massimo per singolo tentativo di 12 secondi. Nessun ciclo di retry e nessun ritardo artificiale.
+- La route AI può durare fino a 60 secondi; il budget applicativo è di circa 55 secondi, con timeout massimo di 32 secondi per singolo provider/modello.
+- I documenti fino a 80.000 caratteri sono accettati senza taglio silenzioso. Oltre il limite viene chiesto di dividerli in sezioni per non riassumere solo una parte della fonte.
+- Per testi lunghi la risposta ha un limite di output più prudente, così la richiesta rimane più gestibile con i limiti di token del provider.
 - `401/403`: salta il provider con credenziali/permessi non validi e passa a un provider diverso.
 - Modello non trovato / `404`: passa al modello successivo; un endpoint errato viene saltato per quel provider.
 - `429` con quota globale esaurita: passa al provider successivo senza provare inutilmente altri modelli dello stesso account.
 - `400` relativo al payload comune: non esegue retry ciechi.
 - I log contengono solo provider, modello, stato e codice d'errore; non includono chiavi, prompt o testo del documento.
+- L'estrazione del testo dall'editor conserva separazioni fra paragrafi, titoli, elenchi e interruzioni di riga.
+- Il prompt chiede esplicitamente italiano corretto, struttura in Markdown, paragrafi separati e liste leggibili.
 - Il failover aumenta la probabilità di ottenere una risposta, ma non può garantire disponibilità se tutti i provider e le quote sono esauriti.
 
 Per il sito pubblico, impostare le variabili nel progetto Vercel corretto (`medical-docs`, non `medical-docs-b1f6`) e negli ambienti necessari. Non è necessario incollare chiavi in chat.
