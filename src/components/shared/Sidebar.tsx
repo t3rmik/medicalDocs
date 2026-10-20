@@ -40,7 +40,7 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
       if (Array.isArray(parsed)) {
         const clean = parsed
           .filter((item): item is string => typeof item === 'string')
-          .map((item) => item.trim().replace(/\\s+/g, ' ').slice(0, 32))
+          .map((item) => item.trim().replace(/\s+/g, ' ').slice(0, 32))
           .filter((item) => item && !DEFAULT_FOLDERS.some((folder) => folder.toLocaleLowerCase('it') === item.toLocaleLowerCase('it')))
         setCustomFolders(Array.from(new Set(clean)))
       }
@@ -58,7 +58,7 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
   }, [customFolders, allDocs])
 
   const createFolder = () => {
-    const name = newFolderName.trim().replace(/\\s+/g, ' ').slice(0, 32)
+    const name = newFolderName.trim().replace(/\s+/g, ' ').slice(0, 32)
     if (!name) return
     const existing = folders.find((folder) => folder.toLocaleLowerCase('it') === name.toLocaleLowerCase('it'))
     if (existing) {
