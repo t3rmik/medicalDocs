@@ -361,7 +361,15 @@ export default function Home() {
       )}
 
       <FileOpener isOpen={isFileOpenerOpen} onClose={() => setIsFileOpenerOpen(false)} onFileSelect={handleFileSelect} />
-      <AIStudio isOpen={isAIStudioOpen} onClose={() => setIsAIStudioOpen(false)} documentTitle={activeDoc.title} content={activeDoc.content} onInsert={handleInsertAIResult} />
+      {isAIStudioOpen && (
+        <AIStudio
+          isOpen={true}
+          onClose={() => setIsAIStudioOpen(false)}
+          documentTitle={activeDoc.title}
+          content={activeDoc.content}
+          onInsert={handleInsertAIResult}
+        />
+      )}
       {ocrState.active && <OcrProgress status={ocrState.status} progress={ocrState.progress} />}
     </div>
   );
