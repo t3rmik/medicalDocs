@@ -125,7 +125,7 @@ export function Header({
       <header data-md-header="true" className="relative z-50 flex flex-col gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_8px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur-xl print:hidden sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
-            <Image src="/medicaldocs-mark.svg" alt="Logo MedicalDocs" width={48} height={48} priority className="h-12 w-12 object-contain" />
+            <Image src="/medicaldocs-mark.png" alt="Logo MedicalDocs" width={48} height={48} priority className="h-12 w-12 object-contain" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
