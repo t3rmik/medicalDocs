@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
 import { Header } from '@/components/shared/Header'
@@ -35,6 +35,7 @@ export default function Home() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSaveRef = useRef<{ doc: MedicalDocument; session: number } | null>(null);
   const saveInFlightRef = useRef(false);
+  const flushPendingSaveRef = useRef<() => void>(() => {});
 
   const [loadingFormat, setLoadingFormat] = useState<string | null>(null);
   const [isFileOpenerOpen, setIsFileOpenerOpen] = useState(false);
@@ -127,6 +128,27 @@ export default function Home() {
       void runPendingSave(pending);
     }
   };
+
+  // Keep the latest flush callback available to stable browser lifecycle listeners.
+  useEffect(() => {
+    flushPendingSaveRef.current = flushPendingSave;
+  });
+
+  useEffect(() => {
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingSaveRef.current();
+      }
+    };
+    const flushOnPageHide = () => flushPendingSaveRef.current();
+
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    window.addEventListener('pagehide', flushOnPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      window.removeEventListener('pagehide', flushOnPageHide);
+    };
+  }, []);
 
   const handleContentChange = (html: string) => {
     const nextDoc = { ...activeDocRef.current, content: html, updatedAt: new Date() };
