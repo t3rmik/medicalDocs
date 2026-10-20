@@ -361,7 +361,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (/http_5\\d\\d|server_error|service_unavailable|network_error|fetcherror/i.test(lastErrorCode)) {
+  if (/http_5\d\d|server_error|service_unavailable|network_error|fetcherror/i.test(lastErrorCode)) {
     return NextResponse.json(
       { error: 'Il provider AI ha avuto un errore temporaneo di servizio o di rete. Il sistema ha provato i modelli disponibili; attendi qualche secondo e riprova.', retryable: true, errorCode: lastErrorCode },
       { status: 502 }
