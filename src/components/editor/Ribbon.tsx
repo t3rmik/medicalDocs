@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Editor } from '@tiptap/react'
 import toast from 'react-hot-toast'
 import { 
@@ -11,6 +11,27 @@ import {
   Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp, PenLine
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+type PageFormat = 'A4' | 'A5' | 'A3' | 'Letter';
+type PageOrientation = 'portrait' | 'landscape';
+type PageMargins = 'normal' | 'narrow' | 'wide';
+type EditorTemplate = { id: string; name: string; category: string; content: string; custom?: boolean };
+const PAGE_LAYOUT_KEY = 'medicaldocs.pageLayout.v1';
+const CUSTOM_TEMPLATE_KEY = 'medicaldocs.customTemplates.v1';
+const PAGE_DIMENSIONS: Record<PageFormat, { width: number; height: number }> = { A4: { width: 210, height: 297 }, A5: { width: 148, height: 210 }, A3: { width: 297, height: 420 }, Letter: { width: 216, height: 279 } };
+const PAGE_MARGIN_MM: Record<PageMargins, number> = { normal: 25.4, narrow: 12.7, wide: 31.8 };
+const BUILTIN_TEMPLATES: EditorTemplate[] = [
+ { id: 'nursing-notes', name: 'Appunti di lezione', category: 'Infermieristica', content: '<h1>Appunti di lezione</h1><p><strong>Insegnamento:</strong> …</p><p><strong>Argomento:</strong> …</p><h2>Obiettivi</h2><ul><li><p>…</p></li></ul><h2>Concetti chiave</h2><p>…</p><h2>Terminologia</h2><p>…</p><h2>Dubbi da chiarire</h2><p>…</p>' },
+ { id: 'nursing-procedure', name: 'Procedura infermieristica', category: 'Infermieristica · didattica', content: '<h1>Scheda didattica di procedura</h1><p><em>Verificare protocolli ufficiali e indicazioni dei docenti.</em></p><h2>Obiettivo e razionale</h2><p>…</p><h2>Materiali</h2><ul><li><p>…</p></li></ul><h2>Fasi e controlli</h2><ol><li><p>…</p></li></ol><h2>Sicurezza</h2><p>…</p><h2>Domande di ripasso</h2><p>…</p>' },
+ { id: 'simulated-case', name: 'Caso clinico simulato', category: 'Esercitazione', content: '<h1>Caso clinico simulato</h1><p><em>Scenario inventato per lo studio; non usare dati identificativi reali.</em></p><h2>Scenario</h2><p>…</p><h2>Dati del caso</h2><ul><li><p>…</p></li></ul><h2>Problemi da riconoscere</h2><p>…</p><h2>Priorità e motivazioni</h2><ol><li><p>…</p></li></ol>' },
+ { id: 'study-sheet', name: 'Scheda di ripasso', category: 'Università', content: '<h1>Scheda di studio</h1><p><strong>Esame:</strong> …</p><p><strong>Argomento:</strong> …</p><h2>Definizione</h2><p>…</p><h2>Concetti chiave</h2><ul><li><p>…</p></li></ul><h2>Passaggi</h2><ol><li><p>…</p></li></ol><h2>Errori da evitare</h2><p>…</p><h2>Domande per ripassare</h2><p>…</p>' },
+ { id: 'admission-plan', name: 'Piano accesso a Medicina', category: 'Test Medicina', content: '<h1>Piano di preparazione</h1><p><strong>Settimana:</strong> …</p><p><strong>Argomenti:</strong> …</p><h2>Studio della teoria</h2><ul><li><p>…</p></li></ul><h2>Quiz e simulazioni</h2><p>Materia: … · Numero domande: …</p><h2>Errori da correggere</h2><ul><li><p>…</p></li></ul><h2>Ripasso</h2><p>…</p>' },
+ { id: 'quiz-errors', name: 'Registro errori quiz', category: 'Test Medicina', content: '<h1>Registro errori quiz</h1><p><strong>Materia:</strong> …</p><h2>Domanda o concetto</h2><p>…</p><h2>Risposta scelta</h2><p>…</p><h2>Ragionamento corretto</h2><p>…</p><h2>Perché ho sbagliato?</h2><ul><li><p>Conoscenza mancante</p></li><li><p>Lettura frettolosa</p></li><li><p>Calcolo</p></li></ul><h2>Regola da ricordare</h2><p>…</p>' },
+ { id: 'flashcards', name: 'Flashcard domanda/risposta', category: 'Ripasso', content: '<h1>Flashcard</h1><h2>Domanda</h2><p>…</p><h2>Risposta</h2><p>…</p><hr/><h2>Domanda successiva</h2><p>…</p><h2>Risposta</h2><p>…</p>' },
+ { id: 'formal-letter', name: 'Lettera formale', category: 'Corrispondenza', content: '<p><strong>Destinatario:</strong> …</p><p><strong>Oggetto:</strong> …</p><p>Gentile …,</p><p>con la presente desidero …</p><p>…</p><p>Cordiali saluti.</p><p><strong>Firma</strong><br/>…</p>' },
+];
+function escapeTemplateText(value: string): string { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
 
 async function readCompressedImage(file: File): Promise<string> {
   const objectUrl = URL.createObjectURL(file);
@@ -49,8 +70,49 @@ interface RibbonProps {
 }
 
 export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
-  const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio'>('Home');
+  const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio' | 'Pagine' | 'Modelli'>('Home');
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
+  const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
+  const [pageMargins, setPageMargins] = useState<PageMargins>('normal');
+  const [customTemplates, setCustomTemplates] = useState<EditorTemplate[]>([]);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateBody, setTemplateBody] = useState('');
+
+  useEffect(() => {
+    try {
+      const rawLayout = window.localStorage.getItem(PAGE_LAYOUT_KEY);
+      if (rawLayout) { const value = JSON.parse(rawLayout); if (['A4','A5','A3','Letter'].includes(value?.format)) setPageFormat(value.format); if (['portrait','landscape'].includes(value?.orientation)) setPageOrientation(value.orientation); if (['normal','narrow','wide'].includes(value?.margins)) setPageMargins(value.margins); }
+      const rawTemplates = window.localStorage.getItem(CUSTOM_TEMPLATE_KEY);
+      if (rawTemplates) { const value = JSON.parse(rawTemplates); if (Array.isArray(value)) setCustomTemplates(value.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.category === 'string' && typeof item.content === 'string' && item.custom === true)); }
+    } catch { toast.error('Alcune preferenze locali non sono state caricate.'); }
+    finally { setTemplatesLoaded(true); }
+  }, []);
+  useEffect(() => {
+    if (!editor) return;
+    const dimensions = PAGE_DIMENSIONS[pageFormat];
+    const width = pageOrientation === 'portrait' ? dimensions.width : dimensions.height;
+    const height = pageOrientation === 'portrait' ? dimensions.height : dimensions.width;
+    editor.view.dom.style.setProperty('--md-page-width', width + 'mm');
+    editor.view.dom.style.setProperty('--md-page-height', height + 'mm');
+    editor.view.dom.style.setProperty('--md-page-padding', PAGE_MARGIN_MM[pageMargins] + 'mm');
+    try { window.localStorage.setItem(PAGE_LAYOUT_KEY, JSON.stringify({ format: pageFormat, orientation: pageOrientation, margins: pageMargins })); } catch {}
+  }, [editor, pageFormat, pageOrientation, pageMargins]);
+  useEffect(() => { if (!templatesLoaded) return; try { window.localStorage.setItem(CUSTOM_TEMPLATE_KEY, JSON.stringify(customTemplates)); } catch { toast.error('Spazio locale insufficiente per salvare il modello personale.'); } }, [customTemplates, templatesLoaded]);
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || !event.altKey) return; if (event.key.toLowerCase() === 'p') { event.preventDefault(); setActiveTab('Pagine'); } if (event.key.toLowerCase() === 'm') { event.preventDefault(); setActiveTab('Modelli'); } };
+    window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler);
+  }, []);
+  const insertTemplate = (template: EditorTemplate) => { editor?.chain().focus().insertContent(template.content).run(); toast.success('Modello inserito: ' + template.name); };
+  const saveCustomTemplate = () => {
+    const name = templateName.trim(), body = templateBody.trim();
+    if (name.length < 2) { toast.error('Inserisci un nome per il modello.'); return; }
+    if (body.length < 5) { toast.error('Inserisci il contenuto del modello.'); return; }
+    if (body.length > 12000) { toast.error('Il modello è troppo lungo.'); return; }
+    const content = body.split(/\r?\n/).map((line) => line.trim() ? '<p>' + escapeTemplateText(line.trim()) + '</p>' : '<p><br/></p>').join('');
+    setCustomTemplates((items) => [{ id: 'custom-' + Date.now().toString(36), name: name.slice(0, 80), category: 'Personale', content, custom: true }, ...items]); setTemplateName(''); setTemplateBody(''); toast.success('Modello salvato in questo browser.');
+  };
 
   if (!editor) return null;
 
@@ -61,7 +123,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
       className={cn(
         "whitespace-nowrap rounded-t-lg border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
         activeTab === name 
-          ? "border-blue-600 bg-blue-50/70 text-blue-700" 
+          ? "border-teal-600 bg-teal-50/70 text-teal-700" 
           : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"
       )}
     >
@@ -76,8 +138,8 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
       disabled={disabled}
       title={title}
       className={cn(
-        "rounded-lg p-2 flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600",
-        isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+        "rounded-lg p-2 flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600",
+        isActive ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
         disabled && "opacity-40 cursor-not-allowed"
       )}
     >
@@ -86,13 +148,15 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
   );
 
   return (
-    <div className="z-40 flex flex-col border-b border-slate-200 bg-white shadow-sm print:hidden">
+    <div data-md-ribbon="true" className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
         {editor.isActive('table') && <TabButton name="Tabella" />}
         <TabButton name="Layout" />
         <TabButton name="Studio" />
+        <TabButton name="Pagine" />
+        <TabButton name="Modelli" />
       </div>
 
       <div className="flex min-h-[54px] flex-wrap items-center gap-3 overflow-x-auto p-2.5">
@@ -126,7 +190,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
 
               <div className="flex items-center space-x-1 ml-1">
                 <label className="p-1.5 hover:bg-slate-200 rounded cursor-pointer flex items-center text-slate-700" title="Colore Testo">
-                  <Palette className="w-4 h-4 text-blue-600" />
+                  <Palette className="w-4 h-4 text-teal-600" />
                   <input type="color" className="sr-only" onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} />
                 </label>
                 <label className="p-1.5 hover:bg-slate-200 rounded cursor-pointer flex items-center text-slate-700" title="Evidenziatore">
@@ -166,7 +230,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
                 ).run();
                 toast.success('Schema di studio inserito.');
               }}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-100"
+              className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-800 transition hover:bg-teal-100"
             >
               Schema lezione
             </button>
@@ -209,6 +273,12 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
           </div>
         )}
 
+        {activeTab === 'Modelli' && (
+          <div className="flex w-full flex-col gap-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-semibold text-slate-800">Modelli per Infermieristica e accesso a Medicina</p><p className="text-[11px] text-slate-500">Scegli una struttura e adattala ai tuoi appunti.</p></div><span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] text-amber-800">Solo studio: non inserire dati identificativi di pazienti reali.</span></div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">{[...BUILTIN_TEMPLATES, ...customTemplates].map((template) => <div key={template.id} className="flex items-stretch gap-1"><button type="button" onClick={() => insertTemplate(template)} className="md-template-card"><span>{template.name}</span><span className="text-[10px] font-normal text-slate-500">{template.category}{template.custom ? ' · personale' : ''}</span></button>{template.custom && <button type="button" onClick={() => setCustomTemplates((items) => items.filter((item) => item.id !== template.id))} title={'Elimina ' + template.name} className="rounded-lg px-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600">×</button>}</div>)}</div>
+          <details className="rounded-xl border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-xs font-semibold text-slate-700">Crea modello personale</summary><div className="mt-3 grid gap-2"><input value={templateName} onChange={(e) => setTemplateName(e.target.value)} maxLength={80} placeholder="Nome del modello" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"/><textarea value={templateBody} onChange={(e) => setTemplateBody(e.target.value)} maxLength={12000} rows={4} placeholder="Una riga per paragrafo…" className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs leading-5"/><button type="button" onClick={saveCustomTemplate} className="md-primary-button justify-self-start">Salva modello</button></div></details></div>
+        )}
+
         {activeTab === 'Inserisci' && (
           <div className="flex items-center gap-2">
             <button 
@@ -216,7 +286,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
               onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
               className="flex items-center space-x-1.5 px-3 py-1.5 hover:bg-slate-200 rounded text-slate-700 text-xs font-medium bg-white border border-slate-300"
             >
-              <TableIcon className="w-4 h-4 text-blue-600" /> <span>Inserisci Tabella</span>
+              <TableIcon className="w-4 h-4 text-teal-600" /> <span>Inserisci Tabella</span>
             </button>
             <input
               ref={imageInputRef}
@@ -249,7 +319,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
             <button
               type="button"
               onClick={() => imageInputRef.current?.click()}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-teal-300 hover:bg-teal-50"
             >
               <FileUp className="h-4 w-4 text-emerald-600" /> <span>Carica immagine</span>
             </button>
@@ -266,9 +336,9 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
                   toast.error('Inserisci un URL immagine valido che inizi con https:// o http://.');
                 }
               }}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-teal-300 hover:bg-teal-50"
             >
-              <ImageIcon className="h-4 w-4 text-blue-600" /> <span>Da link</span>
+              <ImageIcon className="h-4 w-4 text-teal-600" /> <span>Da link</span>
             </button>
             <button
               type="button"
@@ -281,7 +351,7 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
             <button
               type="button"
               onClick={onOpenDrawingPad}
-              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-100"
+              className="flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-800 transition hover:bg-teal-100"
             >
               <PenLine className="h-4 w-4" /> Scrivi a mano
             </button>
@@ -298,10 +368,10 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
         {activeTab === 'Tabella' && (
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 flex items-center space-x-1">
-              <Rows className="w-3.5 h-3.5 text-blue-600" /> <span>+ Riga</span>
+              <Rows className="w-3.5 h-3.5 text-teal-600" /> <span>+ Riga</span>
             </button>
             <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 flex items-center space-x-1">
-              <Columns className="w-3.5 h-3.5 text-blue-600" /> <span>+ Colonna</span>
+              <Columns className="w-3.5 h-3.5 text-teal-600" /> <span>+ Colonna</span>
             </button>
             <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 text-red-600">
               Elimina Riga
@@ -315,9 +385,22 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
           </div>
         )}
 
+        {activeTab === 'Pagine' && (
+          <div className="flex w-full flex-col gap-3"><div><p className="text-sm font-semibold text-slate-800">Pagine ed elementi pronti</p><p className="text-[11px] text-slate-500">Inserisci strutture modificabili nel documento.</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            <button type="button" className="md-tool-card" onClick={() => editor.chain().focus().insertContent('<h1 style="text-align:center">Titolo del documento</h1><p style="text-align:center">Sottotitolo</p><p style="text-align:center">Nome e data</p><hr/><h2>Introduzione</h2><p>…</p><div data-page-break="true" class="page-break-marker"></div>').run()}>Copertina</button>
+            <button type="button" className="md-tool-card" onClick={() => { editor.chain().focus().insertContent({ type: 'pageBreak' }).run(); editor.chain().focus().insertContent('<p><br/></p>').run(); }}>Pagina bianca</button>
+            <button type="button" className="md-tool-card" onClick={() => editor.chain().focus().insertContent('<h1>Appunti della lezione</h1><p><strong>Materia:</strong> …　<strong>Data:</strong> …</p><h2>Obiettivi</h2><p>…</p><h2>Concetti chiave</h2><ul><li><p>…</p></li></ul><h2>Riepilogo</h2><p>…</p>').run()}>Pagina appunti</button>
+            <button type="button" className="md-tool-card" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>Tabella 3×3</button>
+            <button type="button" className="md-tool-card" onClick={() => editor.chain().focus().insertContent('<h2>Tabella comparativa</h2><table><tbody><tr><th><p>Caratteristica</p></th><th><p>Voce A</p></th><th><p>Voce B</p></th></tr><tr><td><p>Definizione</p></td><td><p>…</p></td><td><p>…</p></td></tr><tr><td><p>Elementi chiave</p></td><td><p>…</p></td><td><p>…</p></td></tr></tbody></table>').run()}>Tabella comparativa</button>
+            <button type="button" className="md-tool-card" onClick={() => editor.chain().focus().insertContent('<h2>Checklist di studio</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Ho studiato la teoria</p></li><li data-type="taskItem" data-checked="false"><p>Ho fatto i quiz</p></li><li data-type="taskItem" data-checked="false"><p>Ho corretto gli errori</p></li></ul>').run()}>Checklist</button>
+          </div></div>
+        )}
+
         {activeTab === 'Layout' && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Formato pagina A4 · margini standard</span>
+            <label className="grid gap-1 text-xs font-semibold text-slate-700">Formato<select value={pageFormat} onChange={(e) => setPageFormat(e.target.value as PageFormat)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="A4">A4</option><option value="A5">A5</option><option value="A3">A3</option><option value="Letter">Letter</option></select></label>
+            <label className="grid gap-1 text-xs font-semibold text-slate-700">Orientamento<select value={pageOrientation} onChange={(e) => setPageOrientation(e.target.value as PageOrientation)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="portrait">Verticale</option><option value="landscape">Orizzontale</option></select></label>
+            <label className="grid gap-1 text-xs font-semibold text-slate-700">Margini<select value={pageMargins} onChange={(e) => setPageMargins(e.target.value as PageMargins)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"><option value="normal">Normali</option><option value="narrow">Stretti</option><option value="wide">Larghi</option></select></label>
             <button
               type="button"
               onClick={() => editor.chain().focus().insertContent({ type: 'pageBreak' }).run()}

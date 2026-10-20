@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -53,9 +53,10 @@ interface EditorCoreProps {
   initialContent: string;
   onChange: (html: string) => void;
   isSaving: boolean;
+  onRegisterInsert?: (handler: ((html: string) => void) | null) => void;
 }
 
-export default function EditorCore({ initialContent, onChange, isSaving }: EditorCoreProps) {
+export default function EditorCore({ initialContent, onChange, isSaving, onRegisterInsert }: EditorCoreProps) {
   const [zoom, setZoom] = useState(100)
   const [drawingPadOpen, setDrawingPadOpen] = useState(false)
   const editor = useEditor({
@@ -71,16 +72,16 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
       PaginationPlus.configure({
         ...PAGE_SIZES.A4,
         enabled: true,
-        marginTop: 96,
-        marginBottom: 96,
+        marginTop: 24,
+        marginBottom: 36,
         marginLeft: 96,
         marginRight: 96,
         pageGap: 30,
         pageGapBorderSize: 1,
         pageGapBorderColor: '#d7e0ed',
         pageBreakBackground: '#e9eef7',
-        contentMarginTop: 16,
-        contentMarginBottom: 16,
+        contentMarginTop: 0,
+        contentMarginBottom: 0,
         headerLeft: '',
         headerRight: '',
         footerLeft: '',
@@ -100,8 +101,17 @@ export default function EditorCore({ initialContent, onChange, isSaving }: Edito
     },
   });
 
+  useEffect(() => {
+    if (!editor || !onRegisterInsert) return;
+    const insertHtml = (html: string) => {
+      editor.chain().focus().insertContent(html).run();
+    };
+    onRegisterInsert(insertHtml);
+    return () => onRegisterInsert(null);
+  }, [editor, onRegisterInsert]);
+
   return (
-    <div className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-200">
+    <div data-md-editor-shell="true" className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-teal-50 to-[#e5eff2]">
       <Ribbon editor={editor} onOpenDrawingPad={() => setDrawingPadOpen(true)} />
       
       <div className="min-h-0 flex-1 overflow-auto">

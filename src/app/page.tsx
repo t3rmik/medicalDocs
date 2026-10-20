@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
 import { Header } from '@/components/shared/Header'
+import { AIStudio } from '@/components/ai/AIStudio'
 import { Sidebar } from '@/components/shared/Sidebar'
 import { MedicalEditor } from '@/components/editor/MedicalEditor'
 import { FileOpener } from '@/components/shared/FileOpener'
@@ -11,6 +12,7 @@ import { OcrProgress } from '@/components/pdf/OcrProgress'
 import { PdfModeChoice } from '@/types'
 import { parseFileToHtml } from '@/lib/importDocx'
 import { extractTextFromPdf } from '@/lib/importPdf'
+import { markdownToHtml } from '@/lib/markdown'
 import { db, MedicalDocument } from '@/lib/db'
 
 const PdfAnnotator = dynamic(
@@ -38,6 +40,12 @@ export default function Home() {
   const [isFileOpenerOpen, setIsFileOpenerOpen] = useState(false);
   const [pdfAnnotatorFile, setPdfAnnotatorFile] = useState<File | null>(null);
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
+  const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
+  const insertIntoEditorRef = useRef<((html: string) => void) | null>(null);
+  const registerEditorInsert = useCallback((handler: ((html: string) => void) | null) => {
+    insertIntoEditorRef.current = handler;
+  }, []);
+
 
   const persistDocument = async (doc: MedicalDocument, session: number) => {
     const docToSave = { ...doc, updatedAt: new Date() };
@@ -167,6 +175,8 @@ export default function Home() {
       const duplicate: MedicalDocument = {
         title: (source.title.trim() || 'Documento') + ' - copia',
         content: source.content,
+        favorite: false,
+        folder: source.folder || 'Generale',
         createdAt: now,
         updatedAt: now,
       };
@@ -175,6 +185,41 @@ export default function Home() {
       toast.success('Copia del documento creata.');
     } catch {
       toast.error('Impossibile duplicare il documento.');
+    }
+  };
+
+  const handleOpenAIStudio = () => {
+    if (pdfAnnotatorFile) {
+      toast.error("Torna all'editor testuale per usare AI Studio.");
+      return;
+    }
+    setIsAIStudioOpen(true);
+  };
+
+  const handleInsertAIResult = (result: string, actionLabel: string) => {
+    const insertHtml = insertIntoEditorRef.current;
+    if (!insertHtml) { toast.error("L'editor non è pronto. Chiudi AI Studio, attendi il caricamento e riprova."); return; }
+    const safe = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    insertHtml('<h2>AI Studio — ' + safe(actionLabel) + '</h2>' + markdownToHtml(result, 1));
+    setIsAIStudioOpen(false);
+    toast.success('Risultato AI inserito con formattazione.');
+  };
+
+  const handleUpdateDocumentMetadata = async (
+    docId: number,
+    updates: Partial<Pick<MedicalDocument, 'favorite' | 'folder'>>
+  ) => {
+    try {
+      if (activeDocRef.current.id === docId) {
+        const nextDoc = { ...activeDocRef.current, ...updates, updatedAt: new Date() };
+        activeDocRef.current = nextDoc;
+        setActiveDoc(nextDoc);
+        scheduleSave(nextDoc);
+      } else {
+        await db.documents.update(docId, { ...updates, updatedAt: new Date() });
+      }
+    } catch {
+      toast.error('Impossibile aggiornare preferiti o cartella.');
     }
   };
 
@@ -286,6 +331,7 @@ export default function Home() {
         onNewDocument={handleNewDocument}
         activeFileName={activeDoc.title}
         onTitleChange={handleTitleChange}
+        onOpenAIStudio={handleOpenAIStudio}
         isSaving={isSaving}
       />
       
@@ -297,6 +343,7 @@ export default function Home() {
         <div className="flex flex-1 overflow-hidden">
           <Sidebar 
             onLoadDocument={loadDocument} 
+            onUpdateDocumentMetadata={handleUpdateDocumentMetadata}
             activeDocId={activeDoc.id} 
             currentHtml={activeDoc.content}
             onDuplicateDocument={handleDuplicateDocument}
@@ -307,12 +354,14 @@ export default function Home() {
               onChange={handleContentChange}
               initialContent={activeDoc.content}
               isSaving={isSaving}
+              onRegisterInsert={registerEditorInsert}
             />
           </main>
         </div>
       )}
 
       <FileOpener isOpen={isFileOpenerOpen} onClose={() => setIsFileOpenerOpen(false)} onFileSelect={handleFileSelect} />
+      <AIStudio isOpen={isAIStudioOpen} onClose={() => setIsAIStudioOpen(false)} documentTitle={activeDoc.title} content={activeDoc.content} onInsert={handleInsertAIResult} />
       {ocrState.active && <OcrProgress status={ocrState.status} progress={ocrState.progress} />}
     </div>
   );

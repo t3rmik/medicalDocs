@@ -48,10 +48,10 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
+    <div data-md-file-opener="true" className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div data-md-file-modal="true" className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-slate-800">Apri Documento Sanitario</h2>
+          <h2 className="text-xl font-bold text-slate-800">Apri o importa un documento</h2>
           <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
         </div>
 

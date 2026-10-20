@@ -19,7 +19,7 @@ export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarPro
   const pageCount = Math.max(1, editor.view.dom.querySelector('#pages')?.querySelectorAll('.rm-page-break').length || 1)
 
   return (
-    <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm sm:px-5 print:hidden">
+    <div data-md-statusbar="true" className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200/90 bg-white/95 px-3 py-2 text-xs text-slate-500 shadow-sm backdrop-blur sm:px-5 print:hidden">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span>{words} parole</span>
         <span>{chars} caratteri</span>
@@ -27,8 +27,8 @@ export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarPro
         <span className="inline-flex items-center gap-1.5 border-l border-slate-200 pl-3" role="status" aria-live="polite">
           {isSaving ? (
             <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-              <span className="text-blue-700">Salvataggio in corso</span>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-600" />
+              <span className="text-teal-700">Salvataggio in corso</span>
             </>
           ) : (
             <>
@@ -46,7 +46,7 @@ export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarPro
             type="button"
             onClick={() => onZoomChange(Math.max(60, zoom - 10))}
             disabled={zoom <= 60}
-            className="rounded-lg p-1.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
+            className="rounded-lg p-1.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Riduci zoom editor"
             title="Riduci zoom"
           >
@@ -57,7 +57,7 @@ export function StatusBar({ editor, zoom, onZoomChange, isSaving }: StatusBarPro
             type="button"
             onClick={() => onZoomChange(Math.min(160, zoom + 10))}
             disabled={zoom >= 160}
-            className="rounded-lg p-1.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
+            className="rounded-lg p-1.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-30"
             aria-label="Aumenta zoom editor"
             title="Aumenta zoom"
           >
