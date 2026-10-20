@@ -26,7 +26,7 @@ Modello predefinito: `gemini-3.8-flash`, configurabile con `GEMINI_MODEL_PRIMARY
 
 ## Limiti e diagnostica
 
-- Massimo 4 tentativi e budget di circa 24 secondi; nessun ciclo di retry e nessun ritardo artificiale.
+- Massimo 4 tentativi entro un budget di circa 27 secondi; timeout massimo per singolo tentativo di 12 secondi. Nessun ciclo di retry e nessun ritardo artificiale.
 - `401/403`: salta il provider con credenziali/permessi non validi e passa a un provider diverso.
 - Modello non trovato / `404`: passa al modello successivo; un endpoint errato viene saltato per quel provider.
 - `429` con quota globale esaurita: passa al provider successivo senza provare inutilmente altri modelli dello stesso account.

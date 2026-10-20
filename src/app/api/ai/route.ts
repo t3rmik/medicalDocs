@@ -206,7 +206,7 @@ export async function POST(request: Request) {
   }
 
   const maxAttempts = 4;
-  const requestDeadline = Date.now() + 24_000;
+  const requestDeadline = Date.now() + 27_000;
   const unavailableProviders = new Set<string>();
   let attempts = 0;
   let allFailuresWere429 = true;
@@ -219,9 +219,10 @@ export async function POST(request: Request) {
     const candidate = attemptCandidates[candidateIndex];
     if (unavailableProviders.has(candidate.provider)) continue;
     const remainingMs = requestDeadline - Date.now();
-    if (remainingMs < 750) break;
+    if (remainingMs < 1_250) break;
 
-    const attemptTimeoutMs = Math.min(6_000, remainingMs - 250);
+    // The primary model can take longer on larger summaries; avoid aborting healthy generations too early.
+    const attemptTimeoutMs = Math.min(12_000, remainingMs - 500);
     attempts += 1;
 
     try {
@@ -346,8 +347,29 @@ export async function POST(request: Request) {
     );
   }
 
+  if (/timeout|abort/i.test(lastErrorCode)) {
+    return NextResponse.json(
+      { error: 'La generazione AI ha superato il tempo massimo. Ho provato i modelli disponibili, ma non hanno risposto in tempo. Riprova oppure usa un estratto più breve.', retryable: true, errorCode: lastErrorCode },
+      { status: 504 }
+    );
+  }
+
+  if (/http_401|http_403|invalid_api_key|unauthorized|permission/i.test(lastErrorCode)) {
+    return NextResponse.json(
+      { error: 'Il provider AI ha rifiutato la chiave o i permessi. Verifica le variabili API e l’accesso al modello nel progetto Vercel di produzione.', retryable: false, errorCode: lastErrorCode },
+      { status: 502 }
+    );
+  }
+
+  if (/http_5\\d\\d|server_error|service_unavailable|network_error|fetcherror/i.test(lastErrorCode)) {
+    return NextResponse.json(
+      { error: 'Il provider AI ha avuto un errore temporaneo di servizio o di rete. Il sistema ha provato i modelli disponibili; attendi qualche secondo e riprova.', retryable: true, errorCode: lastErrorCode },
+      { status: 502 }
+    );
+  }
+
   return NextResponse.json(
-    { error: 'Nessun provider AI configurato ha completato la richiesta. Controlla chiavi, permessi, modello e connettività; se il problema persiste, riprova più tardi.', retryable: true, errorCode: lastErrorCode },
+    { error: 'Nessun modello AI disponibile ha completato la richiesta. Controlla i limiti di utilizzo, la configurazione del provider e riprova.', retryable: true, errorCode: lastErrorCode },
     { status: 503 }
   );
 }
