@@ -338,3 +338,31 @@ html{scroll-behavior:smooth}button,[role="button"],input,select,textarea,summary
 }
 .ProseMirror.rm-with-pagination { background-color: #ffffff !important; }
 .rm-pagination-gap { background-color: #edf3f6 !important; }
+
+/* Tailwind Preflight removes list markers globally; restore them inside the editor. */
+.ProseMirror ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+.ProseMirror ul:not([data-type="taskList"]) ul {
+  list-style-type: circle;
+}
+.ProseMirror ul:not([data-type="taskList"]) ul ul {
+  list-style-type: square;
+}
+.ProseMirror ol ol {
+  list-style-type: lower-alpha;
+}
+.ProseMirror ol ol ol {
+  list-style-type: lower-roman;
+}
+/* Task lists use checkboxes, not regular bullets. */
+.ProseMirror ul[data-type="taskList"],
+.ProseMirror ul[data-type="taskList"] ul {
+  list-style: none;
+}
+
