@@ -222,8 +222,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [sourceMode, setSourceMode] = useState<'document' | 'pages' | 'topics'>('document')
   const [selectedTopics, setSelectedTopics] = useState<number[]>([])
   const [topicFocus, setTopicFocus] = useState('')
-  const [pageFrom, setPageFrom] = useState(1)
-  const [pageTo, setPageTo] = useState(1)
+  const [selectedPageNumbers, setSelectedPageNumbers] = useState<number[]>([])
 
   if (!isOpen) return null
 
@@ -237,16 +236,12 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
       ? explicitPages
       : estimateTextPages(plainText)
   const topicSections = detectTopicSections(content)
-  const firstPage = pageSections[0]?.number ?? 1
-  const lastPage = pageSections[pageSections.length - 1]?.number ?? 1
-  const normalizedPageFrom = Math.min(pageFrom, pageTo)
-  const normalizedPageTo = Math.max(pageFrom, pageTo)
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
   const runAction = async (action: AIAction = selectedAction) => {
     setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setResultExpanded(false); setGenerationInfo(null); setRetryMessage(''); setCopied(false);
     const selectedPages = sourceMode === 'pages'
-      ? pageSections.filter((page) => page.number >= normalizedPageFrom && page.number <= normalizedPageTo)
+      ? pageSections.filter((page) => selectedPageNumbers.includes(page.number))
       : []
     const selectedTopicSections = sourceMode === 'topics'
       ? topicSections.filter((topic) => selectedTopics.includes(topic.number))
@@ -261,7 +256,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
         : plainText
 
     if (sourceMode === 'pages' && selectedPages.length === 0) {
-      setError('Non riesco a trovare le pagine selezionate nel testo del documento. Prova con un PDF convertito in testo o aggiungi interruzioni di pagina esplicite.')
+      setError('Seleziona almeno una pagina o una sezione da includere nel lavoro dell’AI.')
       setIsLoading(false)
       return
     }
@@ -277,7 +272,10 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
     }
     if (sourceText.length < 2) { setError('Il testo selezionato non contiene contenuto sufficiente. Seleziona altre pagine o argomenti e riprova.'); setIsLoading(false); return; }
     try {
-      const pageRange = sourceMode === 'pages' && hasExactPageBoundaries && selectedPages.length
+      const selectedPagesAreContiguous = selectedPages.every((page, index) =>
+        index === 0 || page.number === selectedPages[index - 1].number + 1
+      )
+      const pageRange = sourceMode === 'pages' && hasExactPageBoundaries && selectedPages.length && selectedPagesAreContiguous
         ? { from: selectedPages[0].number, to: selectedPages[selectedPages.length - 1].number }
         : undefined
       const effectiveInstruction = [
@@ -414,7 +412,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                   </label>
                   {pageSections.length > 1 && (
                     <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
-                      <input type="radio" name="ai-source-mode" checked={sourceMode === 'pages'} onChange={() => { setSourceMode('pages'); setPageFrom(firstPage); setPageTo(lastPage) }} className="accent-teal-700" />
+                      <input type="radio" name="ai-source-mode" checked={sourceMode === 'pages'} onChange={() => { setSourceMode('pages'); setSelectedPageNumbers(pageSections.map((page) => page.number)) }} className="accent-teal-700" />
                       Scegli pagine
                     </label>
                   )}
@@ -426,39 +424,38 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
 
                 {sourceMode === 'pages' && pageSections.length > 1 && (
                   <div className="mt-3 rounded-xl border border-teal-100 bg-white p-3">
-                    <p className="mb-3 text-xs font-semibold text-slate-700">Intervallo di pagine del documento sorgente</p>
-                    <div className="flex flex-wrap items-end gap-3">
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-semibold text-slate-600">Dalla pagina</span>
-                        <input type="number" inputMode="numeric" min={firstPage} max={lastPage} value={pageFrom}
-                          onChange={(event) => {
-                            const value = Number(event.target.value)
-                            if (!Number.isFinite(value)) return
-                            const next = Math.min(lastPage, Math.max(firstPage, Math.trunc(value)))
-                            setPageFrom(next)
-                            if (next > pageTo) setPageTo(next)
-                          }}
-                          className="w-24 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                          aria-label="Pagina iniziale" />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-semibold text-slate-600">Alla pagina</span>
-                        <input type="number" inputMode="numeric" min={firstPage} max={lastPage} value={pageTo}
-                          onChange={(event) => {
-                            const value = Number(event.target.value)
-                            if (!Number.isFinite(value)) return
-                            const next = Math.min(lastPage, Math.max(firstPage, Math.trunc(value)))
-                            setPageTo(next)
-                            if (next < pageFrom) setPageFrom(next)
-                          }}
-                          className="w-24 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                          aria-label="Pagina finale" />
-                      </label>
-                      <p className="pb-2 text-xs text-teal-900">
-                        Verranno inviate solo le pagine {normalizedPageFrom}–{normalizedPageTo}.
-                      </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700">Quali pagine vuoi includere?</p>
+                        <p className="mt-1 text-[11px] text-slate-500">{selectedPageNumbers.filter((number) => pageSections.some((page) => page.number === number)).length} di {pageSections.length} selezionate</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button type="button" onClick={() => setSelectedPageNumbers(pageSections.map((page) => page.number))}
+                          className="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-[11px] font-bold text-teal-800 hover:bg-teal-100">Tutte</button>
+                        <button type="button" onClick={() => setSelectedPageNumbers([])}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">Nessuna</button>
+                      </div>
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-slate-500">{hasExactPageBoundaries ? 'Selezione basata sui marcatori di pagina riconosciuti nel documento.' : 'Il documento non conserva le pagine originali: il testo è suddiviso in sezioni di lunghezza simile, quindi questi intervalli sono stimati.'}</p>
+                    <div className="mt-3 grid max-h-48 gap-2 overflow-y-auto overscroll-contain pr-1 sm:max-h-56 sm:grid-cols-2">
+                      {pageSections.map((page) => {
+                        const checked = selectedPageNumbers.includes(page.number)
+                        const preview = page.text.replace(/^Pagina\s+\d+\s*/i, '').replace(/^Sezione\s+\d+\s*/i, '').replace(/\s+/g, ' ').trim()
+                        return (
+                          <label key={page.number} className={'flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition ' + (checked ? 'border-teal-300 bg-teal-50/80' : 'border-slate-200 bg-white hover:border-teal-200 hover:bg-slate-50')}>
+                            <input type="checkbox" checked={checked}
+                              onChange={(event) => setSelectedPageNumbers((current) => event.target.checked
+                                ? Array.from(new Set([...current, page.number])).sort((a, b) => a - b)
+                                : current.filter((number) => number !== page.number))}
+                              className="mt-0.5 h-4 w-4 shrink-0 accent-teal-700" />
+                            <span className="min-w-0">
+                              <span className="block text-xs font-bold text-slate-800">{page.title || (hasExactPageBoundaries ? 'Pagina ' + page.number : 'Sezione ' + page.number + ' · pagina stimata')}</span>
+                              <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-slate-500">{preview.slice(0, 140) || 'Nessuna anteprima testuale'}</span>
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-500">{hasExactPageBoundaries ? 'Sono elencate le pagine riconosciute nel documento.' : 'Il documento non conserva le pagine originali: le sezioni sono stimate dalla lunghezza del testo.'}</p>
                   </div>
                 )}
 
