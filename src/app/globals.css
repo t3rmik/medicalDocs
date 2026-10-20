@@ -37,6 +37,7 @@ textarea:focus-visible {
 }
 
 .ProseMirror {
+  position: relative;
   min-height: 100%;
   color: #1e293b;
   font-family: Calibri, "Segoe UI", Arial, sans-serif;
@@ -282,3 +283,13 @@ html{scroll-behavior:smooth}button,[role="button"],input,select,textarea,summary
 @media(hover:none){button:not(:disabled):hover,.md-tool-card:hover,.md-template-card:hover{transform:none}[data-md-ribbon="true"] button,[data-md-sidebar-rail="true"] button{min-height:44px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
+
+
+/* Penna libera direttamente sulla pagina del documento. */
+.medicaldocs-ink-layer { box-sizing: border-box; overflow: visible; }
+.medicaldocs-ink-layer svg { display: block; }
+[data-md-ink-toolbar="true"] { flex-shrink: 0; }
+@media (max-width: 768px) {
+  [data-md-ribbon] button { min-height: 42px; touch-action: manipulation; }
+  [data-md-ink-toolbar="true"] { gap: 0.5rem; padding: 0.625rem; }
+}

@@ -66,10 +66,11 @@ async function readCompressedImage(file: File): Promise<string> {
 
 interface RibbonProps {
   editor: Editor | null;
-  onOpenDrawingPad: () => void;
+  onToggleInk: () => void;
+  inkMode: boolean;
 }
 
-export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
+export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio' | 'Pagine' | 'Modelli'>('Home');
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
@@ -350,10 +351,11 @@ export function Ribbon({ editor, onOpenDrawingPad }: RibbonProps) {
             </button>
             <button
               type="button"
-              onClick={onOpenDrawingPad}
-              className="flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-800 transition hover:bg-teal-100"
+              onClick={onToggleInk}
+              aria-pressed={inkMode}
+              className={"flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition " + (inkMode ? "border-indigo-300 bg-indigo-100 text-indigo-900 ring-2 ring-indigo-200" : "border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100")}
             >
-              <PenLine className="h-4 w-4" /> Scrivi a mano
+              <PenLine className="h-4 w-4" /> {inkMode ? 'Termina scrittura' : 'Scrivi sul foglio'}
             </button>
             <button 
               type="button"
