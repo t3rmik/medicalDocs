@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 type AIAction = 'summarize' | 'outline' | 'flashcards' | 'quiz' | 'explain' | 'rewrite' | 'ask';
 
@@ -52,8 +52,8 @@ function getRetryAfterSeconds(response: Response, message: string): number | und
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get('content-length') || 0);
-  if (contentLength > 120_000) {
-    return NextResponse.json({ error: 'Il testo inviato è troppo grande. Prova con un estratto più breve.' }, { status: 413 });
+  if (contentLength > 220_000) {
+    return NextResponse.json({ error: 'Il testo inviato supera il limite della richiesta. Prova a dividere il documento in sezioni.' }, { status: 413 });
   }
 
   let payload: unknown;
@@ -75,9 +75,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Apri un documento o inserisci del testo prima di usare AI Studio.' }, { status: 400 });
   }
 
-  // The browser extracts plain text before sending it; do not parse it as HTML here,
-  // because medical formulas such as pH < 7.35 must remain intact.
-  const sourceText = body.content.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim().slice(0, 50_000);
+  // The browser sends plain text and preserves block boundaries. Never silently truncate a source:
+  // a partial medical/study document would produce a misleading summary.
+  const sourceText = body.content.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim();
+  if (sourceText.length > 80_000) {
+    return NextResponse.json({ error: 'Il documento è molto lungo per una singola elaborazione. Dividilo in sezioni e genera il riassunto di ciascuna.' }, { status: 413 });
+  }
   if (sourceText.length < 2) {
     return NextResponse.json({ error: 'Il documento non contiene testo sufficiente per questa operazione.' }, { status: 400 });
   }
@@ -132,7 +135,7 @@ export async function POST(request: Request) {
     '--- INIZIO DOCUMENTO ---',
     sourceText,
     '--- FINE DOCUMENTO ---',
-    'Rispondi in italiano, in modo ordinato e leggibile. Non formulare diagnosi o raccomandazioni terapeutiche individuali. Se la fonte è ambigua o insufficiente, dichiaralo.',
+    'QUALITÀ E FORMATO OBBLIGATORI: scrivi in italiano corretto, naturale e revisionato; correggi ortografia, grammatica e punteggiatura senza alterare il significato o i termini tecnici. Organizza la risposta con titoli Markdown brevi (##), una riga vuota tra paragrafi e sezioni, ed elenchi puntati con un solo concetto per riga quando utili. Evita muri di testo, frasi interminabili, parole attaccate, ripetizioni e paragrafi senza separazione. Non mettere tutto in un unico blocco. Non inventare informazioni e non omettere avvertenze importanti. Non formulare diagnosi o raccomandazioni terapeutiche individuali. Se la fonte è ambigua o insufficiente, dichiaralo.',
   ].filter(Boolean).join('\n\n');
 
   type ProviderCandidate = {
@@ -206,7 +209,7 @@ export async function POST(request: Request) {
   }
 
   const maxAttempts = 4;
-  const requestDeadline = Date.now() + 27_000;
+  const requestDeadline = Date.now() + 55_000;
   const unavailableProviders = new Set<string>();
   let attempts = 0;
   let allFailuresWere429 = true;
@@ -222,7 +225,7 @@ export async function POST(request: Request) {
     if (remainingMs < 1_250) break;
 
     // The primary model can take longer on larger summaries; avoid aborting healthy generations too early.
-    const attemptTimeoutMs = Math.min(18_000, remainingMs - 500);
+    const attemptTimeoutMs = Math.min(32_000, remainingMs - 500);
     attempts += 1;
 
     try {
@@ -235,7 +238,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model: candidate.model,
           temperature: 0.3,
-          max_tokens: 2_400,
+          max_tokens: sourceText.length > 30_000 && selectedAction !== 'rewrite' ? 1_800 : 2_400,
           messages: [
             {
               role: 'system',
@@ -265,7 +268,7 @@ export async function POST(request: Request) {
         const rawCode = upstreamError && typeof upstreamError === 'object'
           ? (typeof upstreamError.code === 'string' ? upstreamError.code : typeof upstreamError.type === 'string' ? upstreamError.type : '')
           : '';
-        const errorCode = String(rawCode || 'http_' + upstream.status).replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
+        const errorCode = ('http_' + upstream.status + '_' + String(rawCode || 'upstream_error')).replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
         lastErrorCode = errorCode;
 
         if (upstream.status === 429) {
@@ -342,7 +345,7 @@ export async function POST(request: Request) {
       ? { 'Retry-After': String(Math.max(1, lastRetryAfterSeconds)) }
       : undefined;
     return NextResponse.json(
-      { error: 'I provider AI disponibili hanno raggiunto la quota o i limiti di utilizzo. Controlla Usage e Limits, oppure configura un provider alternativo.', retryable: true },
+      { error: 'I provider AI disponibili hanno raggiunto la quota o i limiti di utilizzo. Controlla Usage e Limits, oppure configura un provider alternativo.', retryable: true, retryAfterSeconds: lastRetryAfterSeconds },
       { status: 429, headers }
     );
   }
