@@ -220,6 +220,12 @@ export async function POST(request: Request) {
         baseUrl: geminiBaseUrl,
         model: process.env.GEMINI_MODEL_FALLBACK_2 || 'gemini-3.6-flash',
       });
+      addCandidate({
+        provider: 'gemini',
+        apiKey: process.env.GEMINI_API_KEY,
+        baseUrl: geminiBaseUrl,
+        model: process.env.GEMINI_MODEL_FALLBACK_3 || 'gemini-3.5-flash-lite',
+      });
     }
   }
 
@@ -232,6 +238,11 @@ export async function POST(request: Request) {
 
   const maxAttempts = 8;
   const requestDeadline = Date.now() + 55_000;
+  // Groq's current on-demand TPM cap is 8K for GPT-OSS models. Estimate prompt
+  // tokens conservatively so long requests go straight to Gemini instead of
+  // wasting two attempts on sibling Groq models that share the same limit.
+  const estimatedPromptTokens = Math.ceil(userPrompt.length / 3.1) + 200;
+  const skipGroqForSize = estimatedPromptTokens + 1_100 > 7_600;
   const unavailableProviders = new Set<string>();
   const unavailableModels = new Set<string>();
   let attempts = 0;
@@ -245,11 +256,23 @@ export async function POST(request: Request) {
     const candidate = attemptCandidates[candidateIndex];
     const candidateKey = candidate.provider + '|' + candidate.baseUrl + '|' + candidate.model;
     if (unavailableProviders.has(candidate.provider) || unavailableModels.has(candidateKey)) continue;
+    if (candidate.provider === 'groq' && skipGroqForSize) {
+      unavailableProviders.add('groq');
+      console.info('[MedicalDocs] AI provider skipped for estimated token budget', {
+        provider: 'groq',
+        estimatedPromptTokens,
+        promptChars: userPrompt.length,
+      });
+      continue;
+    }
     const remainingMs = requestDeadline - Date.now();
     if (remainingMs < 1_250) break;
 
     // The primary model can take longer on larger summaries; avoid aborting healthy generations too early.
-    const providerTimeoutMs = candidate.provider === 'gemini' ? 14_000 : 18_000;
+    const providerTimeoutMs = candidate.provider !== 'gemini'
+      ? 18_000
+      : candidate.model.includes('3.8-flash') ? 24_000
+        : candidate.model.includes('flash-lite') ? 14_000 : 10_000;
     const attemptTimeoutMs = Math.min(providerTimeoutMs, remainingMs - 500);
     attempts += 1;
     const attemptStartedAt = Date.now();
@@ -328,9 +351,9 @@ export async function POST(request: Request) {
         if (upstream.status === 413) {
           const tokenRateLimited = /tokens per minute|\\btpm\\b|request too large for model/i.test(normalized);
           if (tokenRateLimited) {
-            // Groq uses HTTP 413 for a per-model TPM reservation limit in this case.
-            // Skip only the rejected model so configured alternates and Gemini can still run.
-            unavailableModels.add(candidateKey);
+            // Both GPT-OSS models have the same 8K TPM ceiling on this plan.
+            // Don't resend the same oversized prompt to another Groq model.
+            unavailableProviders.add(candidate.provider);
           } else {
             unavailableProviders.add(candidate.provider);
           }
