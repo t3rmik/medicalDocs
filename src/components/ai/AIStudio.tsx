@@ -50,6 +50,11 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [selectedAction, setSelectedAction] = useState<AIAction>('summarize')
   const [instruction, setInstruction] = useState('')
   const [result, setResult] = useState('')
+  const [generationInfo, setGenerationInfo] = useState<{
+    provider: string;
+    model: string;
+    fallbackUsed: boolean;
+  } | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [retryMessage, setRetryMessage] = useState('')
@@ -60,25 +65,41 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
   const runAction = async (action: AIAction = selectedAction) => {
-    setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setRetryMessage(''); setCopied(false);
+    setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setGenerationInfo(null); setRetryMessage(''); setCopied(false);
     const plainText = extractPlainText(content);
     if (plainText.length < 2) { setError('Questo documento non contiene testo sufficiente. Aggiungi del testo e riprova.'); setIsLoading(false); return; }
     try {
       const body = JSON.stringify({ action, content: plainText, instruction: instruction.trim() });
       const send = () => fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       let response = await send();
-      let payload = await response.json().catch(() => ({})) as { result?: string; error?: string; retryable?: boolean; retryAfterSeconds?: number };
+      type AIResponse = {
+        result?: string;
+        error?: string;
+        retryable?: boolean;
+        retryAfterSeconds?: number;
+        provider?: string;
+        model?: string;
+        fallbackUsed?: boolean;
+      };
+      let payload = await response.json().catch(() => ({})) as AIResponse;
       if (response.status === 429 && payload.retryable === true && typeof payload.retryAfterSeconds === 'number' && payload.retryAfterSeconds >= 1 && payload.retryAfterSeconds <= 5) {
         const seconds = Math.ceil(payload.retryAfterSeconds);
         setRetryMessage('Limite temporaneo: riprovo una sola volta tra ' + seconds + ' secondi…');
         await new Promise<void>((resolve) => window.setTimeout(resolve, seconds * 1000));
         setRetryMessage('');
         response = await send();
-        payload = await response.json().catch(() => ({})) as { result?: string; error?: string; retryable?: boolean; retryAfterSeconds?: number };
+        payload = await response.json().catch(() => ({})) as AIResponse;
       }
       if (!response.ok) throw new Error(payload.error || 'La richiesta AI non è riuscita.');
       if (typeof payload.result !== 'string' || !payload.result.trim()) throw new Error('Il servizio AI non ha restituito testo.');
       setResult(payload.result.trim());
+      if (typeof payload.provider === 'string' && typeof payload.model === 'string') {
+        setGenerationInfo({
+          provider: payload.provider,
+          model: payload.model,
+          fallbackUsed: payload.fallbackUsed === true,
+        });
+      }
     } catch (err) { setError(err instanceof Error ? err.message : 'Errore inatteso durante la richiesta AI.'); }
     finally { setIsLoading(false); setRetryMessage(''); }
   }
@@ -132,7 +153,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                   <button
                     key={action.id}
                     type="button"
-                    onClick={() => { setSelectedAction(action.id); setError(''); setResult(''); setCopied(false) }}
+                    onClick={() => { setSelectedAction(action.id); setError(''); setResult(''); setGenerationInfo(null); setCopied(false) }}
                     aria-pressed={actionIsSelected(action.id)}
                     className={'flex min-w-0 items-start gap-2.5 rounded-xl border p-3 text-left transition ' + (actionIsSelected(action.id) ? 'border-teal-200 bg-teal-50 shadow-sm ring-1 ring-teal-100' : 'border-slate-200 bg-white hover:border-teal-100 hover:bg-slate-50')}
                   >
@@ -210,6 +231,33 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                   </div>
                 )}
               </div>
+              {result && generationInfo && (
+                <div
+                  className={'flex items-start gap-2 border-b px-4 py-3 text-xs ' + (generationInfo.provider === 'gemini'
+                    ? 'border-amber-200 bg-amber-50 text-amber-950'
+                    : 'border-slate-200 bg-slate-50 text-slate-700')}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {generationInfo.provider === 'gemini'
+                    ? <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                    : <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />}
+                  <div className="min-w-0">
+                    <p className="font-bold">
+                      {generationInfo.provider === 'gemini'
+                        ? 'ATTENZIONE: risposta generata da Google Gemini'
+                        : 'Modello AI utilizzato'}
+                    </p>
+                    <p className="mt-0.5 break-words">
+                      {generationInfo.provider === 'groq' ? 'Provider: Groq' : generationInfo.provider === 'gemini' ? 'Provider: Google Gemini' : 'Provider: configurazione personalizzata'}
+                      {' · Modello: '}
+                      {generationInfo.model === 'openai/gpt-oss-120b' ? 'GPT-OSS 120B' :
+                        generationInfo.model === 'openai/gpt-oss-20b' ? 'GPT-OSS 20B' : generationInfo.model}
+                      {generationInfo.fallbackUsed ? ' · modello di riserva' : ''}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 {isLoading ? (
                   <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 text-center">
