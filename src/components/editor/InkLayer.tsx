@@ -304,7 +304,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
         position: 'absolute', inset: '0 auto auto 0', width: '100%',
         height: String(height) + 'px', minHeight: String(height) + 'px',
         zIndex: enabled ? 30 : 5, pointerEvents: enabled ? 'auto' : 'none',
-        touchAction: enabled ? (inputMode === 'pen' ? 'pan-x pan-y' : 'none') : 'auto', cursor: !enabled ? 'default' : tool === 'select' ? 'move' : tool === 'eraser' ? 'cell' : 'crosshair',
+        touchAction: enabled ? (inputMode === 'pen' ? 'pan-x pan-y pinch-zoom' : 'none') : 'auto', cursor: !enabled ? 'default' : tool === 'select' ? 'move' : tool === 'eraser' ? 'cell' : 'crosshair',
       }}
       onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={finishGesture}
       onPointerCancel={finishGesture} onLostPointerCapture={() => finishGesture()}
