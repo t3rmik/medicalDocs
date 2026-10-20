@@ -16,10 +16,12 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
   const shownWidth = previewWidth ?? storedWidth ?? undefined
 
   const selectImage = () => {
+    if (editor.isDestroyed) return
     const pos = typeof getPos === 'function' ? getPos() : undefined
     if (typeof pos === 'number') editor.commands.setNodeSelection(pos)
   }
   const moveImage = (direction:'up'|'down') => {
+    if (editor.isDestroyed) return
     const pos = typeof getPos === 'function' ? getPos() : undefined
     if (typeof pos !== 'number') return
     const doc = editor.state.doc
@@ -41,6 +43,7 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
     editor.commands.setNodeSelection(insertionPos)
   }
   const startResize = (event:React.PointerEvent<HTMLButtonElement>) => {
+    if (editor.isDestroyed || !editor.view.dom.isConnected) return
     event.preventDefault(); event.stopPropagation()
     const img = imageRef.current
     if (!img) return
@@ -66,11 +69,13 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
   const finishResize = (event?:React.PointerEvent<HTMLButtonElement>) => {
     const gesture=resizeRef.current
     if (!gesture||(event&&gesture.pointerId!==event.pointerId)) return
+    if (editor.isDestroyed || !editor.view.dom.isConnected) { resizeRef.current=null; previewRef.current=null; setPreviewWidth(null); return }
     const width=Math.max(80,Math.min(gesture.maxWidth,Math.round(previewRef.current??gesture.startWidth)))
     updateAttributes({width,height:Math.max(40,Math.round(width*gesture.ratio))})
     resizeRef.current=null; previewRef.current=null; setPreviewWidth(null)
   }
   const adjustSize=(delta:number)=>{
+    if (editor.isDestroyed || !editor.view.dom.isConnected) return
     const img=imageRef.current
     if(!img) return
     const width=img.clientWidth||shownWidth||320

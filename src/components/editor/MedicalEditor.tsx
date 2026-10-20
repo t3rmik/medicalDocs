@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
+import { EditorErrorBoundary } from './EditorErrorBoundary'
 
 const EditorCore = dynamic(() => import('./EditorCore'), {
   ssr: false,
@@ -22,11 +23,13 @@ interface MedicalEditorProps {
 
 export function MedicalEditor({ onChange, initialContent = '', isSaving, onRegisterInsert }: MedicalEditorProps) {
   return (
-    <EditorCore
-      onChange={onChange}
-      initialContent={initialContent}
-      isSaving={isSaving}
-      onRegisterInsert={onRegisterInsert}
-    />
+    <EditorErrorBoundary>
+      <EditorCore
+        onChange={onChange}
+        initialContent={initialContent}
+        isSaving={isSaving}
+        onRegisterInsert={onRegisterInsert}
+      />
+    </EditorErrorBoundary>
   );
 }

@@ -346,9 +346,15 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               className="sr-only"
               aria-label="Scegli immagine dal dispositivo"
               onChange={async (event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = '';
+                const input = event.currentTarget;
+                const file = input.files?.[0];
+                input.value = '';
                 if (!file) return;
+                const targetEditor = editor;
+                if (targetEditor.isDestroyed || !targetEditor.view.dom.isConnected) {
+                  toast.error('L’editor non è pronto. Riapri il documento e riprova.');
+                  return;
+                }
                 const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
                 if (!allowedTypes.includes(file.type)) {
                   toast.error('Scegli un’immagine PNG, JPG, WEBP o GIF.');
@@ -360,7 +366,15 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                 }
                 try {
                   const src = await readCompressedImage(file);
-                  editor.chain().focus().setImage({ src, alt: file.name.replace(/\.[^.]+$/, '') }).run();
+                  // Compression is async: the user may have switched or closed the editor meanwhile.
+                  if (targetEditor.isDestroyed || !targetEditor.view.dom.isConnected) {
+                    toast.error('Il documento è cambiato mentre preparavo l’immagine. Riapri il documento corretto e riprova.');
+                    return;
+                  }
+                  const inserted = targetEditor.chain().focus().setImage({
+                    src, alt: file.name.replace(/\.[^.]+$/, ''),
+                  }).run();
+                  if (!inserted) throw new Error('L’immagine non è stata inserita. Clicca nel foglio e riprova.');
                   toast.success('Immagine ridimensionata e inserita nel documento.');
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : 'Non è stato possibile leggere questa immagine.');
