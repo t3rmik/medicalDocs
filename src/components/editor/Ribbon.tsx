@@ -594,7 +594,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <textarea id="md-equation-source" value={equationLatex} onChange={(event) => setEquationLatex(event.target.value)}
                 placeholder="Es. x^2 + y^2 = z^2 oppure \\frac{a}{b} = c" rows={3} autoFocus maxLength={1500}
                 className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-sm leading-6 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
-              <p className="text-[11px] leading-relaxed text-slate-500">Usa ^ per l'apice, _ per il pedice, \\frac{numeratore}{denominatore} per una frazione e \\sqrt{x} per una radice. Puoi modificare la formula anche dopo averla inserita con un doppio clic.</p>
+              <p className="text-[11px] leading-relaxed text-slate-500">Usa ^ per l'apice e _ per il pedice. Per una frazione scrivi \\frac e inserisci numeratore e denominatore tra parentesi graffe; per una radice scrivi \\sqrt seguito dall'espressione sotto radice. Puoi modificare la formula anche dopo averla inserita con un doppio clic.</p>
               <div className="flex justify-end gap-2 pt-1">
                 <button type="button" onClick={() => setEquationOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Annulla</button>
                 <button type="submit" className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Inserisci nel foglio</button>
