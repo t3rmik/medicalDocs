@@ -257,7 +257,14 @@ export const MathEquation = Node.create({
   parseHTML() {
     return [{
       tag: 'div[data-md-equation="true"]',
-      getAttrs: (element) => ({ latex: (element as HTMLElement).getAttribute('data-latex') || 'x = y' }),
+      getAttrs: (element) => {
+        const htmlElement = element as HTMLElement
+        return {
+          latex: htmlElement.getAttribute('data-latex') || 'x = y',
+          offsetX: Number(htmlElement.getAttribute('data-offset-x') || 0),
+          offsetY: Number(htmlElement.getAttribute('data-offset-y') || 0),
+        }
+      },
     }]
   },
   renderHTML({ node, HTMLAttributes }) {
