@@ -105,7 +105,7 @@ function detectTopicSections(markup: string): PdfPageSection[] {
   const flush = () => {
     const text = currentParts.filter(Boolean).join('\n\n').trim()
     if (currentTitle && text.length > 12) {
-      sections.push({ number: sections.length + 1, title: currentTitle, text: currentTitle + '\n' + text })
+      sections.push({ number: sections.length + 1, title: currentTitle, text })
     }
     currentTitle = ''
     currentParts = []
@@ -188,6 +188,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [copied, setCopied] = useState(false)
   const [sourceMode, setSourceMode] = useState<'document' | 'pages' | 'topics'>('document')
   const [selectedTopics, setSelectedTopics] = useState<number[]>([])
+  const [topicFocus, setTopicFocus] = useState('')
   const [pageFrom, setPageFrom] = useState(1)
   const [pageTo, setPageTo] = useState(1)
 
@@ -212,10 +213,13 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
     const selectedTopicSections = sourceMode === 'topics'
       ? topicSections.filter((topic) => selectedTopics.includes(topic.number))
       : []
+    const manualTopicSelection = sourceMode === 'topics' && topicSections.length <= 1 ? topicFocus.trim() : ''
     const sourceText = sourceMode === 'pages'
       ? selectedPages.map((page) => page.text).join('\n\n')
       : sourceMode === 'topics'
-        ? selectedTopicSections.map((topic) => topic.text).join('\n\n')
+        ? topicSections.length > 1
+          ? selectedTopicSections.map((topic) => topic.text).join('\n\n')
+          : plainText
         : plainText
 
     if (sourceMode === 'pages' && selectedPages.length === 0) {
@@ -223,8 +227,13 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
       setIsLoading(false)
       return
     }
-    if (sourceMode === 'topics' && selectedTopicSections.length === 0) {
+    if (sourceMode === 'topics' && topicSections.length > 1 && selectedTopicSections.length === 0) {
       setError('Seleziona almeno un argomento da includere nel lavoro dell’AI.')
+      setIsLoading(false)
+      return
+    }
+    if (sourceMode === 'topics' && topicSections.length <= 1 && !manualTopicSelection) {
+      setError('Scrivi almeno un argomento da cercare nel documento.')
       setIsLoading(false)
       return
     }
@@ -233,7 +242,13 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
       const pageRange = sourceMode === 'pages' && selectedPages.length
         ? { from: selectedPages[0].number, to: selectedPages[selectedPages.length - 1].number }
         : undefined
-      const body = JSON.stringify({ action, content: sourceText, instruction: instruction.trim(), pageRange });
+      const effectiveInstruction = [
+        instruction.trim(),
+        manualTopicSelection
+          ? 'Concentrati esclusivamente su questi argomenti e usa solo le parti pertinenti del documento: ' + manualTopicSelection + '.'
+          : '',
+      ].filter(Boolean).join('\n\n')
+      const body = JSON.stringify({ action, content: sourceText, instruction: effectiveInstruction, pageRange });
       const send = () => fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       let response = await send();
       type AIResponse = {
@@ -347,7 +362,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
               </span>
             </div>
 
-            {(pageSections.length > 1 || topicSections.length > 1) && (
+            {(pageSections.length > 1 || topicSections.length > 1 || plainText.length > 150) && (
               <section className="mb-4 rounded-2xl border border-teal-100 bg-teal-50/70 p-3.5 sm:p-4" aria-label="Selezione della fonte per AI">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.13em] text-teal-800">Su quale parte deve lavorare l’AI?</p>
@@ -364,12 +379,10 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                       Scegli pagine
                     </label>
                   )}
-                  {topicSections.length > 1 && (
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
-                      <input type="radio" name="ai-source-mode" checked={sourceMode === 'topics'} onChange={() => { setSourceMode('topics'); if (selectedTopics.length === 0) setSelectedTopics(topicSections.map((topic) => topic.number)) }} className="accent-teal-700" />
-                      Scegli argomenti
-                    </label>
-                  )}
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                    <input type="radio" name="ai-source-mode" checked={sourceMode === 'topics'} onChange={() => { setSourceMode('topics'); if (selectedTopics.length === 0) setSelectedTopics(topicSections.map((topic) => topic.number)) }} className="accent-teal-700" />
+                    Scegli argomenti
+                  </label>
                 </div>
 
                 {sourceMode === 'pages' && pageSections.length > 1 && (
@@ -426,6 +439,18 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                       ))}
                     </div>
                     <p className="mt-2 text-[11px] leading-4 text-slate-500">La richiesta userà solo il testo associato ai titoli selezionati.</p>
+                  </div>
+                )}
+                {sourceMode === 'topics' && topicSections.length <= 1 && (
+                  <div className="mt-3 rounded-xl border border-teal-100 bg-white p-3">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-semibold text-slate-700">Quali argomenti vuoi approfondire?</span>
+                      <textarea value={topicFocus} onChange={(event) => setTopicFocus(event.target.value)}
+                        placeholder="Ad esempio: ciclo cardiaco, valvole e gittata cardiaca"
+                        rows={3}
+                        className="w-full resize-y rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                    </label>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-500">L’AI userà il documento come fonte, ma limiterà riassunto, schema, flashcard o quiz agli argomenti indicati.</p>
                   </div>
                 )}
               </section>
