@@ -153,7 +153,7 @@ export async function POST(request: Request) {
       existing.baseUrl === candidate.baseUrl &&
       existing.model === candidate.model
     );
-    if (!duplicate && candidates.length < 5) candidates.push(candidate);
+    if (!duplicate && candidates.length < 8) candidates.push(candidate);
   };
 
   if (apiKey && model) {
@@ -168,6 +168,16 @@ export async function POST(request: Request) {
         baseUrl: groqBaseUrl,
         model: process.env.GROQ_MODEL_FALLBACK_1 || 'openai/gpt-oss-20b',
       });
+      // Only include an additional Groq model when explicitly configured, so we never
+      // silently move a request onto an unknown paid model.
+      if (process.env.GROQ_MODEL_FALLBACK_2) {
+        addCandidate({
+          provider: 'groq',
+          apiKey: groqApiKey || apiKey!,
+          baseUrl: groqBaseUrl,
+          model: process.env.GROQ_MODEL_FALLBACK_2,
+        });
+      }
     } else if (groqApiKey) {
       addCandidate({
         provider: 'groq',
@@ -181,6 +191,14 @@ export async function POST(request: Request) {
         baseUrl: groqBaseUrl,
         model: process.env.GROQ_MODEL_FALLBACK_1 || 'openai/gpt-oss-20b',
       });
+      if (process.env.GROQ_MODEL_FALLBACK_2) {
+        addCandidate({
+          provider: 'groq',
+          apiKey: groqApiKey,
+          baseUrl: groqBaseUrl,
+          model: process.env.GROQ_MODEL_FALLBACK_2,
+        });
+      }
     }
 
     if (geminiFallbackEnabled && process.env.GEMINI_API_KEY) {
@@ -190,14 +208,18 @@ export async function POST(request: Request) {
         baseUrl: geminiBaseUrl,
         model: process.env.GEMINI_MODEL_PRIMARY || 'gemini-3.8-flash',
       });
-      if (process.env.GEMINI_MODEL_FALLBACK) {
-        addCandidate({
-          provider: 'gemini',
-          apiKey: process.env.GEMINI_API_KEY,
-          baseUrl: geminiBaseUrl,
-          model: process.env.GEMINI_MODEL_FALLBACK,
-        });
-      }
+      addCandidate({
+        provider: 'gemini',
+        apiKey: process.env.GEMINI_API_KEY,
+        baseUrl: geminiBaseUrl,
+        model: process.env.GEMINI_MODEL_FALLBACK || 'gemini-3.7-flash',
+      });
+      addCandidate({
+        provider: 'gemini',
+        apiKey: process.env.GEMINI_API_KEY,
+        baseUrl: geminiBaseUrl,
+        model: process.env.GEMINI_MODEL_FALLBACK_2 || 'gemini-3.6-flash',
+      });
     }
   }
 
@@ -208,9 +230,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const maxAttempts = 4;
+  const maxAttempts = 8;
   const requestDeadline = Date.now() + 55_000;
   const unavailableProviders = new Set<string>();
+  const unavailableModels = new Set<string>();
   let attempts = 0;
   let allFailuresWere429 = true;
   let lastRetryAfterSeconds: number | undefined;
@@ -220,17 +243,19 @@ export async function POST(request: Request) {
   const attemptCandidates = candidates.slice(0, maxAttempts);
   for (let candidateIndex = 0; candidateIndex < attemptCandidates.length; candidateIndex += 1) {
     const candidate = attemptCandidates[candidateIndex];
-    if (unavailableProviders.has(candidate.provider)) continue;
+    const candidateKey = candidate.provider + '|' + candidate.baseUrl + '|' + candidate.model;
+    if (unavailableProviders.has(candidate.provider) || unavailableModels.has(candidateKey)) continue;
     const remainingMs = requestDeadline - Date.now();
     if (remainingMs < 1_250) break;
 
     // The primary model can take longer on larger summaries; avoid aborting healthy generations too early.
-    const attemptTimeoutMs = Math.min(32_000, remainingMs - 500);
+    const providerTimeoutMs = candidate.provider === 'gemini' ? 14_000 : 18_000;
+    const attemptTimeoutMs = Math.min(providerTimeoutMs, remainingMs - 500);
     attempts += 1;
     const attemptStartedAt = Date.now();
     // Groq's current free/on-demand TPM for these models is 8K. The API reserves
     // prompt tokens plus max_tokens, so long summaries need a smaller output budget.
-    const maxOutputTokens = sourceText.length > 8_000 && selectedAction !== 'rewrite'
+    const maxOutputTokens = sourceText.length > 4_500 && selectedAction !== 'rewrite'
       ? (candidate.provider === 'groq' ? 1_100 : 1_600)
       : sourceText.length > 30_000 && selectedAction !== 'rewrite' ? 1_800 : 2_400;
 
@@ -289,7 +314,9 @@ export async function POST(request: Request) {
           const quotaExhausted = /insufficient[_\s-]?quota|quota exceeded|daily quota|billing|credit balance|no credits|out of credits|payment required|requests per day|daily token limit/.test(normalized);
           const retryAfterSeconds = getRetryAfterSeconds(upstream, message);
           if (typeof retryAfterSeconds === 'number') lastRetryAfterSeconds = retryAfterSeconds;
+          const tokenRateLimited = /tokens per minute|\\btpm\\b|rate_limit_exceeded/i.test(normalized);
           if (quotaExhausted) unavailableProviders.add(candidate.provider);
+          else if (tokenRateLimited) unavailableModels.add(candidateKey);
           console.warn('[MedicalDocs] AI provider attempt failed', {
             provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode, attempt: attempts, durationMs: Date.now() - attemptStartedAt,
           });
@@ -299,9 +326,14 @@ export async function POST(request: Request) {
         allFailuresWere429 = false;
         const modelNotFound = /model.{0,40}(not found|does not exist|unknown|unsupported|unavailable)|no such model/i.test(normalized);
         if (upstream.status === 413) {
-          // The payload is too large for this provider endpoint regardless of the selected model.
-          // Skip sibling models on the same provider and give the next independent provider a chance.
-          unavailableProviders.add(candidate.provider);
+          const tokenRateLimited = /tokens per minute|\\btpm\\b|request too large for model/i.test(normalized);
+          if (tokenRateLimited) {
+            // Groq uses HTTP 413 for a per-model TPM reservation limit in this case.
+            // Skip only the rejected model so configured alternates and Gemini can still run.
+            unavailableModels.add(candidateKey);
+          } else {
+            unavailableProviders.add(candidate.provider);
+          }
         } else if (upstream.status === 401 || upstream.status === 403) {
           unavailableProviders.add(candidate.provider);
         } else if (upstream.status === 404 && !modelNotFound) {
