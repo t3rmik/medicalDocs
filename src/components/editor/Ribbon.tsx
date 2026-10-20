@@ -199,7 +199,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   );
 
   return (
-    <div data-md-ribbon="true" className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
+    <div data-md-ribbon="true" data-md-active-tab={activeTab} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
