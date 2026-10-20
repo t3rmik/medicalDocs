@@ -227,6 +227,7 @@ export async function POST(request: Request) {
     // The primary model can take longer on larger summaries; avoid aborting healthy generations too early.
     const attemptTimeoutMs = Math.min(32_000, remainingMs - 500);
     attempts += 1;
+    const attemptStartedAt = Date.now();
 
     try {
       const upstream = await fetch(candidate.baseUrl + '/chat/completions', {
@@ -277,7 +278,7 @@ export async function POST(request: Request) {
           if (typeof retryAfterSeconds === 'number') lastRetryAfterSeconds = retryAfterSeconds;
           if (quotaExhausted) unavailableProviders.add(candidate.provider);
           console.warn('[MedicalDocs] AI provider attempt failed', {
-            provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode,
+            provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode, attempt: attempts, durationMs: Date.now() - attemptStartedAt,
           });
           continue;
         }
@@ -295,7 +296,7 @@ export async function POST(request: Request) {
         }
 
         console.warn('[MedicalDocs] AI provider attempt failed', {
-          provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode,
+          provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode, attempt: attempts, durationMs: Date.now() - attemptStartedAt,
         });
         if (malformedRequest) break;
         continue;
@@ -313,7 +314,7 @@ export async function POST(request: Request) {
         allFailuresWere429 = false;
         lastErrorCode = 'empty_response';
         console.warn('[MedicalDocs] AI provider attempt failed', {
-          provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode: lastErrorCode,
+          provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode: lastErrorCode, attempt: attempts, durationMs: Date.now() - attemptStartedAt,
         });
         continue;
       }
@@ -328,7 +329,7 @@ export async function POST(request: Request) {
       allFailuresWere429 = false;
       lastErrorCode = error instanceof Error ? error.name.replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80) : 'network_error';
       console.warn('[MedicalDocs] AI provider attempt failed', {
-        provider: candidate.provider, model: candidate.model, errorCode: lastErrorCode,
+        provider: candidate.provider, model: candidate.model, errorCode: lastErrorCode, attempt: attempts, durationMs: Date.now() - attemptStartedAt,
       });
     }
   }
