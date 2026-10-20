@@ -40,10 +40,30 @@ const ACTIONS: Array<{ id: AIAction; label: string; description: string; icon: t
 ]
 
 function extractPlainText(markup: string): string {
-  if (typeof window === 'undefined') return markup.replace(/<[^>]*>/g, ' ').trim()
+  if (typeof window === 'undefined') {
+    return markup.replace(/<[^>]*>/g, ' ').replace(/\u00a0/g, ' ').trim()
+  }
+
   const parsed = new DOMParser().parseFromString(markup, 'text/html')
   parsed.querySelectorAll('script, style, img, svg').forEach((node) => node.remove())
-  return (parsed.body.textContent || '').replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').trim()
+
+  // textContent alone concatenates adjacent HTML blocks (for example </p><p>),
+  // so put explicit line breaks around editor blocks before reading their text.
+  parsed.querySelectorAll('br').forEach((node) => node.replaceWith(parsed.createTextNode('\n')))
+  parsed.querySelectorAll(
+    'p, div, h1, h2, h3, h4, h5, h6, li, blockquote, pre, section, article, tr, td, th'
+  ).forEach((node) => {
+    node.prepend(parsed.createTextNode('\n'))
+    node.append(parsed.createTextNode('\n'))
+  })
+
+  return (parsed.body.textContent || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
 }
 
 export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: AIStudioProps) {
@@ -263,7 +283,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                   <div className="flex min-h-[120px] flex-col items-center justify-center gap-3 text-center">
                     <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-700"><Loader2 className="h-5 w-5 animate-spin" /></span>
                     <p className="text-sm font-medium text-slate-700">Sto elaborando il documento…</p>
-                    <p className="text-xs text-slate-500">{retryMessage || 'Può richiedere alcuni secondi.'}</p>
+                    <p className="text-xs text-slate-500">{retryMessage || 'I documenti lunghi possono richiedere fino a un minuto. Lascia aperta questa finestra.'}</p>
                   </div>
                 ) : result ? (
                   <div className="prose prose-sm max-w-none break-words text-sm leading-6 text-slate-700" dangerouslySetInnerHTML={{ __html: markdownToHtml(result) }} />
