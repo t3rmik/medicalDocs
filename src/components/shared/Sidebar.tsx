@@ -1,8 +1,8 @@
 'use client'
 
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { FileBox, X, FileText, Trash2, ListTree, Copy, Search, Star, Folder, ChevronDown } from 'lucide-react'
+import { FileBox, X, FileText, Trash2, ListTree, Copy, Search, Star, Folder, ChevronDown, Plus } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, MedicalDocument } from '@/lib/db'
 
@@ -14,22 +14,73 @@ interface SidebarProps {
   currentHtml?: string;
 }
 
-const FOLDERS = ['Generale', 'Studio', 'Clinica', 'Università', 'Personale'] as const
-type FolderName = (typeof FOLDERS)[number]
+const DEFAULT_FOLDERS = ['Generale', 'Biologia', 'Chimica', 'Personale'] as const
+const CUSTOM_FOLDERS_KEY = 'medicaldocs-custom-folders-v1'
 type SidebarTab = 'docs' | 'favorites' | 'outline' | null
+
+function normaliseFolder(value?: string): string {
+  const folder = (value || 'Generale').trim()
+  // Legacy categories stay accessible without continuing to show the retired labels.
+  if (['Studio', 'Clinica', 'Università', 'Universita'].includes(folder)) return 'Generale'
+  return folder || 'Generale'
+}
 
 export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentMetadata, activeDocId, currentHtml }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [folderFilter, setFolderFilter] = useState<'Tutte le cartelle' | FolderName>('Tutte le cartelle')
+  const [folderFilter, setFolderFilter] = useState<string>('Tutte le cartelle')
+  const [customFolders, setCustomFolders] = useState<string[]>([])
+  const [newFolderName, setNewFolderName] = useState('')
   const allDocs = useLiveQuery(() => db.documents.orderBy('updatedAt').reverse().toArray())
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_FOLDERS_KEY)
+      const parsed: unknown = raw ? JSON.parse(raw) : []
+      if (Array.isArray(parsed)) {
+        const clean = parsed
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim().replace(/\\s+/g, ' ').slice(0, 32))
+          .filter((item) => item && !DEFAULT_FOLDERS.some((folder) => folder.toLocaleLowerCase('it') === item.toLocaleLowerCase('it')))
+        setCustomFolders(Array.from(new Set(clean)))
+      }
+    } catch {
+      // The archive still works if browser storage is unavailable.
+    }
+  }, [])
+
+  const folders = useMemo(() => {
+    const fromDocuments = (allDocs || []).map((doc) => normaliseFolder(doc.folder))
+    const extras = [...customFolders, ...fromDocuments]
+      .filter((folder) => !DEFAULT_FOLDERS.includes(folder as (typeof DEFAULT_FOLDERS)[number]))
+      .filter((folder) => folder !== 'Studio' && folder !== 'Clinica' && folder !== 'Università' && folder !== 'Universita')
+    return [...DEFAULT_FOLDERS, ...Array.from(new Set(extras))]
+  }, [customFolders, allDocs])
+
+  const createFolder = () => {
+    const name = newFolderName.trim().replace(/\\s+/g, ' ').slice(0, 32)
+    if (!name) return
+    const existing = folders.find((folder) => folder.toLocaleLowerCase('it') === name.toLocaleLowerCase('it'))
+    if (existing) {
+      setFolderFilter(existing)
+      setNewFolderName('')
+      return
+    }
+    const next = [...customFolders, name]
+    setCustomFolders(next)
+    setFolderFilter(name)
+    setNewFolderName('')
+    try { window.localStorage.setItem(CUSTOM_FOLDERS_KEY, JSON.stringify(next)) } catch {
+      // The new folder can still be used for this session.
+    }
+  }
   const query = searchTerm.trim().toLocaleLowerCase('it')
   const searchableText = (value: string) =>
     value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLocaleLowerCase('it')
   const filteredDocs = allDocs?.filter((doc) => {
     const matchesQuery = !query || doc.title.toLocaleLowerCase('it').includes(query) || searchableText(doc.content).includes(query)
     const matchesTab = activeTab !== 'favorites' || Boolean(doc.favorite)
-    const matchesFolder = folderFilter === 'Tutte le cartelle' || (doc.folder || 'Generale') === folderFilter
+    const matchesFolder = folderFilter === 'Tutte le cartelle' || normaliseFolder(doc.folder) === folderFilter
     return matchesQuery && matchesTab && matchesFolder
   })
   const favoriteCount = allDocs?.filter((doc) => doc.favorite).length || 0
@@ -115,6 +166,20 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
                   onChange={(event) => setSearchTerm(event.target.value)}
                 />
               </label>
+              <form onSubmit={(event) => { event.preventDefault(); createFolder() }} className="mb-3 rounded-xl border border-slate-200 bg-gradient-to-br from-white to-teal-50/50 p-2.5">
+                <label htmlFor="md-create-folder" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Le tue cartelle</label>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <input id="md-create-folder" value={newFolderName} onChange={(event) => setNewFolderName(event.target.value)}
+                    maxLength={32} placeholder="Nuova cartella…"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                  <button type="submit" disabled={!newFolderName.trim()} aria-label="Crea cartella" title="Crea cartella"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40">
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[10px] leading-4 text-slate-500">Esempio: Anatomia, Fisiologia o un esame personale.</p>
+              </form>
+
               <label className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 focus-within:border-teal-400">
                 <Folder className="h-4 w-4 shrink-0 text-teal-700" />
                 <span className="shrink-0">Cartella</span>
@@ -122,10 +187,10 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
                   aria-label="Filtra per cartella"
                   className="min-w-0 flex-1 appearance-none bg-transparent py-0.5 text-right text-xs font-semibold text-slate-800 outline-none"
                   value={folderFilter}
-                  onChange={(event) => setFolderFilter(event.target.value as 'Tutte le cartelle' | FolderName)}
+                  onChange={(event) => setFolderFilter(event.target.value)}
                 >
                   <option value="Tutte le cartelle">Tutte</option>
-                  {FOLDERS.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+                  {folders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
                 </select>
                 <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               </label>
@@ -160,8 +225,8 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
                     <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
                       <label className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-500">
                         <Folder className="h-3.5 w-3.5 shrink-0 text-teal-700" />
-                        <select aria-label={'Sposta ' + (doc.title || 'documento') + ' in una cartella'} value={FOLDERS.includes((doc.folder || 'Generale') as FolderName) ? (doc.folder || 'Generale') : 'Generale'} onChange={(event) => { if (doc.id) onUpdateDocumentMetadata(doc.id, { folder: event.target.value }) }} className="min-w-0 max-w-[130px] truncate rounded-md bg-transparent py-1 text-[11px] font-medium text-slate-600 outline-none hover:bg-slate-50 focus:ring-2 focus:ring-teal-100">
-                          {FOLDERS.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+                        <select aria-label={'Sposta ' + (doc.title || 'documento') + ' in una cartella'} value={folders.includes(normaliseFolder(doc.folder)) ? normaliseFolder(doc.folder) : 'Generale'} onChange={(event) => { if (doc.id) onUpdateDocumentMetadata(doc.id, { folder: event.target.value }) }} className="min-w-0 max-w-[130px] truncate rounded-md bg-transparent py-1 text-[11px] font-medium text-slate-600 outline-none hover:bg-slate-50 focus:ring-2 focus:ring-teal-100">
+                          {folders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
                         </select>
                       </label>
                       <div className="flex shrink-0 items-center gap-0.5">
