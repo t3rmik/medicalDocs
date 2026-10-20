@@ -107,15 +107,15 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
 
   const findInkLayer = useCallback(() => {
     if (!editor) return null;
-    let result: { pos: number; node: import('@tiptap/pm/model').Node } | null = null;
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'medicalInkLayer') {
-        result = { pos, node };
-        return false;
-      }
-      return true;
-    });
-    return result;
+    const doc = editor.state.doc;
+    let pos = 0;
+    while (pos < doc.content.size) {
+      const node = doc.nodeAt(pos);
+      if (!node) break;
+      if (node.type.name === 'medicalInkLayer') return { pos, node };
+      pos += node.nodeSize;
+    }
+    return null;
   }, [editor]);
 
   const updateInkLayer = useCallback((patch: Record<string, unknown>) => {

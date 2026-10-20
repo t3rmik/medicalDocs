@@ -166,7 +166,7 @@ export const InkLayer = Node.create({
       }, ...paths.map((stroke) => ['path', {
         d: stroke.d, fill: 'none', stroke: stroke.color, 'stroke-width': String(stroke.width),
         'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-      }])],
+      }] as [string, Record<string, string>])],
     ]
   },
   addNodeView() { return ReactNodeViewRenderer(InkLayerView) },
