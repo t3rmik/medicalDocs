@@ -42,6 +42,7 @@ const ACTIONS: Array<{ id: AIAction; label: string; description: string; icon: t
 interface PdfPageSection {
   number: number;
   text: string;
+  title?: string;
 }
 
 function detectPdfPageSections(text: string): PdfPageSection[] {
@@ -62,6 +63,74 @@ function detectPdfPageSections(text: string): PdfPageSection[] {
       text: text.slice(start, nextStart).trim(),
     };
   }).filter((page) => Number.isInteger(page.number) && page.number > 0 && page.text.length > 0);
+}
+
+function detectExplicitPageSections(markup: string): PdfPageSection[] {
+  if (typeof window === 'undefined') return []
+  const parsed = new DOMParser().parseFromString(markup, 'text/html')
+  const blocks = Array.from(parsed.body.children)
+  if (!blocks.some((block) => block.matches('[data-page-break="true"]'))) return []
+
+  const pages: PdfPageSection[] = []
+  let buffer: string[] = []
+  const flush = () => {
+    const text = buffer.filter(Boolean).join('\n\n').trim()
+    if (text.length > 0) {
+      pages.push({ number: pages.length + 1, title: 'Pagina ' + (pages.length + 1), text: 'Pagina ' + (pages.length + 1) + '\n' + text })
+    }
+    buffer = []
+  }
+
+  for (const block of blocks) {
+    if (block.matches('[data-page-break="true"]')) flush()
+    else {
+      const text = extractPlainText(block.outerHTML)
+      if (text) buffer.push(text)
+    }
+  }
+  flush()
+  return pages.length > 1 ? pages : []
+}
+
+function detectTopicSections(markup: string): PdfPageSection[] {
+  if (typeof window === 'undefined') return []
+  const parsed = new DOMParser().parseFromString(markup, 'text/html')
+  const blocks = Array.from(parsed.body.children)
+  const headingPattern = /^H[1-4]$/
+  const sections: PdfPageSection[] = []
+  let currentTitle = ''
+  let currentParts: string[] = []
+  let preamble: string[] = []
+
+  const flush = () => {
+    const text = currentParts.filter(Boolean).join('\n\n').trim()
+    if (currentTitle && text.length > 12) {
+      sections.push({ number: sections.length + 1, title: currentTitle, text: currentTitle + '\n' + text })
+    }
+    currentTitle = ''
+    currentParts = []
+  }
+
+  for (const block of blocks) {
+    if (headingPattern.test(block.tagName)) {
+      flush()
+      currentTitle = (block.textContent || '').trim()
+      if (currentTitle) currentParts.push(currentTitle)
+    } else {
+      const text = extractPlainText(block.outerHTML)
+      if (!text) continue
+      if (currentTitle) currentParts.push(text)
+      else preamble.push(text)
+    }
+  }
+  flush()
+
+  const intro = preamble.join('\n\n').trim()
+  if (intro.length > 80 && sections.length > 1) {
+    sections.unshift({ number: 0, title: 'Introduzione', text: 'Introduzione\n' + intro })
+    sections.forEach((section, index) => { section.number = index + 1 })
+  }
+  return sections.length > 1 ? sections : []
 }
 
 function normalizeAIOutput(markdown: string): string {
@@ -117,14 +186,18 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [isLoading, setIsLoading] = useState(false)
   const [retryMessage, setRetryMessage] = useState('')
   const [copied, setCopied] = useState(false)
-  const [usePageRange, setUsePageRange] = useState(false)
+  const [sourceMode, setSourceMode] = useState<'document' | 'pages' | 'topics'>('document')
+  const [selectedTopics, setSelectedTopics] = useState<number[]>([])
   const [pageFrom, setPageFrom] = useState(1)
   const [pageTo, setPageTo] = useState(1)
 
   if (!isOpen) return null
 
   const plainText = extractPlainText(content)
-  const pageSections = detectPdfPageSections(plainText)
+  const markedPages = detectPdfPageSections(plainText)
+  const explicitPages = detectExplicitPageSections(content)
+  const pageSections = markedPages.length > 1 ? markedPages : explicitPages
+  const topicSections = detectTopicSections(content)
   const firstPage = pageSections[0]?.number ?? 1
   const lastPage = pageSections[pageSections.length - 1]?.number ?? 1
   const normalizedPageFrom = Math.min(pageFrom, pageTo)
@@ -133,20 +206,31 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
 
   const runAction = async (action: AIAction = selectedAction) => {
     setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setGenerationInfo(null); setRetryMessage(''); setCopied(false);
-    const selectedPages = usePageRange
+    const selectedPages = sourceMode === 'pages'
       ? pageSections.filter((page) => page.number >= normalizedPageFrom && page.number <= normalizedPageTo)
       : []
-    const sourceText = usePageRange
+    const selectedTopicSections = sourceMode === 'topics'
+      ? topicSections.filter((topic) => selectedTopics.includes(topic.number))
+      : []
+    const sourceText = sourceMode === 'pages'
       ? selectedPages.map((page) => page.text).join('\n\n')
-      : plainText
-    if (usePageRange && selectedPages.length === 0) {
-      setError('Non riesco a trovare le pagine selezionate nel testo importato. Reimporta il PDF in modalità conversione testo e riprova.')
+      : sourceMode === 'topics'
+        ? selectedTopicSections.map((topic) => topic.text).join('\n\n')
+        : plainText
+
+    if (sourceMode === 'pages' && selectedPages.length === 0) {
+      setError('Non riesco a trovare le pagine selezionate nel testo del documento. Prova con un PDF convertito in testo o aggiungi interruzioni di pagina esplicite.')
       setIsLoading(false)
       return
     }
-    if (sourceText.length < 2) { setError('Il testo selezionato non contiene contenuto sufficiente. Seleziona altre pagine e riprova.'); setIsLoading(false); return; }
+    if (sourceMode === 'topics' && selectedTopicSections.length === 0) {
+      setError('Seleziona almeno un argomento da includere nel lavoro dell’AI.')
+      setIsLoading(false)
+      return
+    }
+    if (sourceText.length < 2) { setError('Il testo selezionato non contiene contenuto sufficiente. Seleziona altre pagine o argomenti e riprova.'); setIsLoading(false); return; }
     try {
-      const pageRange = usePageRange && selectedPages.length
+      const pageRange = sourceMode === 'pages' && selectedPages.length
         ? { from: selectedPages[0].number, to: selectedPages[selectedPages.length - 1].number }
         : undefined
       const body = JSON.stringify({ action, content: sourceText, instruction: instruction.trim(), pageRange });
@@ -263,40 +347,38 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
               </span>
             </div>
 
-            {pageSections.length > 1 && (
-              <section className="mb-4 rounded-2xl border border-teal-100 bg-teal-50/70 p-3.5 sm:p-4" aria-label="Selezione pagine per AI">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.13em] text-teal-800">Pagine da analizzare</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-600">
-                      Ho rilevato {pageSections.length} pagine nel PDF convertito. Puoi inviare all'AI solo la parte che ti interessa.
-                    </p>
-                  </div>
-                  <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={usePageRange}
-                      onChange={(event) => {
-                        const checked = event.target.checked
-                        setUsePageRange(checked)
-                        if (checked) { setPageFrom(firstPage); setPageTo(lastPage) }
-                      }}
-                      className="h-4 w-4 rounded border-slate-300 accent-teal-700"
-                    />
-                    Seleziona un intervallo
-                  </label>
+            {(pageSections.length > 1 || topicSections.length > 1) && (
+              <section className="mb-4 rounded-2xl border border-teal-100 bg-teal-50/70 p-3.5 sm:p-4" aria-label="Selezione della fonte per AI">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.13em] text-teal-800">Su quale parte deve lavorare l’AI?</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Scegli il documento intero, un intervallo di pagine oppure uno o più argomenti dai titoli presenti nel documento.</p>
                 </div>
-                {usePageRange && (
-                  <div className="mt-3">
+                <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Parte del documento da analizzare">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                    <input type="radio" name="ai-source-mode" checked={sourceMode === 'document'} onChange={() => setSourceMode('document')} className="accent-teal-700" />
+                    Documento intero
+                  </label>
+                  {pageSections.length > 1 && (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                      <input type="radio" name="ai-source-mode" checked={sourceMode === 'pages'} onChange={() => { setSourceMode('pages'); setPageFrom(firstPage); setPageTo(lastPage) }} className="accent-teal-700" />
+                      Scegli pagine
+                    </label>
+                  )}
+                  {topicSections.length > 1 && (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                      <input type="radio" name="ai-source-mode" checked={sourceMode === 'topics'} onChange={() => { setSourceMode('topics'); if (selectedTopics.length === 0) setSelectedTopics(topicSections.map((topic) => topic.number)) }} className="accent-teal-700" />
+                      Scegli argomenti
+                    </label>
+                  )}
+                </div>
+
+                {sourceMode === 'pages' && pageSections.length > 1 && (
+                  <div className="mt-3 rounded-xl border border-teal-100 bg-white p-3">
+                    <p className="mb-3 text-xs font-semibold text-slate-700">Intervallo di pagine del documento sorgente</p>
                     <div className="flex flex-wrap items-end gap-3">
                       <label className="block">
                         <span className="mb-1 block text-[11px] font-semibold text-slate-600">Dalla pagina</span>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={firstPage}
-                          max={lastPage}
-                          value={pageFrom}
+                        <input type="number" inputMode="numeric" min={firstPage} max={lastPage} value={pageFrom}
                           onChange={(event) => {
                             const value = Number(event.target.value)
                             if (!Number.isFinite(value)) return
@@ -305,17 +387,11 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                             if (next > pageTo) setPageTo(next)
                           }}
                           className="w-24 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                          aria-label="Pagina iniziale"
-                        />
+                          aria-label="Pagina iniziale" />
                       </label>
                       <label className="block">
                         <span className="mb-1 block text-[11px] font-semibold text-slate-600">Alla pagina</span>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={firstPage}
-                          max={lastPage}
-                          value={pageTo}
+                        <input type="number" inputMode="numeric" min={firstPage} max={lastPage} value={pageTo}
                           onChange={(event) => {
                             const value = Number(event.target.value)
                             if (!Number.isFinite(value)) return
@@ -324,16 +400,32 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                             if (next < pageFrom) setPageFrom(next)
                           }}
                           className="w-24 rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                          aria-label="Pagina finale"
-                        />
+                          aria-label="Pagina finale" />
                       </label>
                       <p className="pb-2 text-xs text-teal-900">
-                        Verranno inviate solo le pagine {normalizedPageFrom}–{normalizedPageTo} ({normalizedPageTo - normalizedPageFrom + 1} pagine).
+                        Verranno inviate solo le pagine {normalizedPageFrom}–{normalizedPageTo}.
                       </p>
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-slate-600">
-                      Disponibile per PDF importati in modalità conversione testo. I PDF scansionati usano il testo riconosciuto dall'OCR.
-                    </p>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-500">La selezione per pagina usa i marcatori dei PDF convertiti o le interruzioni di pagina esplicite nel documento.</p>
+                  </div>
+                )}
+
+                {sourceMode === 'topics' && topicSections.length > 1 && (
+                  <div className="mt-3 rounded-xl border border-teal-100 bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold text-slate-700">Spunta gli argomenti da includere</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {topicSections.map((topic) => (
+                        <label key={topic.number} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700 hover:border-teal-200">
+                          <input type="checkbox" checked={selectedTopics.includes(topic.number)}
+                            onChange={(event) => setSelectedTopics((current) => event.target.checked
+                              ? Array.from(new Set([...current, topic.number]))
+                              : current.filter((number) => number !== topic.number))}
+                            className="mt-0.5 accent-teal-700" />
+                          <span>{topic.title || ('Argomento ' + topic.number)}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-500">La richiesta userà solo il testo associato ai titoli selezionati.</p>
                   </div>
                 )}
               </section>
