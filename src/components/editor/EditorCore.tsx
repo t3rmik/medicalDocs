@@ -62,6 +62,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
   const [inkColor, setInkColor] = useState('#154e73')
   const [inkBrushSize, setInkBrushSize] = useState(2.4)
   const [inkInputMode, setInkInputMode] = useState<'pen' | 'finger'>('pen')
+  const [inkTool, setInkTool] = useState<'pen' | 'highlighter' | 'eraser' | 'select'>('pen')
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -129,7 +130,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
           paths: [], width: Math.max(1, root.clientWidth || 800),
           height: Math.max(root.scrollHeight, root.clientHeight, 1122),
           enabled: Boolean(patch.enabled), color: inkColor,
-          brushSize: inkBrushSize, inputMode: inkInputMode, ...patch,
+          brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, undoStack: [], redoStack: [], selectedId: null, ...patch,
         },
       }).run();
       return;
@@ -139,18 +140,47 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
 
   const toggleInkMode = useCallback(() => {
     const next = !inkMode;
-    updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode });
+    updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool });
     setInkMode(next);
-  }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode]);
+  }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode, inkTool]);
+
+  const chooseInkTool = (tool: 'pen' | 'highlighter' | 'eraser' | 'select') => {
+    setInkTool(tool);
+    setInkMode(true);
+    updateInkLayer({ enabled: true, tool, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode });
+  };
 
   const changeInkColor = (value: string) => { setInkColor(value); updateInkLayer({ color: value }); };
   const changeInkBrushSize = (value: number) => { setInkBrushSize(value); updateInkLayer({ brushSize: value }); };
   const changeInkInputMode = (value: 'pen' | 'finger') => { setInkInputMode(value); updateInkLayer({ inputMode: value }); };
   const undoInkStroke = () => {
     const existing = findInkLayer();
-    if (existing && Array.isArray(existing.node.attrs.paths)) updateInkLayer({ paths: existing.node.attrs.paths.slice(0, -1) });
+    if (!existing) return;
+    const history = Array.isArray(existing.node.attrs.undoStack) ? existing.node.attrs.undoStack : [];
+    const redo = Array.isArray(existing.node.attrs.redoStack) ? existing.node.attrs.redoStack : [];
+    const current = Array.isArray(existing.node.attrs.paths) ? existing.node.attrs.paths : [];
+    if (!history.length) return;
+    updateInkLayer({ paths: history[history.length - 1], undoStack: history.slice(0, -1), redoStack: [...redo, current].slice(-60), selectedId: null });
   };
-  const clearInkStrokes = () => updateInkLayer({ paths: [] });
+  const redoInkStroke = () => {
+    const existing = findInkLayer();
+    if (!existing) return;
+    const history = Array.isArray(existing.node.attrs.undoStack) ? existing.node.attrs.undoStack : [];
+    const redo = Array.isArray(existing.node.attrs.redoStack) ? existing.node.attrs.redoStack : [];
+    const current = Array.isArray(existing.node.attrs.paths) ? existing.node.attrs.paths : [];
+    if (!redo.length) return;
+    updateInkLayer({ paths: redo[redo.length - 1], undoStack: [...history, current].slice(-60), redoStack: redo.slice(0, -1), selectedId: null });
+  };
+  const clearInkStrokes = () => {
+    const existing = findInkLayer();
+    if (!existing || !Array.isArray(existing.node.attrs.paths) || !existing.node.attrs.paths.length) return;
+    if (!window.confirm('Cancellare tutti i tratti a mano libera di questo documento?')) return;
+    const history = Array.isArray(existing.node.attrs.undoStack) ? existing.node.attrs.undoStack : [];
+    updateInkLayer({ paths: [], undoStack: [...history, existing.node.attrs.paths].slice(-60), redoStack: [], selectedId: null });
+  };
+  const inkState = findInkLayer()?.node.attrs;
+  const canUndoInk = Boolean(inkState && Array.isArray(inkState.undoStack) && inkState.undoStack.length);
+  const canRedoInk = Boolean(inkState && Array.isArray(inkState.redoStack) && inkState.redoStack.length);
 
   useEffect(() => {
     if (!editor || !onRegisterInsert) return;
@@ -164,7 +194,41 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
   return (
     <div data-md-editor-shell="true" className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-teal-50 to-[#e5eff2]">
       <Ribbon editor={editor} onToggleInk={toggleInkMode} inkMode={inkMode} />
-      
+      {inkMode && (
+        <div data-md-ink-toolbar="true" className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+          <span className="mr-1 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva</span>
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Strumento di scrittura">
+            <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}>✎ Penna</button>
+            <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}>▰ Evidenzia</button>
+            <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}>⌫ Gomma</button>
+            <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}>↗ Seleziona</button>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5" role="group" aria-label="Colori rapidi">
+            {[
+              { color: '#154e73', label: 'Blu petrolio' }, { color: '#1d4ed8', label: 'Blu' },
+              { color: '#111827', label: 'Nero' }, { color: '#dc2626', label: 'Rosso' },
+              { color: '#16a34a', label: 'Verde' }, { color: '#facc15', label: 'Giallo' }
+            ].map((swatch) => (
+              <button key={swatch.color} type="button" title={swatch.label} aria-label={swatch.label} aria-pressed={inkColor === swatch.color}
+                onClick={() => changeInkColor(swatch.color)}
+                className={"h-7 w-7 rounded-full border-2 " + (inkColor === swatch.color ? 'border-indigo-700 ring-2 ring-indigo-100' : 'border-white shadow-sm')}
+                style={{ backgroundColor: swatch.color }} />
+            ))}
+            <input type="color" value={inkColor} onChange={(event) => changeInkColor(event.target.value)} className="h-8 w-8 cursor-pointer rounded border border-slate-200 bg-white p-0.5" aria-label="Colore personalizzato" />
+          </div>
+          <label className="flex min-h-10 min-w-32 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 sm:max-w-48">Spessore
+            <input type="range" min="1" max="8" step="0.2" value={inkBrushSize} onChange={(event) => changeInkBrushSize(Number(event.target.value))} className="min-w-0 flex-1 accent-indigo-600" aria-label="Spessore della penna" />
+            <span className="w-7 text-right tabular-nums">{inkBrushSize.toFixed(1)}</span>
+          </label>
+          <label className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">
+            <input type="checkbox" checked={inkInputMode === 'finger'} onChange={(event) => changeInkInputMode(event.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-indigo-600" /> Dito
+          </label>
+          <button type="button" onClick={undoInkStroke} disabled={!canUndoInk} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" title="Annulla ultima azione">↶</button>
+          <button type="button" onClick={redoInkStroke} disabled={!canRedoInk} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" title="Ripeti azione">↷</button>
+          <button type="button" onClick={clearInkStrokes} className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Cancella tutto</button>
+          <button type="button" onClick={toggleInkMode} className="min-h-10 rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-800">Fine</button>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto">
         <div style={{ zoom: zoom / 100 }}>
           <EditorContent editor={editor} />
@@ -172,24 +236,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, onRegis
       </div>
 
       <StatusBar editor={editor} zoom={zoom} onZoomChange={setZoom} isSaving={isSaving} />
-      {inkMode && (
-        <div data-md-ink-toolbar="true" className="z-40 flex flex-wrap items-center gap-3 border-b border-indigo-200 bg-indigo-50 px-3 py-2.5 text-sm shadow-sm sm:px-4">
-          <span className="inline-flex items-center gap-2 font-semibold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva — scrivi direttamente sul foglio</span>
-          <label className="flex min-h-10 items-center gap-2 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700">Colore
-            <input type="color" value={inkColor} onChange={(event) => changeInkColor(event.target.value)} className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0" aria-label="Colore della penna" />
-          </label>
-          <label className="flex min-h-10 min-w-36 flex-1 items-center gap-2 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 sm:max-w-52">Spessore
-            <input type="range" min="1" max="8" step="0.2" value={inkBrushSize} onChange={(event) => changeInkBrushSize(Number(event.target.value))} className="min-w-0 flex-1 accent-indigo-600" aria-label="Spessore della penna" />
-            <span className="w-7 text-right tabular-nums">{inkBrushSize.toFixed(1)}</span>
-          </label>
-          <label className="flex min-h-10 items-center gap-2 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700">
-            <input type="checkbox" checked={inkInputMode === 'finger'} onChange={(event) => changeInkInputMode(event.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-indigo-600" />Consenti dito
-          </label>
-          <button type="button" onClick={undoInkStroke} className="min-h-10 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-900 hover:bg-indigo-100">Annulla tratto</button>
-          <button type="button" onClick={clearInkStrokes} className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Cancella inchiostro</button>
-          <button type="button" onClick={toggleInkMode} className="min-h-10 rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-800">Fine</button>
-        </div>
-      )}
+
     </div>
   );
 }

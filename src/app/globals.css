@@ -293,3 +293,12 @@ html{scroll-behavior:smooth}button,[role="button"],input,select,textarea,summary
   [data-md-ribbon] button { min-height: 42px; touch-action: manipulation; }
   [data-md-ink-toolbar="true"] { gap: 0.5rem; padding: 0.625rem; }
 }
+
+.medicaldocs-ink-layer { box-sizing: border-box; overflow: visible; }
+.medicaldocs-ink-layer svg { display: block; }
+.ProseMirror.editor-page { position: relative; }
+[data-md-ink-toolbar="true"] { flex-shrink: 0; }
+@media (max-width: 1023px) {
+  [data-md-ink-toolbar="true"] { gap: 0.5rem; max-height: 28dvh; overflow-y: auto; overscroll-behavior: contain; }
+  [data-md-ink-toolbar="true"] button { min-height: 42px; }
+}
