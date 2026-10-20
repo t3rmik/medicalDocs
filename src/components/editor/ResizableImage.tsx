@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import Image from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react'
 import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react'
@@ -80,14 +80,14 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
 
   return <NodeViewWrapper as="div" contentEditable={false} draggable={true} data-drag-handle="true"
     className={'medicaldocs-resizable-image'+(selected?' is-selected':'')}
-    onClick={event=>{event.stopPropagation();selectImage()}}
+    onClick={(event: ReactMouseEvent<HTMLDivElement>)=>{event.stopPropagation();selectImage()}}
     style={{position:'relative',display:'block',width:'fit-content',maxWidth:'100%',margin:'1rem 0',lineHeight:0}}>
-    {selected&&<div className="medicaldocs-image-toolbar" contentEditable={false} onPointerDown={event=>event.stopPropagation()}>
+    {selected&&<div className="medicaldocs-image-toolbar" contentEditable={false} onPointerDown={(event: ReactPointerEvent<HTMLDivElement>)=>event.stopPropagation()}>
       <span className="medicaldocs-image-toolbar-label">Immagine</span>
-      <button type="button" title="Riduci" aria-label="Riduci immagine" onClick={event=>{event.preventDefault();event.stopPropagation();adjustSize(-40)}}><Minus size={14}/></button>
-      <button type="button" title="Ingrandisci" aria-label="Ingrandisci immagine" onClick={event=>{event.preventDefault();event.stopPropagation();adjustSize(40)}}><Plus size={14}/></button>
-      <button type="button" title="Sposta sopra" aria-label="Sposta immagine sopra" onClick={event=>{event.preventDefault();event.stopPropagation();moveImage('up')}}><ChevronUp size={15}/></button>
-      <button type="button" title="Sposta sotto" aria-label="Sposta immagine sotto" onClick={event=>{event.preventDefault();event.stopPropagation();moveImage('down')}}><ChevronDown size={15}/></button>
+      <button type="button" title="Riduci" aria-label="Riduci immagine" onClick={(event: ReactMouseEvent<HTMLButtonElement>)=>{event.preventDefault();event.stopPropagation();adjustSize(-40)}}><Minus size={14}/></button>
+      <button type="button" title="Ingrandisci" aria-label="Ingrandisci immagine" onClick={(event: ReactMouseEvent<HTMLButtonElement>)=>{event.preventDefault();event.stopPropagation();adjustSize(40)}}><Plus size={14}/></button>
+      <button type="button" title="Sposta sopra" aria-label="Sposta immagine sopra" onClick={(event: ReactMouseEvent<HTMLButtonElement>)=>{event.preventDefault();event.stopPropagation();moveImage('up')}}><ChevronUp size={15}/></button>
+      <button type="button" title="Sposta sotto" aria-label="Sposta immagine sotto" onClick={(event: ReactMouseEvent<HTMLButtonElement>)=>{event.preventDefault();event.stopPropagation();moveImage('down')}}><ChevronDown size={15}/></button>
       {shownWidth&&<span className="medicaldocs-image-size">{Math.round(shownWidth)} px</span>}
     </div>}
     <img ref={imageRef} src={typeof node.attrs.src==='string'?node.attrs.src:''}
@@ -97,8 +97,8 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
         outline:selected?'2px solid #0f9488':'1px solid transparent',outlineOffset:selected?2:0,cursor:'grab',userSelect:'none',WebkitUserSelect:'none'}}/>
     {selected&&<button type="button" className="medicaldocs-image-resize-handle" title="Trascina per ridimensionare"
       aria-label="Ridimensiona immagine trascinando" onPointerDown={startResize} onPointerMove={resizeMove}
-      onPointerUp={finishResize} onPointerCancel={finishResize} onLostPointerCapture={()=>finishResize()}
-      onClick={event=>{event.preventDefault();event.stopPropagation()}}><span/></button>}
+      onPointerUp={finishResize} onPointerCancel={finishResize} onLostPointerCapture={(event: ReactPointerEvent<HTMLButtonElement>)=>finishResize(event)}
+      onClick={(event: ReactMouseEvent<HTMLButtonElement>)=>{event.preventDefault();event.stopPropagation()}}><span/></button>}
   </NodeViewWrapper>
 }
 
