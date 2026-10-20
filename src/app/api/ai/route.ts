@@ -222,7 +222,7 @@ export async function POST(request: Request) {
     if (remainingMs < 1_250) break;
 
     // The primary model can take longer on larger summaries; avoid aborting healthy generations too early.
-    const attemptTimeoutMs = Math.min(12_000, remainingMs - 500);
+    const attemptTimeoutMs = Math.min(18_000, remainingMs - 500);
     attempts += 1;
 
     try {
