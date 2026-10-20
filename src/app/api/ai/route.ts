@@ -214,7 +214,9 @@ export async function POST(request: Request) {
   let lastErrorCode = 'provider_unavailable';
   let malformedRequest = false;
 
-  for (const [candidateIndex, candidate] of candidates.slice(0, maxAttempts).entries()) {
+  const attemptCandidates = candidates.slice(0, maxAttempts);
+  for (let candidateIndex = 0; candidateIndex < attemptCandidates.length; candidateIndex += 1) {
+    const candidate = attemptCandidates[candidateIndex];
     if (unavailableProviders.has(candidate.provider)) continue;
     const remainingMs = requestDeadline - Date.now();
     if (remainingMs < 750) break;
