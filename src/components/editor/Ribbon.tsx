@@ -240,7 +240,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
 
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
               <select 
-                className="text-xs border border-slate-300 rounded px-2 py-1 bg-white hover:bg-slate-50 outline-none w-28"
+                className="min-h-9 w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
               >
                 <option value="Calibri">Calibri</option>
@@ -509,17 +509,17 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
           <div className="flex w-full flex-col gap-3">
             <div className="flex flex-wrap items-end gap-3">
               <label className="grid gap-1 text-xs font-semibold text-slate-700">Formato
-                <select value={pageFormat} onChange={(e) => setPageFormat(e.target.value as PageFormat)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                <select value={pageFormat} onChange={(e) => setPageFormat(e.target.value as PageFormat)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                   <option value="A4">A4</option><option value="A5">A5</option><option value="A3">A3</option><option value="Letter">Letter</option>
                 </select>
               </label>
               <label className="grid gap-1 text-xs font-semibold text-slate-700">Orientamento
-                <select value={pageOrientation} onChange={(e) => setPageOrientation(e.target.value as PageOrientation)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                <select value={pageOrientation} onChange={(e) => setPageOrientation(e.target.value as PageOrientation)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                   <option value="portrait">Verticale</option><option value="landscape">Orizzontale</option>
                 </select>
               </label>
               <label className="grid gap-1 text-xs font-semibold text-slate-700">Margini
-                <select value={pageMargins} onChange={(e) => setPageMargins(e.target.value as PageMargins)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                <select value={pageMargins} onChange={(e) => setPageMargins(e.target.value as PageMargins)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                   <option value="custom">Personalizzati</option><option value="narrow">Minimi · 3 mm</option><option value="normal">Compatti · 12 mm</option><option value="wide">Larghi · 25,4 mm</option>
                 </select>
               </label>
