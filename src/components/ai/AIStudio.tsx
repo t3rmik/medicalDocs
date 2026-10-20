@@ -45,7 +45,7 @@ interface PdfPageSection {
 }
 
 function detectPdfPageSections(text: string): PdfPageSection[] {
-  const matches = Array.from(text.matchAll(/(?:^|\\n)\\s*Pagina\\s+(\\d+)\\s*(?=\\n)/gi));
+  const matches = Array.from(text.matchAll(/(?:^|\n)\s*Pagina\s+(\d+)\s*(?=\n)/gi));
   if (matches.length < 2) return [];
 
   return matches.map((match, index) => {
@@ -137,7 +137,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
       ? pageSections.filter((page) => page.number >= normalizedPageFrom && page.number <= normalizedPageTo)
       : []
     const sourceText = usePageRange
-      ? selectedPages.map((page) => page.text).join('\\n\\n')
+      ? selectedPages.map((page) => page.text).join('\n\n')
       : plainText
     if (usePageRange && selectedPages.length === 0) {
       setError('Non riesco a trovare le pagine selezionate nel testo importato. Reimporta il PDF in modalità conversione testo e riprova.')

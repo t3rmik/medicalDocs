@@ -359,7 +359,7 @@ export async function POST(request: Request) {
           const retryAfterSeconds = getRetryAfterSeconds(upstream, message);
           if (typeof retryAfterSeconds === 'number') lastRetryAfterSeconds = retryAfterSeconds;
           const tokenRateLimited = /tokens per minute|\btpm\b|token.{0,30}(limit|quota|rate)/i.test(normalized);
-          if (tokenRateLimited) unavailableModels.add(candidateKey);
+          if (tokenRateLimited && !quotaExhausted) unavailableModels.add(candidateKey);
           else unavailableProviders.add(candidate.provider);
           console.warn('[MedicalDocs] AI provider attempt failed', {
             provider: candidate.provider, model: candidate.model, status: upstream.status, errorCode, attempt: attempts, durationMs: Date.now() - attemptStartedAt,
