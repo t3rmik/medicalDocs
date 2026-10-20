@@ -90,6 +90,8 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateBody, setTemplateBody] = useState('');
+  const [equationOpen, setEquationOpen] = useState(false);
+  const [equationLatex, setEquationLatex] = useState('x^2 + y^2 = z^2');
 
   useEffect(() => {
     try {
@@ -164,6 +166,23 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
     const content = body.split(/\r?\n/).map((line) => line.trim() ? '<p>' + escapeTemplateText(line.trim()) + '</p>' : '<p><br/></p>').join('');
     setCustomTemplates((items) => [{ id: 'custom-' + Date.now().toString(36), name: name.slice(0, 80), category: 'Personale', content, custom: true }, ...items]); setTemplateName(''); setTemplateBody(''); toast.success('Modello salvato in questo browser.');
   };
+
+  const openEquationDialog = () => {
+    setEquationLatex('x^2 + y^2 = z^2')
+    setEquationOpen(true)
+  }
+  const insertEquation = () => {
+    const latex = equationLatex.trim()
+    if (!latex) { toast.error('Scrivi una formula prima di inserirla.'); return }
+    if (!editor || editor.isDestroyed) { toast.error("L'editor non è pronto."); return }
+    const inserted = editor.chain().focus().insertContent({ type: 'mathEquation', attrs: { latex } }).run()
+    if (inserted) {
+      setEquationOpen(false)
+      toast.success('Equazione inserita. Doppio clic sulla formula per modificarla.')
+    } else {
+      toast.error("Non è stato possibile inserire l'equazione in questa posizione.")
+    }
+  }
 
   if (!editor) return null;
 
@@ -331,13 +350,34 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         )}
 
         {activeTab === 'Inserisci' && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button 
               type="button"
               onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
               className="flex items-center space-x-1.5 px-3 py-1.5 hover:bg-slate-200 rounded text-slate-700 text-xs font-medium bg-white border border-slate-300"
             >
               <TableIcon className="w-4 h-4 text-teal-600" /> <span>Inserisci Tabella</span>
+            </button>
+
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5" role="group" aria-label="Simboli greci">
+              <span className="px-1 text-[11px] font-semibold text-slate-500">Greco</span>
+              {[
+                { value: 'Α', label: 'Alpha maiuscola' }, { value: 'α', label: 'Alpha minuscola' },
+                { value: 'Β', label: 'Beta maiuscola' }, { value: 'β', label: 'Beta minuscola' },
+                { value: 'Γ', label: 'Gamma maiuscola' }, { value: 'γ', label: 'Gamma minuscola' },
+                { value: 'Δ', label: 'Delta maiuscola' }, { value: 'δ', label: 'Delta minuscola' },
+              ].map((symbol) => (
+                <button key={symbol.label} type="button" title={symbol.label} aria-label={symbol.label}
+                  onClick={() => editor.chain().focus().insertContent(symbol.value).run()}
+                  className="min-h-8 min-w-8 rounded-lg border border-transparent bg-white px-2 text-base font-semibold text-indigo-800 shadow-sm hover:border-indigo-200 hover:bg-indigo-50">
+                  {symbol.value}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={openEquationDialog}
+              className="flex min-h-10 items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100"
+              title="Inserisci un'equazione modificabile">
+              <span className="text-base font-bold">∑ =</span> Equazione
             </button>
             <input
               ref={imageInputRef}
@@ -524,6 +564,45 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
           </div>
         )}
       </div>
+
+      {equationOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEquationOpen(false) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="md-equation-title" className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 id="md-equation-title" className="text-base font-bold text-slate-900">Inserisci equazione</h2>
+                <p className="mt-1 text-xs text-slate-500">Crea formule con uguaglianze, potenze, radici, frazioni e simboli greci.</p>
+              </div>
+              <button type="button" onClick={() => setEquationOpen(false)} className="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-100" aria-label="Chiudi finestra">×</button>
+            </div>
+            <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
+              {[
+                { label: 'Uguaglianza', value: 'a = b + c' },
+                { label: 'Potenze', value: 'x^2 + y^2 = z^2' },
+                { label: 'Frazione', value: '\\frac{a}{b} = c' },
+                { label: 'Radice', value: '\\sqrt{x} = y' },
+                { label: 'Greco', value: '\\alpha + \\beta = \\gamma' },
+              ].map((template) => (
+                <button key={template.label} type="button" onClick={() => setEquationLatex(template.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50">
+                  {template.label}
+                </button>
+              ))}
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); insertEquation() }} className="grid gap-3 px-5 py-4">
+              <label htmlFor="md-equation-source" className="text-xs font-semibold text-slate-700">Formula (sintassi tipo LaTeX)</label>
+              <textarea id="md-equation-source" value={equationLatex} onChange={(event) => setEquationLatex(event.target.value)}
+                placeholder="Es. x^2 + y^2 = z^2 oppure \\frac{a}{b} = c" rows={3} autoFocus maxLength={1500}
+                className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-sm leading-6 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
+              <p className="text-[11px] leading-relaxed text-slate-500">Usa ^ per l'apice, _ per il pedice, \\frac{numeratore}{denominatore} per una frazione e \\sqrt{x} per una radice. Puoi modificare la formula anche dopo averla inserita con un doppio clic.</p>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setEquationOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Annulla</button>
+                <button type="submit" className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-800">Inserisci nel foglio</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

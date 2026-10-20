@@ -24,6 +24,7 @@ import TaskItem from '@tiptap/extension-task-item'
 import { Ribbon } from './Ribbon'
 import { StatusBar } from './StatusBar'
 import { InkLayer } from './InkLayer'
+import { MathEquation } from './MathEquation'
 import { PaginationPlus, PAGE_SIZES } from 'tiptap-pagination-plus'
 
 
@@ -78,6 +79,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
       ResizableImage,
       PageBreak,
       InkLayer,
+      MathEquation,
       PaginationPlus.configure({
         ...PAGE_SIZES.A4,
         enabled: true,
@@ -237,8 +239,9 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
             <span className="w-7 text-right tabular-nums">{inkBrushSize.toFixed(1)}</span>
           </label>
           <label className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">
-            <input type="checkbox" checked={inkInputMode === 'finger'} onChange={(event) => changeInkInputMode(event.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-indigo-600" /> Dito
+            <input type="checkbox" checked={inkInputMode === 'finger'} onChange={(event) => changeInkInputMode(event.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-indigo-600" /> Disegna col dito
           </label>
+          <span className="text-[11px] font-medium text-indigo-700">Stilo: scrive · dito: scorre il foglio</span>
           <button type="button" onClick={undoInkStroke} disabled={!canUndoInk} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" title="Annulla ultima azione">↶</button>
           <button type="button" onClick={redoInkStroke} disabled={!canRedoInk} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" title="Ripeti azione">↷</button>
           <button type="button" onClick={clearInkStrokes} className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Cancella tutto</button>
