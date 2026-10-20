@@ -391,11 +391,16 @@ export const InkLayer = Node.create({
       ['svg', {
         xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 ' + width + ' ' + height,
         width: '100%', height: String(height), preserveAspectRatio: 'none', 'aria-hidden': 'true',
-      }, ...paths.map((stroke) => ['path', {
-        d: stroke.d, fill: 'none', stroke: stroke.color, 'stroke-width': String(stroke.width),
-        'stroke-opacity': String(stroke.opacity), 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-        transform: 'translate(' + stroke.tx + ' ' + stroke.ty + ')',
-      }] as [string, Record<string, string>])],
+      }, ...paths.map((stroke) => {
+        const points = pointsFor(stroke)
+        const cx = points.length ? (Math.min(...points.map((point) => point.x)) + Math.max(...points.map((point) => point.x))) / 2 : 0
+        const cy = points.length ? (Math.min(...points.map((point) => point.y)) + Math.max(...points.map((point) => point.y))) / 2 : 0
+        return ['path', {
+          d: stroke.d, fill: 'none', stroke: stroke.color, 'stroke-width': String(stroke.width),
+          'stroke-opacity': String(stroke.opacity), 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+          transform: 'translate(' + stroke.tx + ' ' + stroke.ty + ') translate(' + cx + ' ' + cy + ') scale(' + stroke.sx + ' ' + stroke.sy + ') translate(' + (-cx) + ' ' + (-cy) + ')',
+        }] as [string, Record<string, string>]
+      })],
     ]
   },
   addNodeView() { return ReactNodeViewRenderer(InkLayerView) },

@@ -33,9 +33,11 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
     const index = siblings.findIndex(item=>item.pos===pos)
     const target = direction==='up' ? siblings[index-1] : siblings[index+1]
     if (!target) return
-    const insertionPos = direction==='up' ? target.pos : pos + target.node.nodeSize
-    const tr = editor.state.tr.delete(pos,pos+current.nodeSize).insert(insertionPos,current)
-    editor.view.dispatch(tr.scrollIntoView())
+    const tr = editor.state.tr.delete(pos,pos+current.nodeSize)
+    const targetBoundary = direction==='up' ? target.pos : target.pos + target.node.nodeSize
+    const insertionPos = tr.mapping.map(targetBoundary, direction==='up' ? -1 : 1)
+    const moved = tr.insert(insertionPos,current)
+    editor.view.dispatch(moved.scrollIntoView())
     editor.commands.setNodeSelection(insertionPos)
   }
   const startResize = (event:React.PointerEvent<HTMLButtonElement>) => {
