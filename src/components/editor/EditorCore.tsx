@@ -59,6 +59,8 @@ interface EditorCoreProps {
 
 export default function EditorCore({ initialContent, onChange, isSaving, documentVersion, onRegisterInsert }: EditorCoreProps) {
   const lastDocumentVersionRef = useRef(documentVersion)
+  const initialContentRef = useRef(initialContent)
+  initialContentRef.current = initialContent
   const [zoom, setZoom] = useState(100)
   const [inkMode, setInkMode] = useState(false)
   const [inkColor, setInkColor] = useState('#154e73')
@@ -113,12 +115,12 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   useEffect(() => {
     if (!editor || lastDocumentVersionRef.current === documentVersion) return
     lastDocumentVersionRef.current = documentVersion
-    editor.commands.setContent(initialContent, false)
+    editor.commands.setContent(initialContentRef.current, false)
     setZoom(100)
     setInkMode(false)
     setInkTool('pen')
     setInkInputMode('pen')
-  }, [editor, documentVersion, initialContent])
+  }, [editor, documentVersion])
 
   const findInkLayer = useCallback(() => {
     if (!editor) return null;

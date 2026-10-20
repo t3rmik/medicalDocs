@@ -338,3 +338,62 @@ html{scroll-behavior:smooth}button,[role="button"],input,select,textarea,summary
 }
 .ProseMirror.rm-with-pagination { background-color: #ffffff !important; }
 .rm-pagination-gap { background-color: #edf3f6 !important; }
+
+/* Tailwind Preflight removes list markers globally; restore them inside the editor. */
+.ProseMirror ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+.ProseMirror ul:not([data-type="taskList"]) ul {
+  list-style-type: circle;
+}
+.ProseMirror ul:not([data-type="taskList"]) ul ul {
+  list-style-type: square;
+}
+.ProseMirror ol ol {
+  list-style-type: lower-alpha;
+}
+.ProseMirror ol ol ol {
+  list-style-type: lower-roman;
+}
+/* Task lists use checkboxes, not regular bullets. */
+.ProseMirror ul[data-type="taskList"],
+.ProseMirror ul[data-type="taskList"] ul {
+  list-style: none;
+}
+
+/* Tablet: keep Home editing controls in one touch-scrollable row to preserve page space. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-md-ribbon="true"][data-md-active-tab="Home"] > div:last-child {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 64px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-content: normal;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  [data-md-ribbon="true"][data-md-active-tab="Home"] > div:last-child > * {
+    flex: 0 0 auto;
+  }
+
+  [data-md-ribbon="true"][data-md-active-tab="Home"] > div:last-child > div {
+    flex-shrink: 0;
+  }
+
+  [data-md-ribbon="true"][data-md-active-tab="Home"] > div:last-child button {
+    min-width: 40px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+}
+
