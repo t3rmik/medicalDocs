@@ -92,6 +92,38 @@ function detectExplicitPageSections(markup: string): PdfPageSection[] {
   return pages.length > 1 ? pages : []
 }
 
+function estimateTextPages(text: string): PdfPageSection[] {
+  const normalized = (text || '').trim()
+  if (normalized.length < 1800) return []
+
+  const sections: PdfPageSection[] = []
+  let start = 0
+  const targetLength = 2300
+  while (start < normalized.length) {
+    let end = Math.min(normalized.length, start + targetLength)
+    if (end < normalized.length) {
+      const paragraphBreak = normalized.lastIndexOf('\n\n', end)
+      if (paragraphBreak > start + 1100) {
+        end = paragraphBreak
+      } else {
+        const wordBreak = normalized.lastIndexOf(' ', end)
+        if (wordBreak > start + 1500) end = wordBreak
+      }
+    }
+    const part = normalized.slice(start, end).trim()
+    if (part) sections.push(part)
+    start = end
+    while (start < normalized.length && /\s/.test(normalized[start])) start += 1
+  }
+
+  if (sections.length < 2) return []
+  return sections.map((part, index) => ({
+    number: index + 1,
+    title: 'Sezione ' + (index + 1) + ' (pagina stimata)',
+    text: 'Sezione ' + (index + 1) + '\n' + part,
+  }))
+}
+
 function detectTopicSections(markup: string): PdfPageSection[] {
   if (typeof window === 'undefined') return []
   const parsed = new DOMParser().parseFromString(markup, 'text/html')
@@ -177,6 +209,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [selectedAction, setSelectedAction] = useState<AIAction>('summarize')
   const [instruction, setInstruction] = useState('')
   const [result, setResult] = useState('')
+  const [resultExpanded, setResultExpanded] = useState(false)
   const [generationInfo, setGenerationInfo] = useState<{
     provider: string;
     model: string;
@@ -197,7 +230,12 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const plainText = extractPlainText(content)
   const markedPages = detectPdfPageSections(plainText)
   const explicitPages = detectExplicitPageSections(content)
-  const pageSections = markedPages.length > 1 ? markedPages : explicitPages
+  const hasExactPageBoundaries = markedPages.length > 1 || explicitPages.length > 1
+  const pageSections = markedPages.length > 1
+    ? markedPages
+    : explicitPages.length > 1
+      ? explicitPages
+      : estimateTextPages(plainText)
   const topicSections = detectTopicSections(content)
   const firstPage = pageSections[0]?.number ?? 1
   const lastPage = pageSections[pageSections.length - 1]?.number ?? 1
@@ -206,7 +244,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
   const runAction = async (action: AIAction = selectedAction) => {
-    setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setGenerationInfo(null); setRetryMessage(''); setCopied(false);
+    setSelectedAction(action); setIsLoading(true); setError(''); setResult(''); setResultExpanded(false); setGenerationInfo(null); setRetryMessage(''); setCopied(false);
     const selectedPages = sourceMode === 'pages'
       ? pageSections.filter((page) => page.number >= normalizedPageFrom && page.number <= normalizedPageTo)
       : []
@@ -239,7 +277,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
     }
     if (sourceText.length < 2) { setError('Il testo selezionato non contiene contenuto sufficiente. Seleziona altre pagine o argomenti e riprova.'); setIsLoading(false); return; }
     try {
-      const pageRange = sourceMode === 'pages' && selectedPages.length
+      const pageRange = sourceMode === 'pages' && hasExactPageBoundaries && selectedPages.length
         ? { from: selectedPages[0].number, to: selectedPages[selectedPages.length - 1].number }
         : undefined
       const effectiveInstruction = [
@@ -272,6 +310,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
       if (!response.ok) throw new Error(payload.error || 'La richiesta AI non è riuscita.');
       if (typeof payload.result !== 'string' || !payload.result.trim()) throw new Error('Il servizio AI non ha restituito testo.');
       setResult(normalizeAIOutput(payload.result.trim()));
+      setResultExpanded(true);
       if (typeof payload.provider === 'string' && typeof payload.model === 'string') {
         setGenerationInfo({
           provider: payload.provider,
@@ -332,7 +371,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                   <button
                     key={action.id}
                     type="button"
-                    onClick={() => { setSelectedAction(action.id); setError(''); setResult(''); setGenerationInfo(null); setCopied(false) }}
+                    onClick={() => { setSelectedAction(action.id); setError(''); setResult(''); setResultExpanded(false); setGenerationInfo(null); setCopied(false) }}
                     aria-pressed={actionIsSelected(action.id)}
                     className={'flex min-w-0 items-start gap-2.5 rounded-xl border p-3 text-left transition ' + (actionIsSelected(action.id) ? 'border-teal-200 bg-teal-50 shadow-sm ring-1 ring-teal-100' : 'border-slate-200 bg-white hover:border-teal-100 hover:bg-slate-50')}
                   >
@@ -419,7 +458,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                         Verranno inviate solo le pagine {normalizedPageFrom}–{normalizedPageTo}.
                       </p>
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-slate-500">La selezione per pagina usa i marcatori dei PDF convertiti o le interruzioni di pagina esplicite nel documento.</p>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-500">{hasExactPageBoundaries ? 'Selezione basata sui marcatori di pagina riconosciuti nel documento.' : 'Il documento non conserva le pagine originali: il testo è suddiviso in sezioni di lunghezza simile, quindi questi intervalli sono stimati.'}</p>
                   </div>
                 )}
 
@@ -488,11 +527,14 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
               </div>
             )}
 
-            <div className="mt-5 flex min-h-[150px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="mt-5 flex min-h-[44vh] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:min-h-[48vh] lg:min-h-[320px]">
               <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-3">
                 <span className="text-xs font-semibold text-slate-700">Risultato</span>
                 {result && (
                   <div className="flex flex-wrap items-center gap-1">
+                    <button type="button" onClick={() => setResultExpanded(true)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50" aria-label="Apri il risultato a schermo intero">
+                      Leggi grande
+                    </button>
                     <button type="button" onClick={copyResult} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" aria-label="Copia il risultato">
                       {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                       {copied ? 'Copiato' : 'Copia'}
@@ -556,6 +598,53 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
           </div>
         </div>
       </section>
+      {resultExpanded && result && (
+        <div className="fixed inset-0 z-[180] flex items-stretch justify-center bg-slate-950/65 p-1.5 backdrop-blur-sm sm:p-3" role="dialog" aria-modal="true" aria-label="Risultato AI a schermo intero">
+          <section className="flex h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-full max-w-6xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-3xl">
+            <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-teal-50/70 to-sky-50 px-3 py-3 sm:px-5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white shadow-sm">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-sm font-extrabold text-slate-900 sm:text-base">Risultato AI · {currentAction.label}</h2>
+                <p className="truncate text-[11px] text-slate-500">{documentTitle || 'Documento senza titolo'}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button type="button" onClick={copyResult} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? 'Copiato' : 'Copia'}
+                </button>
+                <button type="button" onClick={() => { onInsert(result, currentAction.label); setResultExpanded(false) }} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-teal-700 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-800">
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  Inserisci
+                </button>
+                <button type="button" onClick={() => setResultExpanded(false)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50" aria-label="Torna alle opzioni AI">
+                  <X className="h-3.5 w-3.5" />
+                  Opzioni
+                </button>
+              </div>
+            </header>
+            {generationInfo && (
+              <div className={'flex shrink-0 items-start gap-2 border-b px-4 py-2.5 text-xs ' + (generationInfo.provider === 'gemini'
+                ? 'border-amber-200 bg-amber-50 text-amber-950'
+                : 'border-slate-200 bg-slate-50 text-slate-700')} role="status">
+                {generationInfo.provider === 'gemini' ? <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /> : <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />}
+                <div className="min-w-0">
+                  <span className="font-bold">{generationInfo.provider === 'gemini' ? 'Risposta generata da Google Gemini' : 'Modello AI utilizzato'} · </span>
+                  <span className="break-words">{generationInfo.provider === 'groq' ? 'Groq' : generationInfo.provider === 'gemini' ? 'Google Gemini' : generationInfo.provider} · {generationInfo.model}{generationInfo.fallbackUsed ? ' · modello di riserva' : ''}</span>
+                </div>
+              </div>
+            )}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-7">
+              <article className="prose prose-slate prose-base mx-auto w-full max-w-4xl break-words text-[15px] leading-7 sm:text-[17px] sm:leading-8" dangerouslySetInnerHTML={{ __html: markdownToHtml(result) }} />
+            </div>
+            <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2 text-[10px] text-slate-500 sm:px-6">
+              <span>Controlla sempre il contenuto prima di inserirlo negli appunti.</span>
+              <button type="button" onClick={() => setResultExpanded(false)} className="rounded-lg px-2 py-1 font-semibold text-slate-600 hover:bg-white hover:text-slate-900">Torna allo studio</button>
+            </footer>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
