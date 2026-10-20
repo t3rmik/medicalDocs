@@ -104,9 +104,9 @@ export async function POST(request: Request) {
 
   if (requestCounts.size > 2_000) {
     const now = Date.now();
-    for (const [key, entry] of requestCounts) {
+    requestCounts.forEach((entry, key) => {
       if (entry.resetsAt <= now) requestCounts.delete(key);
-    }
+    });
   }
 
   const selectedAction = body.action as AIAction;
