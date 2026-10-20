@@ -285,7 +285,11 @@ export async function POST(request: Request) {
 
         allFailuresWere429 = false;
         const modelNotFound = /model.{0,40}(not found|does not exist|unknown|unsupported|unavailable)|no such model/i.test(normalized);
-        if (upstream.status === 401 || upstream.status === 403) {
+        if (upstream.status === 413) {
+          // The payload is too large for this provider endpoint regardless of the selected model.
+          // Skip sibling models on the same provider and give the next independent provider a chance.
+          unavailableProviders.add(candidate.provider);
+        } else if (upstream.status === 401 || upstream.status === 403) {
           unavailableProviders.add(candidate.provider);
         } else if (upstream.status === 404 && !modelNotFound) {
           // An incorrect endpoint won't be fixed by trying another model at that same provider.
@@ -348,6 +352,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'I provider AI disponibili hanno raggiunto la quota o i limiti di utilizzo. Controlla Usage e Limits, oppure configura un provider alternativo.', retryable: true, retryAfterSeconds: lastRetryAfterSeconds },
       { status: 429, headers }
+    );
+  }
+
+  if (/http_413/i.test(lastErrorCode)) {
+    return NextResponse.json(
+      { error: 'Il provider AI ha rifiutato la dimensione della richiesta (HTTP 413). Il sistema ha saltato gli altri modelli dello stesso provider. Prova con sezioni più piccole oppure abilita un provider alternativo.', retryable: true, errorCode: lastErrorCode },
+      { status: 413 }
     );
   }
 
