@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
@@ -17,8 +17,16 @@ interface MedicalEditorProps {
   onChange: (content: string) => void;
   initialContent?: string;
   isSaving: boolean;
+  onRegisterInsert?: (handler: ((html: string) => void) | null) => void;
 }
 
-export function MedicalEditor({ onChange, initialContent = '', isSaving }: MedicalEditorProps) {
-  return <EditorCore onChange={onChange} initialContent={initialContent} isSaving={isSaving} />
+export function MedicalEditor({ onChange, initialContent = '', isSaving, onRegisterInsert }: MedicalEditorProps) {
+  return (
+    <EditorCore
+      onChange={onChange}
+      initialContent={initialContent}
+      isSaving={isSaving}
+      onRegisterInsert={onRegisterInsert}
+    />
+  );
 }
