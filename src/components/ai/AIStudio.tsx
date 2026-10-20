@@ -230,11 +230,13 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const markedPages = detectPdfPageSections(plainText)
   const explicitPages = detectExplicitPageSections(content)
   const hasExactPageBoundaries = markedPages.length > 0 || explicitPages.length > 1
-  const pageSections = markedPages.length > 0
+  const pageSections = markedPages.length > 1
     ? markedPages
     : explicitPages.length > 1
       ? explicitPages
-      : estimateTextPages(plainText)
+      : markedPages.length === 1
+        ? markedPages
+        : estimateTextPages(plainText)
   const topicSections = detectTopicSections(content)
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
