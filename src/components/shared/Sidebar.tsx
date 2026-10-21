@@ -133,7 +133,6 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
           <MedicalDocsIcon name="outline" size={22} />
           <span data-md-sidebar-mobile-label="true">Indice</span>
         </button>
-        </button>
         <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-teal-200" title="MedicalDocs Pro">
           <span className="text-[10px] font-black tracking-tight">MD</span>
         </div>
