@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
 import { EditorErrorBoundary } from './EditorErrorBoundary'
+import type { DocumentPageSection } from '@/types/documentPages'
 
 const EditorCore = dynamic(() => import('./EditorCore'), {
   ssr: false,
@@ -20,9 +21,10 @@ interface MedicalEditorProps {
   isSaving: boolean;
   documentVersion: number;
   onRegisterInsert?: (handler: ((html: string) => void) | null) => void;
+  onRegisterPageSections?: (handler: (() => DocumentPageSection[]) | null) => void;
 }
 
-export function MedicalEditor({ onChange, initialContent = '', isSaving, documentVersion, onRegisterInsert }: MedicalEditorProps) {
+export function MedicalEditor({ onChange, initialContent = '', isSaving, documentVersion, onRegisterInsert, onRegisterPageSections }: MedicalEditorProps) {
   return (
     <EditorErrorBoundary documentKey={documentVersion}>
       <EditorCore
@@ -31,6 +33,7 @@ export function MedicalEditor({ onChange, initialContent = '', isSaving, documen
         isSaving={isSaving}
         documentVersion={documentVersion}
         onRegisterInsert={onRegisterInsert}
+        onRegisterPageSections={onRegisterPageSections}
       />
     </EditorErrorBoundary>
   );
