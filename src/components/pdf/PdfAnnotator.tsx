@@ -27,6 +27,62 @@ interface PdfTextTarget {
   height: number;
   fontSize: number;
   source: 'pdf' | 'ocr';
+  sourceTextIds?: string[];
+}
+
+
+function groupTextItemsIntoLines(items: PdfTextTarget[]): PdfTextTarget[] {
+  const ordered = [...items].sort((a, b) => {
+    const dy = (a.y + a.height / 2) - (b.y + b.height / 2);
+    return Math.abs(dy) > 4 ? dy : a.x - b.x;
+  });
+  const rows: PdfTextTarget[][] = [];
+  for (const item of ordered) {
+    const center = item.y + item.height / 2;
+    let matched: PdfTextTarget[] | null = null;
+    let closest = Number.POSITIVE_INFINITY;
+    for (const row of rows) {
+      const rowCenter = row.reduce((sum, current) => sum + current.y + current.height / 2, 0) / row.length;
+      const rowHeight = row.reduce((sum, current) => sum + current.height, 0) / row.length;
+      const distance = Math.abs(center - rowCenter);
+      if (distance <= Math.max(4, Math.min(12, Math.max(item.height, rowHeight) * 0.7)) && distance < closest) {
+        matched = row;
+        closest = distance;
+      }
+    }
+    if (matched) matched.push(item); else rows.push([item]);
+  }
+  const lines: PdfTextTarget[] = [];
+  for (const row of rows) {
+    const horizontal = [...row].sort((a, b) => a.x - b.x);
+    let segment: PdfTextTarget[] = [];
+    const flush = () => {
+      if (!segment.length) return;
+      const left = Math.min(...segment.map((item) => item.x));
+      const top = Math.min(...segment.map((item) => item.y));
+      const right = Math.max(...segment.map((item) => item.x + item.width));
+      const bottom = Math.max(...segment.map((item) => item.y + item.height));
+      const sourceTextIds = segment.flatMap((item) => item.sourceTextIds?.length ? item.sourceTextIds : [item.id]);
+      const text = segment.map((item) => item.text.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').trim();
+      if (text) lines.push({
+        id: segment.length === 1 ? segment[0].id : 'line-' + sourceTextIds.join('-'),
+        page: segment[0].page, text, x: left, y: top,
+        width: Math.max(3, right - left), height: Math.max(5, bottom - top),
+        fontSize: segment.reduce((sum, item) => sum + item.fontSize, 0) / segment.length,
+        source: segment[0].source, sourceTextIds,
+      });
+      segment = [];
+    };
+    for (const item of horizontal) {
+      const previous = segment[segment.length - 1];
+      const gap = previous ? item.x - (previous.x + previous.width) : 0;
+      const threshold = previous ? Math.max(18, ((previous.fontSize + item.fontSize) / 2) * 2.8) : Number.POSITIVE_INFINITY;
+      if (previous && gap > threshold) flush();
+      segment.push(item);
+    }
+    flush();
+  }
+  return lines.sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
 interface Annotation {
@@ -63,6 +119,12 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [ocrTargetsByPage, setOcrTargetsByPage] = useState<Record<number, PdfTextTarget[]>>({});
   const [textSource, setTextSource] = useState<'pdf' | 'ocr'>('pdf');
   const [selectedTextItem, setSelectedTextItem] = useState<PdfTextTarget | null>(null);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
+  const selectionDidMoveRef = useRef(false);
+  const selectionPointerTypeRef = useRef<string>('mouse');
+  const selectedSourceIdsRef = useRef<string[]>([]);
   const [replacementText, setReplacementText] = useState('');
   const [annotationDraftText, setAnnotationDraftText] = useState('Nota di studio');
   const [isOcrLoading, setIsOcrLoading] = useState(false);
@@ -184,7 +246,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         });
         if (!isMounted) return;
         const ocrTargets = ocrTargetsByPage[pageNum];
-        setPageTextItems(ocrTargets?.length ? ocrTargets : targets);
+        setPageTextItems(groupTextItemsIntoLines(ocrTargets?.length ? ocrTargets : targets));
         setTextSource(ocrTargets?.length ? 'ocr' : 'pdf');
         setSelectedTextItem(null);
         setReplacementText('');
@@ -206,11 +268,89 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
     pushHistory([...annotations, newAnn]); toast.success(activeTool === 'highlight' ? 'Evidenziazione aggiunta.' : activeTool === 'text' ? 'Testo aggiunto.' : 'Elemento aggiunto con successo!'); setActiveTool('none');
   };
 
-  const beginTextEdit = (item: PdfTextTarget) => {
-    setSelectedTextItem(item);
-    const existing = annotations.find((ann) => ann.type === 'textEdit' && ann.sourceTextId === item.id);
-    setReplacementText(existing?.text || item.text);
-    setActiveTool('editText');
+  const finishTextSelection = (start: { x: number; y: number }, end: { x: number; y: number }, moved: boolean) => {
+    const isTap = !moved || (Math.abs(end.x - start.x) < 7 && Math.abs(end.y - start.y) < 7);
+    const padding = isTap ? 0 : 5;
+    const left = (Math.min(start.x, end.x) - padding) / scale;
+    const top = (Math.min(start.y, end.y) - padding) / scale;
+    const right = (Math.max(start.x, end.x) + padding) / scale;
+    const bottom = (Math.max(start.y, end.y) + padding) / scale;
+    let chosen = pageTextItems.filter((item) =>
+      item.x < right && item.x + item.width > left && item.y < bottom && item.y + item.height > top
+    );
+
+    if (isTap) {
+      const x = end.x / scale;
+      const y = end.y / scale;
+      let hit = chosen.find((item) => x >= item.x - 2 && x <= item.x + item.width + 2 && y >= item.y - 3 && y <= item.y + item.height + 3);
+      if (!hit) {
+        const nearest = [...pageTextItems].map((item) => ({
+          item,
+          distance: Math.hypot(x - (item.x + item.width / 2), y - (item.y + item.height / 2)),
+        })).sort((a, b) => a.distance - b.distance)[0];
+        if (nearest && nearest.distance <= Math.max(20, 24 / scale)) hit = nearest.item;
+      }
+      chosen = hit ? [hit] : [];
+    }
+
+    if (!chosen.length) {
+      if (!multiSelectMode) {
+        setSelectedTextItem(null);
+        selectedSourceIdsRef.current = [];
+        setReplacementText('');
+      }
+      setSelectionBox(null);
+      return;
+    }
+
+    if (multiSelectMode && isTap) {
+      const hitIds = chosen[0].sourceTextIds?.length ? chosen[0].sourceTextIds : [chosen[0].id];
+      const previous = selectedSourceIdsRef.current;
+      selectedSourceIdsRef.current = previous.some((id) => hitIds.includes(id))
+        ? previous.filter((id) => !hitIds.includes(id))
+        : [...previous, ...hitIds];
+      chosen = pageTextItems.filter((item) =>
+        (item.sourceTextIds?.length ? item.sourceTextIds : [item.id]).some((id) => selectedSourceIdsRef.current.includes(id))
+      );
+      if (!chosen.length) {
+        setSelectedTextItem(null);
+        setReplacementText('');
+        setSelectionBox(null);
+        return;
+      }
+    } else if (!multiSelectMode || !isTap) {
+      selectedSourceIdsRef.current = chosen.flatMap((item) => item.sourceTextIds?.length ? item.sourceTextIds : [item.id]);
+    }
+
+    chosen.sort((a, b) => {
+      const dy = (a.y + a.height / 2) - (b.y + b.height / 2);
+      return Math.abs(dy) > Math.max(4, (a.height + b.height) * 0.25) ? dy : a.x - b.x;
+    });
+    const minX = Math.min(...chosen.map((item) => item.x));
+    const minY = Math.min(...chosen.map((item) => item.y));
+    const maxX = Math.max(...chosen.map((item) => item.x + item.width));
+    const maxY = Math.max(...chosen.map((item) => item.y + item.height));
+    let combinedText = '';
+    let previousLineY: number | null = null;
+    for (const item of chosen) {
+      const centerY = item.y + item.height / 2;
+      if (previousLineY !== null && Math.abs(centerY - previousLineY) > Math.max(item.height, 8) * 0.8) {
+        combinedText = combinedText.trimEnd() + '\n';
+      } else if (combinedText && !/[\s\n]$/.test(combinedText)) {
+        combinedText += ' ';
+      }
+      combinedText += item.text.trim();
+      previousLineY = centerY;
+    }
+    setSelectedTextItem({
+      id: chosen.length === 1 ? chosen[0].id : 'selection-' + pageNum + '-' + selectedSourceIdsRef.current.join('-'),
+      page: pageNum, text: combinedText.trim(), x: minX, y: minY,
+      width: Math.max(6, maxX - minX), height: Math.max(8, maxY - minY),
+      fontSize: Math.max(7, chosen.reduce((sum, item) => sum + item.fontSize, 0) / chosen.length),
+      source: textSource, sourceTextIds: selectedSourceIdsRef.current,
+    });
+    setReplacementText(combinedText.trim());
+    setSelectionBox(null);
   };
 
   const applyTextEdit = () => {
@@ -276,8 +416,9 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         toast.error('Non è stato riconosciuto testo in questa pagina. Prova a ingrandirla o verifica la qualità della scansione.');
         return;
       }
-      setOcrTargetsByPage((current) => ({ ...current, [pageNum]: detected }));
-      setPageTextItems(detected);
+      const grouped = groupTextItemsIntoLines(detected);
+      setOcrTargetsByPage((current) => ({ ...current, [pageNum]: grouped }));
+      setPageTextItems(grouped);
       setTextSource('ocr');
       setActiveTool('editText');
       setSelectedTextItem(null);
@@ -301,7 +442,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         body: JSON.stringify({
           action: 'rewrite',
           content: selectedTextItem.text,
-          instruction: 'Correggi refusi e migliora la leggibilità del testo selezionato senza cambiarne il significato, i dati, le formule o i termini tecnici. Restituisci solo il testo sostitutivo.',
+          instruction: 'Correggi e, se utile, riorganizza il testo selezionato come un passaggio unico e scorrevole. Mantieni significato, dati, formule, termini tecnici e lingua originale. Se ci sono più capoversi, conservali. Restituisci soltanto il testo sostitutivo, senza premesse.',
         }),
       });
       const payload = await response.json().catch(() => ({})) as { result?: string; error?: string; provider?: string; model?: string };
@@ -358,6 +499,21 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (activeTool === 'editText') {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const start = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      selectionStartRef.current = start;
+      selectionDidMoveRef.current = false;
+      selectionPointerTypeRef.current = event.pointerType;
+      setSelectionBox({ x: start.x, y: start.y, width: 0, height: 0 });
+      if (event.pointerType !== 'touch') {
+        event.preventDefault();
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* optional */ }
+      }
+      return;
+    }
     if (activeTool !== 'draw') return;
     event.preventDefault();
     const canvas = canvasRef.current;
@@ -375,6 +531,25 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (selectionStartRef.current) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      const start = selectionStartRef.current;
+      const dx = current.x - start.x;
+      const dy = current.y - start.y;
+      if (selectionPointerTypeRef.current === 'touch') {
+        if (Math.abs(dx) + Math.abs(dy) > 9) {
+          selectionStartRef.current = null;
+          setSelectionBox(null);
+        }
+        return;
+      }
+      if (Math.abs(dx) + Math.abs(dy) > 5) selectionDidMoveRef.current = true;
+      setSelectionBox({ x: Math.min(start.x, current.x), y: Math.min(start.y, current.y), width: Math.abs(dx), height: Math.abs(dy) });
+      return;
+    }
     if (draggingId) {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -409,6 +584,17 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (selectionStartRef.current) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        finishTextSelection(selectionStartRef.current, { x: event.clientX - rect.left, y: event.clientY - rect.top }, selectionDidMoveRef.current);
+      }
+      selectionStartRef.current = null;
+      selectionDidMoveRef.current = false;
+      selectionPointerTypeRef.current = 'mouse';
+      return;
+    }
     if (draggingId) {
       if (draggedAnnotationsRef.current) pushHistory(draggedAnnotationsRef.current);
       draggedAnnotationsRef.current = null;
@@ -537,13 +723,13 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   return (
     <div data-md-pdf-annotator="true" className="flex flex-col h-full bg-slate-900 text-white relative select-none">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 bg-slate-800 border-b border-slate-700 shadow-md">
+      <div className="flex max-h-[42dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-b border-slate-700 bg-slate-800 px-3 py-2.5 shadow-md sm:max-h-none sm:overflow-visible">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/90 px-2 py-1.5 rounded-xl border border-slate-700 shadow-inner">
+        <div data-md-pdf-tools="true" className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain bg-slate-900/90 px-2 py-1.5 rounded-xl border border-slate-700 shadow-inner sm:w-auto xl:flex-wrap [&>button]:shrink-0 [&>label]:shrink-0">
           <button onClick={handleUndo} disabled={historyStep < 0} title="Annulla" className="p-1.5 rounded hover:bg-slate-800 disabled:opacity-30 text-slate-300 transition">
             <Undo2 className="w-4 h-4" />
           </button>
@@ -562,7 +748,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           <button onClick={() => { setActiveTool('editText'); setSelectedTextItem(null); setPageAiAnswer(''); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${activeTool === 'editText' ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Seleziona testo PDF, correggilo o spostalo">
             <Type className="w-3.5 h-3.5" /><span>Modifica testo</span>
           </button>
-          <button onClick={() => { setIsPageAiOpen((open) => !open); setPageAiAnswer(''); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${isPageAiOpen ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Fai una domanda sul testo della pagina corrente">
+          <button type="button" onClick={() => { setMultiSelectMode((current) => !current); selectedSourceIdsRef.current = []; setSelectedTextItem(null); setReplacementText(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${multiSelectMode ? 'bg-amber-500 text-slate-950' : 'hover:bg-slate-800 text-slate-300'}`} title="Su telefono attivalo e tocca più righe una dopo l’altra">Multi-riga {multiSelectMode ? 'ON' : 'OFF'}</button>
+          <button onClick={() => { setIsPageAiOpen((open) => !open); setPageAiAnswer(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${isPageAiOpen ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Fai una domanda sul testo della pagina corrente">
             <Wand2 className="w-3.5 h-3.5" /><span>AI pagina</span>
           </button>
           <button onClick={runPageOcr} disabled={isOcrLoading} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition hover:bg-slate-800 text-slate-300 disabled:opacity-50" title="Riconosce le parole di una pagina scansionata">
@@ -624,16 +811,16 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
         </div>
       </div>
-      <div role="note" className="flex flex-wrap items-center gap-2 border-b border-amber-400/30 bg-amber-950/70 px-4 py-2 text-[11px] leading-4 text-amber-100"><ShieldAlert className="h-4 w-4 shrink-0 text-amber-300"/><span><strong>Modifica testo:</strong> le correzioni coprono visivamente il testo precedente e aggiungono quello nuovo; il testo originale può rimanere incorporato nel PDF. Non usare questi strumenti per redigere dati sensibili.</span></div>
+      <div role="note" className="shrink-0 border-b border-amber-400/30 bg-amber-950/70 px-3 py-2 text-[11px] leading-4 text-amber-100"><ShieldAlert className="mr-1 inline h-3.5 w-3.5 text-amber-300"/><strong>Modifica visiva:</strong> il vecchio testo viene coperto e quello nuovo sovrapposto; il contenuto originale può restare nel PDF. Non è redazione sicura.</div>
       {selectedTextItem && activeTool === 'editText' && (
         <form onSubmit={(event) => { event.preventDefault(); applyTextEdit(); }} className="flex flex-wrap items-end gap-2 border-b border-violet-400/30 bg-slate-800 px-3 py-3">
           <div className="min-w-48 flex-1">
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Testo originale · {textSource === 'ocr' ? 'riconosciuto via OCR' : 'selezionato dal PDF'}</label>
-            <div className="max-w-full truncate rounded-lg border border-slate-600 bg-slate-900 px-2.5 py-2 text-xs text-slate-300" title={selectedTextItem.text}>{selectedTextItem.text}</div>
+            <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm leading-5 text-slate-300" title={selectedTextItem.text}>{selectedTextItem.text}</div>
           </div>
           <div className="min-w-48 flex-[2]">
             <label htmlFor="md-pdf-replacement" className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Testo sostitutivo</label>
-            <input id="md-pdf-replacement" value={replacementText} onChange={(event) => setReplacementText(event.target.value)} maxLength={1200} className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-violet-400" />
+            <textarea id="md-pdf-replacement" rows={4} value={replacementText} onChange={(event) => setReplacementText(event.target.value)} maxLength={5000} className="min-h-28 w-full resize-y rounded-lg border border-slate-600 bg-slate-900 px-3 py-3 text-base leading-6 text-white outline-none focus:border-violet-400" placeholder="Modifica qui l’intera frase o il paragrafo selezionato…" />
           </div>
           <button type="button" onClick={improveSelectedTextWithAi} disabled={isRewritingText} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet-400/40 bg-violet-900/50 px-3 py-2 text-xs font-bold text-violet-100 hover:bg-violet-800 disabled:opacity-50"><Wand2 className="h-3.5 w-3.5"/>{isRewritingText ? 'AI…' : 'Migliora con AI'}</button>
           <button type="submit" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500">Applica testo</button>
@@ -647,9 +834,11 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             <label htmlFor="md-pdf-ai-question" className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Domanda sulla pagina {pageNum}</label>
             <textarea id="md-pdf-ai-question" rows={2} value={pageAiPrompt} onChange={(event) => setPageAiPrompt(event.target.value)} className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-white outline-none focus:border-violet-400"/>
           </div>
-          <div className="min-w-0 text-xs leading-5 text-slate-300">
-            {isPageAiLoading ? 'L’AI sta analizzando il testo della pagina…' : pageAiAnswer || 'L’AI riceve il testo riconosciuto di questa pagina, non il file PDF completo.'}
-            {pageAiModel && <div className="mt-1 text-[10px] text-slate-400">Modello: {pageAiModel}</div>}
+          <div className="min-w-0 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 p-3 sm:p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-bold uppercase tracking-wide text-violet-200">Risposta dell’assistente</p>{pageAiModel && <span className="text-[10px] text-slate-400">Modello: {pageAiModel}</span>}</div>
+            {isPageAiLoading ? <p className="text-sm leading-6 text-slate-300">L’AI sta analizzando il testo della pagina…</p> : pageAiAnswer ? (
+              <div className="max-h-[38dvh] overflow-y-auto whitespace-pre-wrap break-words text-left text-base leading-7 text-slate-100">{pageAiAnswer}</div>
+            ) : <p className="text-sm leading-6 text-slate-400">L’AI riceve il testo riconosciuto di questa pagina, non il file PDF completo. La risposta apparirà qui in un’area ampia e leggibile.</p>}
           </div>
           <button type="submit" disabled={isPageAiLoading || isOcrLoading} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"><Wand2 className="h-4 w-4"/>{isPageAiLoading ? 'Analisi…' : 'Chiedi all’AI'}</button>
         </form>
@@ -662,7 +851,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             </button>
           ))}
         </aside>
-        <div data-md-pdf-viewer="true" className="min-w-0 flex-1 overflow-auto bg-slate-950 px-4 py-6 sm:px-8 sm:py-8">
+        <div data-md-pdf-viewer="true" className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-slate-950 px-2 py-4 sm:px-8 sm:py-8">
         {loading ? (
           <div className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
         ) : (
@@ -673,7 +862,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onClick={handleCanvasClick}
-            className="shadow-2xl border border-slate-700 bg-white relative cursor-crosshair rounded-lg overflow-hidden touch-none"
+            className={'shadow-2xl border border-slate-700 bg-white relative cursor-crosshair rounded-lg overflow-hidden ' + (activeTool === 'draw' ? 'touch-none' : 'touch-pan-y')}
           >
             <canvas ref={canvasRef} className="block pointer-events-none" />
             <svg
@@ -709,9 +898,13 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
               <div key={ann.id + '-mask'} aria-hidden="true" className="pointer-events-none absolute z-[25] bg-white" style={{ left: ((ann.sourceX ?? ann.x) * scale) + 'px', top: ((ann.sourceY ?? ann.y) * scale) + 'px', width: (Math.max(ann.sourceWidth || 0, 2) * scale + 2) + 'px', height: (Math.max(ann.sourceHeight || ann.height || 10, 6) * scale + 2) + 'px' }} />
             ))}
 
-            {activeTool === 'editText' && pageTextItems.filter((item) => item.page === pageNum).map((item) => (
-              <button key={item.id} type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); beginTextEdit(item); }} title={'Modifica: ' + item.text} aria-label={'Seleziona testo: ' + item.text} style={{ left: item.x * scale + 'px', top: item.y * scale + 'px', width: Math.max(5, item.width * scale) + 'px', height: Math.max(7, item.height * scale) + 'px' }} className={'absolute z-40 overflow-hidden rounded-[2px] border text-transparent opacity-70 transition ' + (selectedTextItem?.id === item.id ? 'border-violet-300 bg-violet-300/50 ring-2 ring-violet-400' : 'border-violet-300/40 bg-violet-100/10 hover:border-violet-300 hover:bg-violet-300/35')}><span className="opacity-0">{item.text}</span></button>
-            ))}
+            {activeTool === 'editText' && pageTextItems.filter((item) => item.page === pageNum).map((item) => {
+              const selectedIds = selectedTextItem?.sourceTextIds || [];
+              const itemIds = item.sourceTextIds?.length ? item.sourceTextIds : [item.id];
+              const selected = selectedIds.some((id) => itemIds.includes(id));
+              return <div key={item.id} aria-hidden="true" title={item.text} style={{ left: item.x * scale + 'px', top: item.y * scale + 'px', width: Math.max(5, item.width * scale) + 'px', height: Math.max(7, item.height * scale) + 'px' }} className={'pointer-events-none absolute z-40 overflow-hidden rounded-[2px] border transition ' + (selected ? 'border-violet-300 bg-violet-300/45 ring-2 ring-violet-400' : 'border-violet-300/35 bg-violet-100/10')} />;
+            })}
+            {selectionBox && <div aria-hidden="true" className="pointer-events-none absolute z-50 border-2 border-violet-400 bg-violet-400/20" style={{ left: selectionBox.x + 'px', top: selectionBox.y + 'px', width: Math.max(2, selectionBox.width) + 'px', height: Math.max(2, selectionBox.height) + 'px' }} />}
 
             {annotations.filter(a => a.page === pageNum).map(ann => (
               <div key={ann.id} onClick={(event) => event.stopPropagation()} onPointerDown={(event) => {
