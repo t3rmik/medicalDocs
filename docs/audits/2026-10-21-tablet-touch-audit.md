@@ -63,3 +63,6 @@ Questo controllo trova rischi nel codice ma non sostituisce una prova reale in b
 - Un PDF lungo non avvia tutti i rendering delle miniature contemporaneamente.
 - Il cambio rapido di documento non perde testo salvato.
 - Anteprima e PDF esportato sono confrontati; il testo coperto non è presentato come rimosso in modo sicuro.
+
+
+Revisione finale del lotto consolidato: commit di audit 22cadd5ef31c83397254ac8fb222150e9baca9f5 (base produzione be87de900247fd6d1b91ea02dc01f6c785465dd8).
