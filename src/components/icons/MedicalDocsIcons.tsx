@@ -13,7 +13,7 @@ export type MedicalDocsIconName =
   | 'chevron-down' | 'chevron-left' | 'chevron-right' | 'download' | 'zoom-in' | 'zoom-out'
   | 'edit' | 'shield-alert' | 'stamp' | 'check-circle' | 'move' | 'type' | 'close'
   | 'copy' | 'folder' | 'folder-open' | 'file-plus' | 'printer' | 'save' | 'loader'
-  | 'command' | 'plus' | 'arrow-up-right' | 'alert-circle'
+  | 'command' | 'plus' | 'arrow-up-right' | 'alert-circle' | 'chevron-up' | 'minus'
 
 interface MedicalDocsIconProps {
   name: MedicalDocsIconName
@@ -287,6 +287,12 @@ export function MedicalDocsIcon({
     case 'alert-circle':
       drawing = <g {...common}><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.1" strokeWidth="2"/></g>
       break
+    case 'chevron-up':
+      drawing = <path {...common} d="m6 15 6-6 6 6" strokeWidth="2"/>
+      break
+    case 'minus':
+      drawing = <path {...common} d="M4 12h16" strokeWidth="2"/>
+      break
     case 'check':
       drawing = <g {...common}>
         <circle cx="12" cy="12" r="9.1" />
@@ -369,6 +375,8 @@ export const MedicalDocsLoader = (props: Omit<MedicalDocsIconProps, 'name'>) => 
 export const MedicalDocsCommand = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="command" {...props} />;
 export const MedicalDocsPlus = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="plus" {...props} />;
 export const MedicalDocsArrowUpRight = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="arrow-up-right" {...props} />;
+export const MedicalDocsChevronUp = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="chevron-up" {...props} />;
+export const MedicalDocsMinus = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="minus" {...props} />;
 export const MedicalDocsAlertCircle = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="alert-circle" {...props} />;
 export const MedicalDocsSpark = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="spark" {...props} />;
 export const MedicalDocsDocument = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="document" {...props} />;
