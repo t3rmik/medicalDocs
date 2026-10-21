@@ -96,7 +96,8 @@ function estimateTextPages(text: string): PdfPageSection[] {
   const normalized = (text || '').trim()
   if (normalized.length < 1200) return []
 
-  const sections: PdfPageSection[] = []
+  // Keep intermediate chunks as strings, then convert them to typed page sections.
+  const parts: string[] = []
   let start = 0
   const targetLength = 1600
   while (start < normalized.length) {
@@ -111,13 +112,13 @@ function estimateTextPages(text: string): PdfPageSection[] {
       }
     }
     const part = normalized.slice(start, end).trim()
-    if (part) sections.push(part)
+    if (part) parts.push(part)
     start = end
     while (start < normalized.length && /\s/.test(normalized[start])) start += 1
   }
 
-  if (sections.length < 2) return []
-  return sections.map((part, index) => ({
+  if (parts.length < 2) return []
+  return parts.map((part, index) => ({
     number: index + 1,
     title: 'Sezione ' + (index + 1) + ' (pagina stimata)',
     text: 'Sezione ' + (index + 1) + '\n' + part,
