@@ -340,10 +340,11 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert, ge
 
   return (
     <div
+      data-md-ai-studio="true"
       className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-3 py-5 backdrop-blur-sm sm:px-6 sm:py-10"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}
     >
-      <section className="my-auto flex max-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-[#f8fbfc] shadow-2xl shadow-slate-950/30 ring-1 ring-slate-950/5 sm:max-h-[calc(100vh-5rem)]" role="dialog" aria-modal="true" aria-labelledby="ai-studio-title">
+      <section data-md-ai-dialog="true" className="my-auto flex max-h-[calc(100dvh-1.25rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-[#f8fbfc] shadow-2xl shadow-slate-950/30 ring-1 ring-slate-950/5 sm:max-h-[calc(100vh-5rem)]" role="dialog" aria-modal="true" aria-labelledby="ai-studio-title">
         <header className="flex items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-4 sm:px-6">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-900/15">
             <Sparkles className="h-5 w-5" />
