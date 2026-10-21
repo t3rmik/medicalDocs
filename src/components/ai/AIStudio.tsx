@@ -3,21 +3,21 @@
 import { useEffect, useState } from 'react'
 import { markdownToHtml, markdownToPlainText } from '@/lib/markdown'
 import {
-  X,
-  Sparkles,
-  FileText,
-  ListTree,
-  Layers,
-  HelpCircle,
-  BookOpen,
-  Wand2,
-  MessageSquare,
-  Loader2,
-  Copy,
-  Check,
-  ArrowUpRight,
-  ShieldAlert,
-} from 'lucide-react'
+  MedicalDocsClose as X,
+  MedicalDocsSpark as Sparkles,
+  MedicalDocsDocument as FileText,
+  MedicalDocsOutline as ListTree,
+  MedicalDocsLayers as Layers,
+  MedicalDocsHelp as HelpCircle,
+  MedicalDocsBookOpen as BookOpen,
+  MedicalDocsSpark as Wand2,
+  MedicalDocsMessage as MessageSquare,
+  MedicalDocsLoader as Loader2,
+  MedicalDocsCopy as Copy,
+  MedicalDocsCheckCircle as Check,
+  MedicalDocsArrowUpRight as ArrowUpRight,
+  MedicalDocsShieldAlert as ShieldAlert,
+} from '@/components/icons/MedicalDocsIcons'
 
 import type { DocumentPageSection } from '@/types/documentPages'
 
