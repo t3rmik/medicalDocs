@@ -351,7 +351,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
+    <div data-md-app-shell="true" className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
       <Header 
         onExport={handleExport} 
         loadingFormat={loadingFormat} 
@@ -368,7 +368,7 @@ export default function Home() {
           <PdfAnnotator file={pdfAnnotatorFile} onClose={() => setPdfAnnotatorFile(null)} />
         </div>
       ) : (
-        <div className="flex flex-1 overflow-hidden">
+        <div data-md-workspace="true" className="flex flex-1 overflow-hidden">
           <Sidebar 
             onLoadDocument={loadDocument} 
             onUpdateDocumentMetadata={handleUpdateDocumentMetadata}

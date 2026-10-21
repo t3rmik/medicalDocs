@@ -4,13 +4,37 @@ import { useEffect, useRef, useState } from 'react'
 import { Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import toast from 'react-hot-toast'
-import { 
-  Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
-  Subscript, Superscript, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, CheckSquare, Palette, Highlighter,
-  Table as TableIcon, Image as ImageIcon, SplitSquareHorizontal,
-  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp, PenLine, ArrowUp, ArrowDown, Merge
-} from 'lucide-react'
+import {
+  MedicalDocsBold as Bold,
+  MedicalDocsItalic as Italic,
+  MedicalDocsUnderlineIcon as UnderlineIcon,
+  MedicalDocsStrikethrough as Strikethrough,
+  MedicalDocsSubscript as Subscript,
+  MedicalDocsSuperscript as Superscript,
+  MedicalDocsAlignLeft as AlignLeft,
+  MedicalDocsAlignCenter as AlignCenter,
+  MedicalDocsAlignRight as AlignRight,
+  MedicalDocsAlignJustify as AlignJustify,
+  MedicalDocsList as List,
+  MedicalDocsListOrdered as ListOrdered,
+  MedicalDocsCheckSquare as CheckSquare,
+  MedicalDocsPalette as Palette,
+  MedicalDocsHighlighter as Highlighter,
+  MedicalDocsTableIcon as TableIcon,
+  MedicalDocsImageIcon as ImageIcon,
+  MedicalDocsSplitSquareHorizontal as SplitSquareHorizontal,
+  MedicalDocsUndo as Undo,
+  MedicalDocsRedo as Redo,
+  MedicalDocsRemoveFormatting as RemoveFormatting,
+  MedicalDocsRows as Rows,
+  MedicalDocsColumns as Columns,
+  MedicalDocsTrash2 as Trash2,
+  MedicalDocsFileUp as FileUp,
+  MedicalDocsPen as PenLine,
+  MedicalDocsArrowUp as ArrowUp,
+  MedicalDocsArrowDown as ArrowDown,
+  MedicalDocsMerge as Merge,
+} from '@/components/icons/MedicalDocsIcons'
 import { cn } from '@/lib/utils'
 
 type PageFormat = 'A4' | 'A5' | 'A3' | 'Letter';
@@ -279,6 +303,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
       className={cn(
         "rounded-lg p-2 flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600",
         isActive ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",

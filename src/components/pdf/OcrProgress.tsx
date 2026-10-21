@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { Loader2 } from 'lucide-react'
+import { MedicalDocsLoader as Loader2 } from '@/components/icons/MedicalDocsIcons'
 
 interface OcrProgressProps {
   status: string;
@@ -9,9 +9,9 @@ interface OcrProgressProps {
 
 export function OcrProgress({ status, progress }: OcrProgressProps) {
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl flex flex-col items-center text-center space-y-4">
-        <div className="p-3 bg-blue-100 rounded-full text-blue-600">
+    <div data-md-ocr-progress="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md">
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl shadow-slate-950/25 flex flex-col items-center">
+        <div className="rounded-2xl bg-teal-50 p-3 text-teal-700 ring-1 ring-teal-100">
           <Loader2 className="w-8 h-8 animate-spin" />
         </div>
         <div>
@@ -20,7 +20,7 @@ export function OcrProgress({ status, progress }: OcrProgressProps) {
         </div>
         <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
           <div 
-            className="bg-blue-600 h-full transition-all duration-300 ease-out" 
+            className="h-full rounded-full bg-gradient-to-r from-teal-600 to-emerald-400 transition-all duration-300 ease-out" 
             style={{ width: `${progress}%` }} 
           />
         </div>
