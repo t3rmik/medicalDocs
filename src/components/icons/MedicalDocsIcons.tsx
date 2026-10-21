@@ -378,6 +378,7 @@ export const MedicalDocsArrowUpRight = (props: Omit<MedicalDocsIconProps, 'name'
 export const MedicalDocsChevronUp = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="chevron-up" {...props} />;
 export const MedicalDocsMinus = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="minus" {...props} />;
 export const MedicalDocsAlertCircle = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="alert-circle" {...props} />;
+export const MedicalDocsPen = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="pen" {...props} />;
 export const MedicalDocsSpark = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="spark" {...props} />;
 export const MedicalDocsDocument = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="document" {...props} />;
 export const MedicalDocsSearch = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="search" {...props} />;
