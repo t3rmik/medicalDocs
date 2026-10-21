@@ -4,9 +4,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { createWorker } from 'tesseract.js';
-import { Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit3, ShieldAlert, Stamp, CheckCircle, Move, Undo2, Redo2, PenLine, Highlighter, Wand2, Type, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons';
+import {
+  MedicalDocsIcon,
+  MedicalDocsDownload as Download,
+  MedicalDocsChevronLeft as ChevronLeft,
+  MedicalDocsChevronRight as ChevronRight,
+  MedicalDocsZoomIn as ZoomIn,
+  MedicalDocsZoomOut as ZoomOut,
+  MedicalDocsEdit as Edit3,
+  MedicalDocsShieldAlert as ShieldAlert,
+  MedicalDocsStamp as Stamp,
+  MedicalDocsCheckCircle as CheckCircle,
+  MedicalDocsMove as Move,
+  MedicalDocsUndo as Undo2,
+  MedicalDocsRedo as Redo2,
+  MedicalDocsPen as PenLine,
+  MedicalDocsHighlighter as Highlighter,
+  MedicalDocsSpark as Wand2,
+  MedicalDocsType as Type,
+  MedicalDocsClose as X,
+  MedicalDocsDocument as FileText,
+} from '@/components/icons/MedicalDocsIcons';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
