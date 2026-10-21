@@ -126,6 +126,17 @@ textarea:focus-visible {
   background: rgba(13, 148, 136, 0.12);
 }
 
+/* MedicalDocs table layout presets retained in document HTML and exports. */
+.ProseMirror table[data-md-align="left"] { margin-left: 0 !important; margin-right: auto !important; }
+.ProseMirror table[data-md-align="center"] { margin-left: auto !important; margin-right: auto !important; }
+.ProseMirror table[data-md-align="right"] { margin-left: auto !important; margin-right: 0 !important; }
+.ProseMirror table[data-md-density="compact"] td,
+.ProseMirror table[data-md-density="compact"] th { padding: 3px 5px; }
+.ProseMirror table[data-md-density="normal"] td,
+.ProseMirror table[data-md-density="normal"] th { padding: 6px 8px; }
+.ProseMirror table[data-md-density="comfortable"] td,
+.ProseMirror table[data-md-density="comfortable"] th { padding: 12px 14px; }
+
 .ProseMirror table td,
 .ProseMirror table th {
   min-width: 1em;
