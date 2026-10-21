@@ -123,13 +123,13 @@ export function PageThumbnails({
           type="button"
           data-md-pdf-thumbnail-select="true"
           onClick={() => onPageSelect(pageNumber)}
-          aria-label={\`Vai alla pagina \${pageNumber}\`}
+          aria-label={`Vai alla pagina ${pageNumber}`}
           aria-current={currentPage === pageNumber ? 'page' : undefined}
-          className={\`rounded-xl border p-1.5 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300 \${
+          className={`rounded-xl border p-1.5 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300 ${
             currentPage === pageNumber
               ? 'border-teal-400 bg-teal-950/70 text-teal-100 shadow-[0_0_0_2px_rgba(45,212,191,0.10)]'
               : 'border-slate-700 bg-slate-800/70 text-slate-300 hover:border-slate-500 hover:bg-slate-800'
-          }\`}
+          }`}
         >
           <ThumbnailCanvas pdfDoc={pdfDoc} pageNumber={pageNumber} />
           <span className="mt-1 block text-[11px] font-semibold">Pagina {pageNumber}</span>
