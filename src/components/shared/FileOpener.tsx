@@ -1,8 +1,7 @@
 ﻿'use client'
 
 import { useState, useRef } from 'react'
-import { AlertCircle } from 'lucide-react'
-import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
+import { MedicalDocsAlertCircle as AlertCircle, MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PdfModeChoice } from '@/types'
 
 interface FileOpenerProps {
