@@ -263,6 +263,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
         canvas.height = viewport.height;
         canvas.width = viewport.width;
+        // Await a narrowed non-null task; keep the outer reference only for effect cleanup.
         const currentRenderTask = page.render({ canvasContext: context, viewport });
         renderTask = currentRenderTask;
         await currentRenderTask.promise;
