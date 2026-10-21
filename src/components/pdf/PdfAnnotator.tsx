@@ -26,6 +26,7 @@ import {
   MedicalDocsClose as X,
   MedicalDocsDocument as FileText,
 } from '@/components/icons/MedicalDocsIcons';
+import { PageThumbnails } from './PageThumbnails';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -821,16 +822,16 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         </div>
         
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
+          <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} aria-label="Riduci ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(3, s + 0.2))} className="p-1.5 hover:bg-slate-700 rounded-lg transition" title="Ingrandisci"><ZoomIn className="w-4 h-4" /></button>
+          <button onClick={() => setScale(s => Math.min(3, s + 0.2))} aria-label="Aumenta ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition" title="Ingrandisci"><ZoomIn className="w-4 h-4" /></button>
           <button onClick={async () => { try { const page = await pdfDoc.getPage(pageNum); const width = page.getViewport({ scale: 1 }).width; const viewer = document.querySelector<HTMLElement>('[data-md-pdf-viewer="true"]'); if (viewer && width > 0) setScale(Math.max(0.5, Math.min(3, (viewer.clientWidth - 48) / width))); } catch { toast.error('Impossibile adattare la pagina alla larghezza.'); } }} className="rounded-md border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-300 hover:bg-slate-700" title="Adatta alla larghezza disponibile">Adatta</button>
           
           <div className="h-4 w-[1px] bg-slate-700 mx-1" />
           
-          <button disabled={pageNum <= 1} onClick={() => setPageNum(p => p - 1)} className="p-1.5 hover:bg-slate-700 disabled:opacity-30 rounded-lg transition"><ChevronLeft className="w-4 h-4" /></button>
+          <button disabled={pageNum <= 1} onClick={() => setPageNum(p => p - 1)} aria-label="Pagina precedente" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 disabled:opacity-30 rounded-lg transition"><ChevronLeft className="w-4 h-4" /></button>
           <label className="inline-flex items-center gap-1 text-xs font-mono text-slate-200"><span>Pagina</span><input aria-label="Vai alla pagina PDF" type="number" min={1} max={numPages || 1} value={pageNum} onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value) && value >= 1) setPageNum(Math.min(numPages || 1, Math.floor(value))); }} className="w-14 rounded border border-slate-600 bg-slate-900 px-1.5 py-1 text-center text-xs text-white outline-none focus:border-teal-400" /><span>di {numPages || 1}</span></label>
-          <button disabled={pageNum >= numPages} onClick={() => setPageNum(p => p + 1)} className="p-1.5 hover:bg-slate-700 disabled:opacity-30 rounded-lg transition"><ChevronRight className="w-4 h-4" /></button>
+          <button disabled={pageNum >= numPages} onClick={() => setPageNum(p => p + 1)} aria-label="Pagina successiva" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 disabled:opacity-30 rounded-lg transition"><ChevronRight className="w-4 h-4" /></button>
 
           <button onClick={handleSaveAnnotatedPdf} disabled={isExporting} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 ml-2 shadow-lg transition disabled:opacity-50">
             <Download className="w-4 h-4" /><span>Salva PDF Modificato</span>
@@ -869,14 +870,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           <button type="submit" disabled={isPageAiLoading || isOcrLoading} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"><MedicalDocsIcon name="spark" size={17} />{isPageAiLoading ? 'Analisi…' : 'Chiedi all’AI'}</button>
         </form>
       )}
-      <div className="flex min-h-0 flex-1 overflow-hidden bg-slate-950">
-        <aside className="hidden w-[4.25rem] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-slate-800 bg-slate-900 px-2 py-3 sm:flex" aria-label="Navigazione pagine PDF">
-          {Array.from({ length: numPages }, (_, index) => index + 1).map((number) => (
-            <button key={number} type="button" onClick={() => setPageNum(number)} aria-current={number === pageNum ? 'page' : undefined} className={'flex h-12 w-11 shrink-0 flex-col items-center justify-center rounded-lg border text-[10px] transition ' + (number === pageNum ? 'border-teal-400 bg-teal-950 text-teal-100 ring-1 ring-teal-500/30' : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700')} title={'Vai a pagina ' + number}>
-              <MedicalDocsIcon name="page" size={15} className="mb-0.5" /><span>{number}</span>
-            </button>
-          ))}
-        </aside>
+      <div data-md-pdf-work-area="true" className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-slate-950">
+        <PageThumbnails pdfDoc={pdfDoc} totalPages={numPages} currentPage={pageNum} onPageSelect={setPageNum} />
         <div data-md-pdf-viewer="true" className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-slate-950 px-2 py-4 sm:px-8 sm:py-8">
         {loading ? (
           <div className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
