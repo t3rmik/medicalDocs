@@ -2,7 +2,7 @@
 import { useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import Image from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react'
-import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react'
+import { MedicalDocsChevronDown as ChevronDown, MedicalDocsChevronUp as ChevronUp, MedicalDocsMinus as Minus, MedicalDocsPlus as Plus } from '@/components/icons/MedicalDocsIcons'
 
 type ResizeGesture = { pointerId:number; startX:number; startWidth:number; ratio:number; scaleX:number; maxWidth:number }
 
