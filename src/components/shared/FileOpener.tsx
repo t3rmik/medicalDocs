@@ -1,7 +1,8 @@
 ﻿'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, FileText, FileCode, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PdfModeChoice } from '@/types'
 
 interface FileOpenerProps {
@@ -75,7 +76,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
             }}
             className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
           >
-            <Upload className="w-10 h-10 text-blue-600 mb-3" />
+            <MedicalDocsIcon name="upload" size={42} className="mb-3 text-teal-700" />
             <p className="text-sm font-semibold text-slate-700">Trascina qui il file o clicca per sfogliare</p>
             <p className="text-xs text-slate-400 mt-1">Supportati: Word (.docx), PDF, TXT, HTML (Max 25MB)</p>
             <input 
@@ -89,7 +90,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
         ) : (
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 rounded-xl flex items-center space-x-3 border border-blue-200">
-              <FileText className="w-8 h-8 text-blue-600" />
+              <MedicalDocsIcon name="document" size={34} className="text-teal-700" />
               <div>
                 <p className="text-sm font-bold text-slate-800">{selectedFile.name}</p>
                 <p className="text-xs text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
@@ -104,7 +105,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
                 onClick={() => { onFileSelect(selectedFile, 'convert'); handleClose(); }}
                 className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition flex items-start space-x-3"
               >
-                <FileCode className="w-5 h-5 text-blue-600 mt-0.5" />
+                <MedicalDocsIcon name="scan" size={24} className="mt-0.5 shrink-0 text-teal-700" />
                 <div>
                   <p className="text-sm font-bold text-slate-800">Converti in Testo Modificabile (con OCR)</p>
                   <p className="text-xs text-slate-500">Estrae il testo ed i paragrafi nell'editor Word per modificarli liberamente.</p>
@@ -116,7 +117,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
                 onClick={() => { onFileSelect(selectedFile, 'annotate'); handleClose(); }}
                 className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/30 transition flex items-start space-x-3"
               >
-                <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+                <MedicalDocsIcon name="pdf" size={24} className="mt-0.5 shrink-0 text-teal-700" />
                 <div>
                   <p className="text-sm font-bold text-slate-800">Modifica ed Annota PDF Originale</p>
                   <p className="text-xs text-slate-500">Mantiene la grafica originale e permette di firmare, oscurare e timbrare.</p>
