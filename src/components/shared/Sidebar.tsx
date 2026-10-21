@@ -1,8 +1,19 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { FileText, Trash2, Copy, Search, Star, Folder, ChevronDown, Plus, X } from 'lucide-react'
-import { MedicalDocsIcon, MedicalDocsMark } from '@/components/icons/MedicalDocsIcons'
+import {
+  MedicalDocsIcon,
+  MedicalDocsMark,
+  MedicalDocsDocument as FileText,
+  MedicalDocsTrash2 as Trash2,
+  MedicalDocsCopy as Copy,
+  MedicalDocsSearch as Search,
+  MedicalDocsFavorite as Star,
+  MedicalDocsFolder as Folder,
+  MedicalDocsChevronDown as ChevronDown,
+  MedicalDocsPlus as Plus,
+  MedicalDocsClose as X,
+} from '@/components/icons/MedicalDocsIcons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, MedicalDocument } from '@/lib/db'
 
