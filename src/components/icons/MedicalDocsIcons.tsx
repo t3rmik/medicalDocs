@@ -373,4 +373,5 @@ export const MedicalDocsAlertCircle = (props: Omit<MedicalDocsIconProps, 'name'>
 export const MedicalDocsSpark = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="spark" {...props} />;
 export const MedicalDocsDocument = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="document" {...props} />;
 export const MedicalDocsSearch = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="search" {...props} />;
+export const MedicalDocsOutline = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="outline" {...props} />;
 export const MedicalDocsFavorite = (props: Omit<MedicalDocsIconProps, 'name'>) => <MedicalDocsIcon name="favorite" {...props} />;
