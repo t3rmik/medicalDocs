@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { createWorker } from 'tesseract.js';
-import { Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit3, ShieldAlert, Stamp, CheckCircle, Move, Undo2, Redo2, PenLine, Highlighter, ScanText, WandSparkles, Type, X, FileText } from 'lucide-react';
+import { Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit3, ShieldAlert, Stamp, CheckCircle, Move, Undo2, Redo2, PenLine, Highlighter, Wand2, Type, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -563,10 +563,10 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             <Type className="w-3.5 h-3.5" /><span>Modifica testo</span>
           </button>
           <button onClick={() => { setIsPageAiOpen((open) => !open); setPageAiAnswer(''); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${isPageAiOpen ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Fai una domanda sul testo della pagina corrente">
-            <WandSparkles className="w-3.5 h-3.5" /><span>AI pagina</span>
+            <Wand2 className="w-3.5 h-3.5" /><span>AI pagina</span>
           </button>
           <button onClick={runPageOcr} disabled={isOcrLoading} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition hover:bg-slate-800 text-slate-300 disabled:opacity-50" title="Riconosce le parole di una pagina scansionata">
-            <ScanText className="w-3.5 h-3.5" /><span>{isOcrLoading ? 'OCR in corso…' : 'OCR pagina'}</span>
+            <FileText className="w-3.5 h-3.5" /><span>{isOcrLoading ? 'OCR in corso…' : 'OCR pagina'}</span>
           </button>
           <button onClick={() => setActiveTool('draw')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Disegna con penna, stilo o dito">
             <PenLine className="w-3.5 h-3.5" /><span>Penna</span>
@@ -635,7 +635,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             <label htmlFor="md-pdf-replacement" className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Testo sostitutivo</label>
             <input id="md-pdf-replacement" value={replacementText} onChange={(event) => setReplacementText(event.target.value)} maxLength={1200} className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-violet-400" />
           </div>
-          <button type="button" onClick={improveSelectedTextWithAi} disabled={isRewritingText} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet-400/40 bg-violet-900/50 px-3 py-2 text-xs font-bold text-violet-100 hover:bg-violet-800 disabled:opacity-50"><WandSparkles className="h-3.5 w-3.5"/>{isRewritingText ? 'AI…' : 'Migliora con AI'}</button>
+          <button type="button" onClick={improveSelectedTextWithAi} disabled={isRewritingText} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet-400/40 bg-violet-900/50 px-3 py-2 text-xs font-bold text-violet-100 hover:bg-violet-800 disabled:opacity-50"><Wand2 className="h-3.5 w-3.5"/>{isRewritingText ? 'AI…' : 'Migliora con AI'}</button>
           <button type="submit" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500">Applica testo</button>
           <button type="button" onClick={() => { setSelectedTextItem(null); setReplacementText(''); }} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"><X className="h-3.5 w-3.5"/>Annulla</button>
           {pageAiModel && <span className="w-full text-[10px] text-slate-400">Ultimo modello AI: {pageAiModel}</span>}
@@ -651,7 +651,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             {isPageAiLoading ? 'L’AI sta analizzando il testo della pagina…' : pageAiAnswer || 'L’AI riceve il testo riconosciuto di questa pagina, non il file PDF completo.'}
             {pageAiModel && <div className="mt-1 text-[10px] text-slate-400">Modello: {pageAiModel}</div>}
           </div>
-          <button type="submit" disabled={isPageAiLoading || isOcrLoading} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"><WandSparkles className="h-4 w-4"/>{isPageAiLoading ? 'Analisi…' : 'Chiedi all’AI'}</button>
+          <button type="submit" disabled={isPageAiLoading || isOcrLoading} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"><Wand2 className="h-4 w-4"/>{isPageAiLoading ? 'Analisi…' : 'Chiedi all’AI'}</button>
         </form>
       )}
       <div className="flex min-h-0 flex-1 overflow-hidden bg-slate-950">
