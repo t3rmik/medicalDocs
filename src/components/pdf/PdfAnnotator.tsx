@@ -282,12 +282,18 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
     if (isTap) {
       const x = end.x / scale;
       const y = end.y / scale;
-      let hit = chosen.find((item) => x >= item.x - 2 && x <= item.x + item.width + 2 && y >= item.y - 3 && y <= item.y + item.height + 3);
+      // Test against every line's full rectangle: a tap at the beginning/end of
+      // a long line must select it just like a tap near its center.
+      let hit = pageTextItems.find((item) =>
+        x >= item.x - 2 && x <= item.x + item.width + 2 &&
+        y >= item.y - 3 && y <= item.y + item.height + 3
+      );
       if (!hit) {
-        const nearest = [...pageTextItems].map((item) => ({
-          item,
-          distance: Math.hypot(x - (item.x + item.width / 2), y - (item.y + item.height / 2)),
-        })).sort((a, b) => a.distance - b.distance)[0];
+        const nearest = [...pageTextItems].map((item) => {
+          const dx = Math.max(item.x - x, 0, x - (item.x + item.width));
+          const dy = Math.max(item.y - y, 0, y - (item.y + item.height));
+          return { item, distance: Math.hypot(dx, dy) };
+        }).sort((a, b) => a.distance - b.distance)[0];
         if (nearest && nearest.distance <= Math.max(20, 24 / scale)) hit = nearest.item;
       }
       chosen = hit ? [hit] : [];
@@ -422,7 +428,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       setTextSource('ocr');
       setActiveTool('editText');
       setSelectedTextItem(null);
-      toast.success('Riconosciute ' + detected.length + ' parole. Tocca una parola per modificarla.');
+      toast.success('Riconosciute ' + detected.length + ' parole in ' + grouped.length + ' righe. Tocca una riga oppure attiva Multi-riga per selezionarne diverse.');
     } catch (err) {
       console.error('OCR pagina PDF non riuscito:', err);
       toast.error('Riconoscimento OCR non riuscito. Controlla la connessione e riprova.');
