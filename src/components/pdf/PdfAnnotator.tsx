@@ -6,6 +6,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { createWorker } from 'tesseract.js';
 import { Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Edit3, ShieldAlert, Stamp, CheckCircle, Move, Undo2, Redo2, PenLine, Highlighter, Wand2, Type, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -728,8 +729,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   return (
-    <div data-md-pdf-annotator="true" className="flex flex-col h-full bg-slate-900 text-white relative select-none">
-      <div className="flex max-h-[42dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-b border-slate-700 bg-slate-800 px-3 py-2.5 shadow-md sm:max-h-none sm:overflow-visible">
+    <div data-md-pdf-annotator="true" className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
+      <div data-md-pdf-toolbar="true" className="flex max-h-[42dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-b border-slate-700 bg-slate-800 px-3 py-2.5 shadow-md sm:max-h-none sm:overflow-visible">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
@@ -756,13 +757,13 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
           <button type="button" onClick={() => { setMultiSelectMode((current) => !current); selectedSourceIdsRef.current = []; setSelectedTextItem(null); setReplacementText(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${multiSelectMode ? 'bg-amber-500 text-slate-950' : 'hover:bg-slate-800 text-slate-300'}`} title="Su telefono attivalo e tocca più righe una dopo l’altra">Multi-riga {multiSelectMode ? 'ON' : 'OFF'}</button>
           <button onClick={() => { setIsPageAiOpen((open) => !open); setPageAiAnswer(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${isPageAiOpen ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Fai una domanda sul testo della pagina corrente">
-            <Wand2 className="w-3.5 h-3.5" /><span>AI pagina</span>
+            <MedicalDocsIcon name="spark" size={15} /><span>AI pagina</span>
           </button>
           <button onClick={runPageOcr} disabled={isOcrLoading} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition hover:bg-slate-800 text-slate-300 disabled:opacity-50" title="Riconosce le parole di una pagina scansionata">
-            <FileText className="w-3.5 h-3.5" /><span>{isOcrLoading ? 'OCR in corso…' : 'OCR pagina'}</span>
+            <MedicalDocsIcon name="scan" size={15} /><span>{isOcrLoading ? 'OCR in corso…' : 'OCR pagina'}</span>
           </button>
           <button onClick={() => setActiveTool('draw')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Disegna con penna, stilo o dito">
-            <PenLine className="w-3.5 h-3.5" /><span>Penna</span>
+            <MedicalDocsIcon name="pen" size={15} /><span>Penna</span>
           </button>
           <button onClick={() => setActiveTool('highlight')} title="Evidenzia una zona della pagina" className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition hover:bg-amber-500/20 text-amber-200"><Highlighter className="w-3.5 h-3.5" /><span>Evidenzia</span></button>
           {activeTool === 'text' && (
@@ -819,7 +820,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       </div>
       <div role="note" className="shrink-0 border-b border-amber-400/30 bg-amber-950/70 px-3 py-2 text-[11px] leading-4 text-amber-100"><ShieldAlert className="mr-1 inline h-3.5 w-3.5 text-amber-300"/><strong>Modifica visiva:</strong> il vecchio testo viene coperto e quello nuovo sovrapposto; il contenuto originale può restare nel PDF. Non è redazione sicura.</div>
       {selectedTextItem && activeTool === 'editText' && (
-        <form onSubmit={(event) => { event.preventDefault(); applyTextEdit(); }} className="flex flex-wrap items-end gap-2 border-b border-violet-400/30 bg-slate-800 px-3 py-3">
+        <form onSubmit={(event) => { event.preventDefault(); applyTextEdit(); }} data-md-pdf-text-editor="true" className="flex flex-wrap items-end gap-2 border-b border-violet-400/30 bg-slate-800 px-3 py-3">
           <div className="min-w-48 flex-1">
             <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Testo originale · {textSource === 'ocr' ? 'riconosciuto via OCR' : 'selezionato dal PDF'}</label>
             <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm leading-5 text-slate-300" title={selectedTextItem.text}>{selectedTextItem.text}</div>
@@ -828,14 +829,14 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             <label htmlFor="md-pdf-replacement" className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Testo sostitutivo</label>
             <textarea id="md-pdf-replacement" rows={4} value={replacementText} onChange={(event) => setReplacementText(event.target.value)} maxLength={5000} className="min-h-28 w-full resize-y rounded-lg border border-slate-600 bg-slate-900 px-3 py-3 text-base leading-6 text-white outline-none focus:border-violet-400" placeholder="Modifica qui l’intera frase o il paragrafo selezionato…" />
           </div>
-          <button type="button" onClick={improveSelectedTextWithAi} disabled={isRewritingText} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet-400/40 bg-violet-900/50 px-3 py-2 text-xs font-bold text-violet-100 hover:bg-violet-800 disabled:opacity-50"><Wand2 className="h-3.5 w-3.5"/>{isRewritingText ? 'AI…' : 'Migliora con AI'}</button>
+          <button type="button" onClick={improveSelectedTextWithAi} disabled={isRewritingText} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet-400/40 bg-violet-900/50 px-3 py-2 text-xs font-bold text-violet-100 hover:bg-violet-800 disabled:opacity-50"><MedicalDocsIcon name="spark" size={15} />{isRewritingText ? 'AI…' : 'Migliora con AI'}</button>
           <button type="submit" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500">Applica testo</button>
           <button type="button" onClick={() => { setSelectedTextItem(null); setReplacementText(''); }} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"><X className="h-3.5 w-3.5"/>Annulla</button>
           {pageAiModel && <span className="w-full text-[10px] text-slate-400">Ultimo modello AI: {pageAiModel}</span>}
         </form>
       )}
       {isPageAiOpen && (
-        <form onSubmit={askAiAboutPage} className="grid gap-2 border-b border-violet-400/30 bg-slate-800 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end">
+        <form data-md-pdf-ai-form="true" onSubmit={askAiAboutPage} className="grid gap-2 border-b border-violet-400/30 bg-slate-800 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end">
           <div>
             <label htmlFor="md-pdf-ai-question" className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-violet-200">Domanda sulla pagina {pageNum}</label>
             <textarea id="md-pdf-ai-question" rows={2} value={pageAiPrompt} onChange={(event) => setPageAiPrompt(event.target.value)} className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-white outline-none focus:border-violet-400"/>
@@ -843,17 +844,17 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           <div className="min-w-0 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 p-3 sm:p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-bold uppercase tracking-wide text-violet-200">Risposta dell’assistente</p>{pageAiModel && <span className="text-[10px] text-slate-400">Modello: {pageAiModel}</span>}</div>
             {isPageAiLoading ? <p className="text-sm leading-6 text-slate-300">L’AI sta analizzando il testo della pagina…</p> : pageAiAnswer ? (
-              <div className="max-h-[38dvh] overflow-y-auto whitespace-pre-wrap break-words text-left text-base leading-7 text-slate-100">{pageAiAnswer}</div>
+              <div data-md-pdf-ai-answer="true" className="max-h-[38dvh] overflow-y-auto whitespace-pre-wrap break-words text-left text-base leading-7 text-slate-100">{pageAiAnswer}</div>
             ) : <p className="text-sm leading-6 text-slate-400">L’AI riceve il testo riconosciuto di questa pagina, non il file PDF completo. La risposta apparirà qui in un’area ampia e leggibile.</p>}
           </div>
-          <button type="submit" disabled={isPageAiLoading || isOcrLoading} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"><Wand2 className="h-4 w-4"/>{isPageAiLoading ? 'Analisi…' : 'Chiedi all’AI'}</button>
+          <button type="submit" disabled={isPageAiLoading || isOcrLoading} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"><MedicalDocsIcon name="spark" size={17} />{isPageAiLoading ? 'Analisi…' : 'Chiedi all’AI'}</button>
         </form>
       )}
       <div className="flex min-h-0 flex-1 overflow-hidden bg-slate-950">
         <aside className="hidden w-[4.25rem] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-slate-800 bg-slate-900 px-2 py-3 sm:flex" aria-label="Navigazione pagine PDF">
           {Array.from({ length: numPages }, (_, index) => index + 1).map((number) => (
             <button key={number} type="button" onClick={() => setPageNum(number)} aria-current={number === pageNum ? 'page' : undefined} className={'flex h-12 w-11 shrink-0 flex-col items-center justify-center rounded-lg border text-[10px] transition ' + (number === pageNum ? 'border-teal-400 bg-teal-950 text-teal-100 ring-1 ring-teal-500/30' : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700')} title={'Vai a pagina ' + number}>
-              <FileText className="mb-0.5 h-3.5 w-3.5"/><span>{number}</span>
+              <MedicalDocsIcon name="page" size={15} className="mb-0.5" /><span>{number}</span>
             </button>
           ))}
         </aside>
