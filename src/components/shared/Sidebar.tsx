@@ -1,8 +1,8 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
-import { FileBox, X, FileText, Trash2, ListTree, Copy, Search, Star, Folder, ChevronDown, Plus } from 'lucide-react'
+import { FileText, Trash2, Copy, Search, Star, Folder, ChevronDown, Plus, X } from 'lucide-react'
+import { MedicalDocsIcon, MedicalDocsMark } from '@/components/icons/MedicalDocsIcons'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, MedicalDocument } from '@/lib/db'
 
@@ -116,19 +116,23 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
   return (
     <div data-md-sidebar-root="true" data-md-panel-open={activeTab ? 'true' : 'false'} className="flex min-h-0 shrink-0 print:hidden">
       <aside data-md-sidebar-rail="true" className="z-40 flex w-14 shrink-0 flex-col items-center gap-3 border-r border-[#0d4654] bg-gradient-to-b from-[#092d39] via-[#0b3545] to-[#071f2e] py-4 shadow-xl sm:w-16">
-        <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
-          <Image src="/medicaldocs-mark.png" alt="MedicalDocs" width={34} height={34} priority className="h-9 w-9 object-contain" />
+        <div className="md-sidebar-brand mb-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
+          <MedicalDocsMark size={34} className="h-9 w-9" />
         </div>
         <div className="mb-1 h-px w-7 bg-white/15" />
-        <button type="button" onClick={() => openTab('docs')} className={railButtonClass(activeTab === 'docs')} title="Tutti i documenti" aria-label="Tutti i documenti" aria-pressed={activeTab === 'docs'}>
-          <FileBox className="h-5 w-5" />
+        <button type="button" data-md-nav-button="true" onClick={() => openTab('docs')} className={railButtonClass(activeTab === 'docs')} title="Tutti i documenti" aria-label="Tutti i documenti" aria-pressed={activeTab === 'docs'}>
+          <MedicalDocsIcon name="library" size={22} />
+          <span data-md-sidebar-mobile-label="true">Archivio</span>
         </button>
-        <button type="button" onClick={() => openTab('favorites')} className={railButtonClass(activeTab === 'favorites')} title="Preferiti" aria-label="Preferiti" aria-pressed={activeTab === 'favorites'}>
-          <Star className="h-5 w-5" />
+        <button type="button" data-md-nav-button="true" onClick={() => openTab('favorites')} className={railButtonClass(activeTab === 'favorites')} title="Preferiti" aria-label="Preferiti" aria-pressed={activeTab === 'favorites'}>
+          <MedicalDocsIcon name="favorite" size={22} />
+          <span data-md-sidebar-mobile-label="true">Preferiti</span>
           {favoriteCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-400 px-1 text-[9px] font-bold text-[#092d39]">{favoriteCount > 9 ? '9+' : favoriteCount}</span>}
         </button>
-        <button type="button" onClick={() => openTab('outline')} className={railButtonClass(activeTab === 'outline')} title="Struttura documento" aria-label="Struttura documento" aria-pressed={activeTab === 'outline'}>
-          <ListTree className="h-5 w-5" />
+        <button type="button" data-md-nav-button="true" onClick={() => openTab('outline')} className={railButtonClass(activeTab === 'outline')} title="Struttura documento" aria-label="Struttura documento" aria-pressed={activeTab === 'outline'}>
+          <MedicalDocsIcon name="outline" size={22} />
+          <span data-md-sidebar-mobile-label="true">Indice</span>
+        </button>
         </button>
         <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-teal-200" title="MedicalDocs Pro">
           <span className="text-[10px] font-black tracking-tight">MD</span>
