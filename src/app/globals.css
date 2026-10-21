@@ -981,3 +981,52 @@ table { border-collapse: separate; border-spacing: 0; }
     flex-basis: 78px;
   }
 }
+
+
+/* Tablet/stylus audit — predictable gestures, reachable actions and quieter rendering on touch screens. */
+.md-pdf-workbench [data-md-annotation="true"] { touch-action: none; }
+.md-pdf-workbench [data-md-annotation-delete="true"] { touch-action: manipulation; }
+[data-md-pdf-input-mode="true"] { max-width: 100%; flex-wrap: wrap; }
+[data-md-pdf-input-mode="true"] input[type="color"] { min-width: 36px; min-height: 36px; }
+[data-md-statusbar="true"] button { min-width: 36px; min-height: 36px; }
+@media (hover: none), (pointer: coarse) {
+  .md-pdf-workbench [data-md-annotation-delete="true"] {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    opacity: 1 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px !important;
+    box-shadow: 0 2px 12px rgb(0 0 0 / 32%);
+  }
+  .medicaldocs-image-resize-handle {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: none;
+  }
+  [data-md-ink-toolbar="true"] [role="group"] button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
+  }
+  [data-md-ink-toolbar="true"] input[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+  [data-md-pdf-input-mode="true"] input[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (max-width: 1023px) {
+  [data-md-pdf-toolbar="true"] { align-items: stretch; }
+  [data-md-pdf-tools="true"] { scroll-padding-inline: 8px; }
+  [data-md-pdf-viewer="true"] { overscroll-behavior-x: contain; }
+}

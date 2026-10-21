@@ -29,6 +29,10 @@ const DEFAULT_FOLDERS = ['Generale', 'Biologia', 'Chimica', 'Personale'] as cons
 const CUSTOM_FOLDERS_KEY = 'medicaldocs-custom-folders-v1'
 type SidebarTab = 'docs' | 'favorites' | 'outline' | null
 
+function searchableDocumentText(value: string): string {
+  return value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLocaleLowerCase('it')
+}
+
 function normaliseFolder(value?: string): string {
   const folder = (value || 'Generale').trim()
   // Legacy categories stay accessible without continuing to show the retired labels.
@@ -85,15 +89,14 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
       // The new folder can still be used for this session.
     }
   }
-  const query = searchTerm.trim().toLocaleLowerCase('it')
-  const searchableText = (value: string) =>
-    value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLocaleLowerCase('it')
-  const filteredDocs = allDocs?.filter((doc) => {
-    const matchesQuery = !query || doc.title.toLocaleLowerCase('it').includes(query) || searchableText(doc.content).includes(query)
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const query = deferredSearchTerm.trim().toLocaleLowerCase('it')
+  const filteredDocs = useMemo(() => allDocs?.filter((doc) => {
+    const matchesQuery = !query || doc.title.toLocaleLowerCase('it').includes(query) || searchableDocumentText(doc.content).includes(query)
     const matchesTab = activeTab !== 'favorites' || Boolean(doc.favorite)
     const matchesFolder = folderFilter === 'Tutte le cartelle' || normaliseFolder(doc.folder) === folderFilter
     return matchesQuery && matchesTab && matchesFolder
-  })
+  }), [allDocs, query, activeTab, folderFilter])
   const favoriteCount = allDocs?.filter((doc) => doc.favorite).length || 0
 
   const handleDelete = async (event: React.MouseEvent, id: number) => {
