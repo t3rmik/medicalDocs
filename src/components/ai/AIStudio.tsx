@@ -228,13 +228,14 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert, ge
   const markedPages = detectPdfPageSections(plainText)
   const explicitPages = detectExplicitPageSections(content)
   const hasExactPageBoundaries = markedPages.length > 0 || explicitPages.length > 1 || livePageSections.length > 1
-  // Prefer original PDF page markers, manual page breaks, then current layout.
-  // Never manufacture page boundaries from character counts.
+  // Original imported PDF page markers take priority. Otherwise use the editor's
+  // current physical pagination, including how manual breaks affect the layout.
+  // Explicit-break grouping is only a fallback before live page measurements exist.
   const pageSections = markedPages.length > 0
     ? markedPages
-    : explicitPages.length > 0
-      ? explicitPages
-      : livePageSections
+    : livePageSections.length > 0
+      ? livePageSections
+      : explicitPages
   const topicSections = detectTopicSections(content)
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
