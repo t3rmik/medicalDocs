@@ -1,21 +1,22 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { MedicalDocsIcon, MedicalDocsMark } from '@/components/icons/MedicalDocsIcons'
 import {
-  FolderOpen,
-  FilePlus,
-  Download,
-  Printer,
-  Save,
-  Loader2,
-  ChevronDown,
-  Search,
-  Command as CommandIcon,
-  X,
-  Sparkles,
-  ArrowUpRight,
-} from 'lucide-react'
+  MedicalDocsIcon,
+  MedicalDocsMark,
+  MedicalDocsFolderOpen as FolderOpen,
+  MedicalDocsFilePlus as FilePlus,
+  MedicalDocsDownload as Download,
+  MedicalDocsPrinter as Printer,
+  MedicalDocsSave as Save,
+  MedicalDocsLoader as Loader2,
+  MedicalDocsChevronDown as ChevronDown,
+  MedicalDocsSearch as Search,
+  MedicalDocsCommand as CommandIcon,
+  MedicalDocsClose as X,
+  MedicalDocsSpark as Sparkles,
+  MedicalDocsArrowUpRight as ArrowUpRight,
+} from '@/components/icons/MedicalDocsIcons'
 
 interface HeaderProps {
   onExport: (format: string) => void;
