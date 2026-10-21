@@ -25,7 +25,9 @@ import { Ribbon } from './Ribbon'
 import { StatusBar } from './StatusBar'
 import { InkLayer } from './InkLayer'
 import { MathEquation } from './MathEquation'
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PaginationPlus, PAGE_SIZES } from 'tiptap-pagination-plus'
+import type { DocumentPageSection } from '@/types/documentPages'
 
 
 const PageBreak = Node.create({
@@ -50,15 +52,49 @@ const PageBreak = Node.create({
   },
 })
 
+const StudyTable = Table.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      mdWidth: {
+        default: 100,
+        parseHTML: (element: HTMLElement) => Number(element.getAttribute('data-md-width') || 100),
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const rawWidth = Number(attributes.mdWidth)
+          const width = Number.isFinite(rawWidth) ? Math.max(35, Math.min(100, rawWidth)) : 100
+          return { 'data-md-width': String(width), style: 'width: ' + width + '%; min-width: ' + width + '%;' }
+        },
+      },
+      mdAlign: {
+        default: 'left',
+        parseHTML: (element: HTMLElement) => {
+          const value = element.getAttribute('data-md-align') || 'left'
+          return ['left', 'center', 'right'].includes(value) ? value : 'left'
+        },
+        renderHTML: (attributes: Record<string, unknown>) => ({ 'data-md-align': String(attributes.mdAlign || 'left') }),
+      },
+      mdDensity: {
+        default: 'normal',
+        parseHTML: (element: HTMLElement) => {
+          const value = element.getAttribute('data-md-density') || 'normal'
+          return ['compact', 'normal', 'comfortable'].includes(value) ? value : 'normal'
+        },
+        renderHTML: (attributes: Record<string, unknown>) => ({ 'data-md-density': String(attributes.mdDensity || 'normal') }),
+      },
+    }
+  },
+})
+
 interface EditorCoreProps {
   initialContent: string;
   onChange: (html: string) => void;
   isSaving: boolean;
   documentVersion: number;
   onRegisterInsert?: (handler: ((html: string) => void) | null) => void;
+  onRegisterPageSections?: (handler: (() => DocumentPageSection[]) | null) => void;
 }
 
-export default function EditorCore({ initialContent, onChange, isSaving, documentVersion, onRegisterInsert }: EditorCoreProps) {
+export default function EditorCore({ initialContent, onChange, isSaving, documentVersion, onRegisterInsert, onRegisterPageSections }: EditorCoreProps) {
   const lastDocumentVersionRef = useRef(documentVersion)
   const initialContentRef = useRef(initialContent)
   initialContentRef.current = initialContent
@@ -75,7 +111,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
       TextStyle, Color, FontFamily, Underline, Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
+      StudyTable.configure({ resizable: true }), TableRow, TableHeader, TableCell,
       ResizableImage,
       PageBreak,
       InkLayer,
@@ -111,6 +147,99 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
       },
     },
   });
+
+  const getActualPageSections = useCallback((): DocumentPageSection[] => {
+    if (!editor || typeof window === 'undefined') return []
+
+    const root = editor.view.dom
+    const topLevelNodes: Array<{ node: any; pos: number; element: HTMLElement | null }> = []
+    editor.state.doc.forEach((node, pos) => {
+      const domNode = editor.view.nodeDOM(pos)
+      const element = domNode instanceof HTMLElement
+        ? domNode
+        : domNode instanceof Text
+          ? domNode.parentElement
+          : null
+      topLevelNodes.push({ node, pos, element })
+    })
+    const visibleBlocks = topLevelNodes.filter(({ node, element }) =>
+      node.type.name !== 'pageBreak' && element && node.type.name !== 'inkLayer'
+    )
+    if (visibleBlocks.length === 0) return []
+
+    const blockRects = visibleBlocks.map(({ element }) => element!.getBoundingClientRect())
+      .filter((rect) => rect.height > 0 || rect.width > 0)
+    if (blockRects.length === 0) return []
+    const firstTop = Math.min(...blockRects.map((rect) => rect.top))
+    const lastBottom = Math.max(...blockRects.map((rect) => rect.bottom))
+    const gapCenters = Array.from(root.querySelectorAll<HTMLElement>('.rm-pagination-gap'))
+      .map((gap) => {
+        const rect = gap.getBoundingClientRect()
+        return rect.top + rect.height / 2
+      })
+      .filter((center) => Number.isFinite(center) && center > firstTop + 1 && center < lastBottom - 1)
+      .sort((a, b) => a - b)
+    const uniqueBoundaries = gapCenters.filter((center, index) =>
+      index === 0 || Math.abs(center - gapCenters[index - 1]) > 3
+    )
+
+    const groups = new Map<number, string[]>()
+    let previousAutoPage = 1
+    let pageOffset = 0
+    let pendingManualBreaks = 0
+    for (const { node, element } of topLevelNodes) {
+      if (node.type.name === 'pageBreak') {
+        pendingManualBreaks += 1
+        continue
+      }
+      if (node.type.name === 'inkLayer') continue
+
+      const rect = element?.getBoundingClientRect()
+      const autoPage = rect ? 1 + uniqueBoundaries.filter((center) => center < rect.top + 1).length : previousAutoPage
+      if (pendingManualBreaks > 0) {
+        const naturalAdvance = Math.max(0, autoPage - previousAutoPage)
+        pageOffset += Math.max(0, pendingManualBreaks - naturalAdvance)
+        pendingManualBreaks = 0
+      }
+      const pageNumber = autoPage + pageOffset
+      previousAutoPage = autoPage
+
+      let text = ''
+      if (node.type.name === 'table') {
+        const rows: string[] = []
+        node.forEach((row: any) => {
+          const cells: string[] = []
+          row.forEach((cell: any) => {
+            cells.push(cell.textBetween(0, cell.content.size, ' ', ' ').replace(/\s+/g, ' ').trim())
+          })
+          if (cells.some(Boolean)) rows.push(cells.join(' | '))
+        })
+        text = rows.join('\n')
+      } else if (node.type.name === 'image' || node.type.name === 'resizableImage') {
+        text = String(node.attrs.alt || node.attrs.title || 'Immagine')
+      } else {
+        text = node.textBetween(0, node.content.size, '\n', '\n').trim() || String(node.textContent || '').trim()
+      }
+      if (!text) continue
+      const existing = groups.get(pageNumber) || []
+      existing.push(text)
+      groups.set(pageNumber, existing)
+    }
+
+    return Array.from(groups.entries())
+      .sort(([left], [right]) => left - right)
+      .map(([number, parts]) => ({
+        number,
+        title: 'Pagina ' + number,
+        text: 'Pagina ' + number + '\n' + parts.join('\n\n'),
+      }))
+  }, [editor])
+
+  useEffect(() => {
+    if (!onRegisterPageSections) return
+    onRegisterPageSections(getActualPageSections)
+    return () => onRegisterPageSections(null)
+  }, [getActualPageSections, onRegisterPageSections])
 
   // Reuse the ProseMirror instance when changing notes instead of rebuilding all extensions.
   // emitUpdate=false is important: loading an existing note must not schedule a save as a new edit.
@@ -216,10 +345,10 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
         <div data-md-ink-toolbar="true" className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
           <span className="mr-1 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva</span>
           <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Strumento di scrittura">
-            <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}>✎ Penna</button>
-            <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}>▰ Evidenzia</button>
-            <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}>⌫ Gomma</button>
-            <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}>↗ Seleziona</button>
+            <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="pen" size={16} /> <span>Penna</span></button>
+            <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="highlighter" size={16} /> <span>Evidenzia</span></button>
+            <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="eraser" size={16} /> <span>Gomma</span></button>
+            <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="select" size={16} /> <span>Seleziona</span></button>
           </div>
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5" role="group" aria-label="Colori rapidi">
             {[

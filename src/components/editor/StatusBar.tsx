@@ -1,7 +1,7 @@
 'use client'
 
 import { Editor } from '@tiptap/react'
-import { ZoomIn, ZoomOut, CheckCircle2, Loader2 } from 'lucide-react'
+import { MedicalDocsZoomIn as ZoomIn, MedicalDocsZoomOut as ZoomOut, MedicalDocsCheckCircle as CheckCircle2, MedicalDocsLoader as Loader2 } from '@/components/icons/MedicalDocsIcons'
 
 interface StatusBarProps {
   editor: Editor | null;

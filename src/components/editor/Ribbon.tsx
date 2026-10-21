@@ -2,14 +2,39 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Editor } from '@tiptap/react'
+import { NodeSelection } from '@tiptap/pm/state'
 import toast from 'react-hot-toast'
-import { 
-  Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
-  Subscript, Superscript, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, CheckSquare, Palette, Highlighter,
-  Table as TableIcon, Image as ImageIcon, SplitSquareHorizontal,
-  Undo, Redo, RemoveFormatting, Rows, Columns, Trash2, FileUp, PenLine
-} from 'lucide-react'
+import {
+  MedicalDocsBold as Bold,
+  MedicalDocsItalic as Italic,
+  MedicalDocsUnderlineIcon as UnderlineIcon,
+  MedicalDocsStrikethrough as Strikethrough,
+  MedicalDocsSubscript as Subscript,
+  MedicalDocsSuperscript as Superscript,
+  MedicalDocsAlignLeft as AlignLeft,
+  MedicalDocsAlignCenter as AlignCenter,
+  MedicalDocsAlignRight as AlignRight,
+  MedicalDocsAlignJustify as AlignJustify,
+  MedicalDocsList as List,
+  MedicalDocsListOrdered as ListOrdered,
+  MedicalDocsCheckSquare as CheckSquare,
+  MedicalDocsPalette as Palette,
+  MedicalDocsHighlighter as Highlighter,
+  MedicalDocsTableIcon as TableIcon,
+  MedicalDocsImageIcon as ImageIcon,
+  MedicalDocsSplitSquareHorizontal as SplitSquareHorizontal,
+  MedicalDocsUndo as Undo,
+  MedicalDocsRedo as Redo,
+  MedicalDocsRemoveFormatting as RemoveFormatting,
+  MedicalDocsRows as Rows,
+  MedicalDocsColumns as Columns,
+  MedicalDocsTrash2 as Trash2,
+  MedicalDocsFileUp as FileUp,
+  MedicalDocsPen as PenLine,
+  MedicalDocsArrowUp as ArrowUp,
+  MedicalDocsArrowDown as ArrowDown,
+  MedicalDocsMerge as Merge,
+} from '@/components/icons/MedicalDocsIcons'
 import { cn } from '@/lib/utils'
 
 type PageFormat = 'A4' | 'A5' | 'A3' | 'Letter';
@@ -186,6 +211,77 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
 
   if (!editor) return null;
 
+  const findSelectedTable = () => {
+    const { state } = editor
+    if (state.selection instanceof NodeSelection && state.selection.node.type.name === 'table') {
+      return { pos: state.selection.from, node: state.selection.node }
+    }
+    const $from = state.selection.$from
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+      const node = $from.node(depth)
+      if (node.type.name === 'table') return { pos: $from.before(depth), node }
+    }
+    return null
+  }
+
+  const moveSelectedTable = (direction: 'up' | 'down') => {
+    const tableContext = findSelectedTable()
+    if (!tableContext) {
+      toast.error('Posiziona il cursore dentro la tabella da spostare.')
+      return
+    }
+    const entries: Array<{ node: any; pos: number }> = []
+    editor.state.doc.forEach((node, pos) => entries.push({ node, pos }))
+    const index = entries.findIndex((entry) => entry.pos === tableContext.pos && entry.node.type.name === 'table')
+    const neighborIndex = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || neighborIndex < 0 || neighborIndex >= entries.length) {
+      toast('La tabella è già al limite del documento in questa direzione.')
+      return
+    }
+    const neighbor = entries[neighborIndex]
+    const targetPos = direction === 'up' ? neighbor.pos : tableContext.pos + neighbor.node.nodeSize
+    const tr = editor.state.tr.delete(tableContext.pos, tableContext.pos + tableContext.node.nodeSize)
+    tr.insert(targetPos, tableContext.node)
+    tr.setSelection(NodeSelection.create(tr.doc, targetPos))
+    editor.view.dispatch(tr.scrollIntoView())
+    toast.success(direction === 'up' ? 'Tabella spostata verso l’alto.' : 'Tabella spostata verso il basso.')
+  }
+
+  const resizeSelectedTable = (delta: number) => {
+    const table = findSelectedTable()
+    if (!table) {
+      toast.error('Posiziona il cursore dentro una tabella.')
+      return
+    }
+    const current = Number(table.node.attrs.mdWidth) || 100
+    const next = Math.max(35, Math.min(100, current + delta))
+    editor.chain().focus().updateAttributes('table', { mdWidth: next }).run()
+  }
+
+  const setSelectedTableWidth = (width: number) => {
+    if (!findSelectedTable()) {
+      toast.error('Posiziona il cursore dentro una tabella.')
+      return
+    }
+    editor.chain().focus().updateAttributes('table', { mdWidth: width }).run()
+  }
+
+  const setSelectedTableAlignment = (mdAlign: 'left' | 'center' | 'right') => {
+    if (!findSelectedTable()) {
+      toast.error('Posiziona il cursore dentro una tabella.')
+      return
+    }
+    editor.chain().focus().updateAttributes('table', { mdAlign }).run()
+  }
+
+  const setSelectedTableDensity = (mdDensity: 'compact' | 'normal' | 'comfortable') => {
+    if (!findSelectedTable()) {
+      toast.error('Posiziona il cursore dentro una tabella.')
+      return
+    }
+    editor.chain().focus().updateAttributes('table', { mdDensity }).run()
+  }
+
   const TabButton = ({ name }: { name: typeof activeTab }) => (
     <button 
       type="button"
@@ -207,6 +303,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
       className={cn(
         "rounded-lg p-2 flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600",
         isActive ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
@@ -475,22 +572,39 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         )}
 
         {activeTab === 'Tabella' && (
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 flex items-center space-x-1">
-              <Rows className="w-3.5 h-3.5 text-teal-600" /> <span>+ Riga</span>
-            </button>
-            <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 flex items-center space-x-1">
-              <Columns className="w-3.5 h-3.5 text-teal-600" /> <span>+ Colonna</span>
-            </button>
-            <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 text-red-600">
-              Elimina Riga
-            </button>
-            <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className="px-2 py-1 bg-white border rounded text-xs hover:bg-slate-100 text-red-600">
-              Elimina Colonna
-            </button>
-            <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className="px-2 py-1 bg-red-50 border border-red-200 text-red-700 rounded text-xs hover:bg-red-100 flex items-center space-x-1">
-              <Trash2 className="w-3.5 h-3.5" /> <span>Elimina Tabella</span>
-            </button>
+          <div className="flex w-full flex-wrap items-center gap-2 p-1.5">
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Sposta tabella">
+              <button type="button" onClick={() => moveSelectedTable('up')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50" title="Sposta la tabella prima del blocco precedente"><ArrowUp className="mr-1 inline h-3.5 w-3.5" />Sposta su</button>
+              <button type="button" onClick={() => moveSelectedTable('down')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50" title="Sposta la tabella dopo il blocco successivo"><ArrowDown className="mr-1 inline h-3.5 w-3.5" />Sposta giù</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Ridimensiona tabella">
+              <span className="px-1 text-[11px] font-semibold text-slate-500">Larghezza</span>
+              <button type="button" onClick={() => resizeSelectedTable(-10)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:bg-teal-50" title="Riduci larghezza del 10%">− 10%</button>
+              <button type="button" onClick={() => resizeSelectedTable(10)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:bg-teal-50" title="Aumenta larghezza del 10%">+ 10%</button>
+              <button type="button" onClick={() => setSelectedTableWidth(100)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Adatta alla pagina</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Allineamento tabella">
+              <button type="button" onClick={() => setSelectedTableAlignment('left')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Sinistra</button>
+              <button type="button" onClick={() => setSelectedTableAlignment('center')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Centro</button>
+              <button type="button" onClick={() => setSelectedTableAlignment('right')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Destra</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Spaziatura celle">
+              <button type="button" onClick={() => setSelectedTableDensity('compact')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Compatta</button>
+              <button type="button" onClick={() => setSelectedTableDensity('normal')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Normale</button>
+              <button type="button" onClick={() => setSelectedTableDensity('comfortable')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Ampia</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="Modifica struttura tabella">
+              <button type="button" onClick={() => editor.chain().focus().addRowBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Riga sopra</button>
+              <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Rows className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Riga sotto</button>
+              <button type="button" onClick={() => editor.chain().focus().addColumnBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Colonna prima</button>
+              <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Columns className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Colonna dopo</button>
+              <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Intestazione</button>
+              <button type="button" disabled={!editor.can().mergeCells()} onClick={() => editor.chain().focus().mergeCells().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Merge className="mr-1 inline h-3.5 w-3.5" />Unisci celle</button>
+              <button type="button" disabled={!editor.can().splitCell()} onClick={() => editor.chain().focus().splitCell().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><SplitSquareHorizontal className="mr-1 inline h-3.5 w-3.5" />Dividi cella</button>
+              <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina riga</button>
+              <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina colonna</button>
+              <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Elimina tabella</button>
+            </div>
           </div>
         )}
 

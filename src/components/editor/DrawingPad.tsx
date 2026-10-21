@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Eraser, PenLine, RotateCcw, X, Check } from 'lucide-react'
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import toast from 'react-hot-toast'
 
 interface DrawingPadProps {
@@ -92,18 +92,18 @@ export function DrawingPad({ onClose, onInsert }: DrawingPadProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="drawing-pad-title">
+    <div data-md-drawing-pad="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-md sm:p-6" role="dialog" aria-modal="true" aria-labelledby="drawing-pad-title">
       <div className="flex max-h-[95dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-6">
           <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><PenLine className="h-5 w-5" /></div>
+            <div className="rounded-xl bg-teal-50 p-2.5 text-teal-700 ring-1 ring-teal-100"><MedicalDocsIcon name="pen" size={22} /></div>
             <div>
               <h2 id="drawing-pad-title" className="font-semibold text-slate-900">Scrivi a mano libera</h2>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">Usa penna touch, stilo o mouse. Il foglio verrà inserito come immagine nel documento.</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800" aria-label="Chiudi lavagna">
-            <X className="h-5 w-5" />
+          <button type="button" onClick={onClose} className="min-h-11 min-w-11 rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Chiudi lavagna">
+            <MedicalDocsIcon name="close" size={20} />
           </button>
         </div>
 
@@ -117,11 +117,11 @@ export function DrawingPad({ onClose, onInsert }: DrawingPadProps) {
             <input type="range" min="1" max="9" value={brushSize} onChange={(event) => setBrushSize(Number(event.target.value))} className="w-full accent-blue-600" />
             <span className="w-4 text-right tabular-nums">{brushSize}</span>
           </label>
-          <button type="button" onClick={() => setColor('#ffffff')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
-            <Eraser className="h-4 w-4" /> Gomma
+          <button type="button" onClick={() => setColor('#ffffff')} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50">
+            <MedicalDocsIcon name="eraser" size={17} /> Gomma
           </button>
-          <button type="button" onClick={clearCanvas} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100">
-            <RotateCcw className="h-4 w-4" /> Cancella foglio
+          <button type="button" onClick={clearCanvas} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50">
+            <MedicalDocsIcon name="undo" size={17} /> Cancella foglio
           </button>
           {color === '#ffffff' && (
             <button type="button" onClick={() => setColor('#1d4ed8')} className="rounded-lg px-2 py-1 text-xs text-blue-700 hover:bg-blue-50">Torna alla penna</button>
@@ -146,9 +146,9 @@ export function DrawingPad({ onClose, onInsert }: DrawingPadProps) {
         </div>
 
         <div className="flex justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">
-          <button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Annulla</button>
-          <button type="button" onClick={insertDrawing} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-            <Check className="h-4 w-4" /> Inserisci nel documento
+          <button type="button" onClick={onClose} className="min-h-11 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100">Annulla</button>
+          <button type="button" onClick={insertDrawing} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-teal-700 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600">
+            <MedicalDocsIcon name="check-circle" size={18} /> Inserisci nel documento
           </button>
         </div>
       </div>

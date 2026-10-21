@@ -126,6 +126,17 @@ textarea:focus-visible {
   background: rgba(13, 148, 136, 0.12);
 }
 
+/* MedicalDocs table layout presets retained in document HTML and exports. */
+.ProseMirror table[data-md-align="left"] { margin-left: 0 !important; margin-right: auto !important; }
+.ProseMirror table[data-md-align="center"] { margin-left: auto !important; margin-right: auto !important; }
+.ProseMirror table[data-md-align="right"] { margin-left: auto !important; margin-right: 0 !important; }
+.ProseMirror table[data-md-density="compact"] td,
+.ProseMirror table[data-md-density="compact"] th { padding: 3px 5px; }
+.ProseMirror table[data-md-density="normal"] td,
+.ProseMirror table[data-md-density="normal"] th { padding: 6px 8px; }
+.ProseMirror table[data-md-density="comfortable"] td,
+.ProseMirror table[data-md-density="comfortable"] th { padding: 12px 14px; }
+
 .ProseMirror table td,
 .ProseMirror table th {
   min-width: 1em;
@@ -481,4 +492,346 @@ textarea::placeholder {
   [role="dialog"] textarea {
     font-size: 16px;
   }
+}
+
+
+/* ───────────────── MedicalDocs Premium Workspace ─────────────────
+   Unified tokens, original study-workspace identity, touch ergonomics and responsive surfaces.
+*/
+:root {
+  --md-brand-950: #062a35;
+  --md-brand-900: #073642;
+  --md-brand-800: #0b4b58;
+  --md-brand-700: #0f6c73;
+  --md-teal: #0f9488;
+  --md-mint: #5eead4;
+  --md-amber: #f5b84b;
+  --md-paper: #ffffff;
+  --md-canvas: #edf3f6;
+  --md-border-soft: #d8e5ea;
+  --md-text: #132f3e;
+  --md-text-muted: #5a7180;
+  --md-focus-ring: rgb(45 212 191 / 68%);
+  --md-shadow-floating: 0 24px 70px -42px rgb(5 34 47 / 54%);
+  --md-card-radius: 18px;
+}
+html, body { overscroll-behavior-x: none; }
+body { color: var(--md-text); background-color: var(--md-canvas); }
+button, [role="button"], summary, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:where(button, [role="button"], input, select, textarea, a):focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 3px; }
+button:disabled { cursor: not-allowed; }
+table { border-collapse: separate; border-spacing: 0; }
+.ProseMirror table { overflow: hidden; border: 1px solid #d3e1e7; border-radius: 11px; }
+.ProseMirror table th { background: linear-gradient(180deg,#edf9f7,#e4f3f2); color: #104751; border-color: #d2e4e6; }
+.ProseMirror table td { border-color: #e0e8ed; }
+.ProseMirror table tbody tr:nth-child(even) td { background: #fafcfd; }
+.ProseMirror table tbody tr:hover td { background: #f0faf8; }
+.ProseMirror table td:focus-within, .ProseMirror table th:focus-within { box-shadow: inset 0 0 0 2px rgb(15 148 136 / 32%); }
+
+[data-md-app-shell="true"] { background: radial-gradient(ellipse at 92% 0%, rgb(94 234 212 / 10%), transparent 32%), var(--md-canvas); }
+[data-md-workspace="true"] { min-width: 0; min-height: 0; background: var(--md-canvas); }
+[data-md-header="true"] {
+  position: relative; isolation: isolate; gap: 16px;
+  border: 0 !important; border-bottom: 1px solid rgb(144 197 204 / 24%) !important;
+  border-radius: 0 0 18px 18px; padding: 12px clamp(12px, 2vw, 26px) 14px !important;
+  background: radial-gradient(ellipse at 12% 0%, rgb(49 132 144 / 24%), transparent 42%), linear-gradient(112deg,#062a35 0%,#073642 52%,#0b4c58 100%) !important;
+  box-shadow: 0 14px 32px -28px rgb(3 30 41 / 92%);
+}
+[data-md-header="true"] .md-brand-mark-shell {
+  border: 1px solid rgb(191 246 238 / 23%); border-radius: 16px;
+  background: linear-gradient(145deg,rgb(255 255 255 / 12%),rgb(255 255 255 / 3%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 10px 24px -18px #001a24;
+}
+[data-md-header="true"] h1 { letter-spacing: -0.045em; }
+[data-md-header="true"] [data-md-document-title="true"] {
+  min-height: 44px; border-color: rgb(201 230 235 / 24%); background: rgb(0 24 34 / 23%);
+  color: #f2fbfd; box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+[data-md-header="true"] [data-md-document-title="true"]::placeholder { color: #a9c4cb; }
+[data-md-header="true"] [data-md-document-title="true"]:focus {
+  border-color: #5eead4; background: #ffffff; color: #102f3d; box-shadow: 0 0 0 3px rgb(94 234 212 / 18%);
+}
+[data-md-header="true"] [data-md-topbar-controls="true"] { gap: 8px; }
+[data-md-header="true"] [data-md-topbar-controls="true"] button { min-height: 44px; border-radius: 12px; }
+[data-md-header="true"] [data-md-export-action="word"] { background: linear-gradient(135deg,#0d9488,#0e7778); box-shadow: 0 8px 20px -14px #001e27; }
+[data-md-header="true"] [data-md-export-action="pdf"] { border: 1px solid rgb(226 244 247 / 15%); background: rgb(1 26 36 / 65%); }
+[data-md-header="true"] [data-md-export-action="word"]:hover,
+[data-md-header="true"] [data-md-export-action="pdf"]:hover { filter: brightness(1.08); }
+[data-md-header="true"] .md-menu-trigger { min-height: 40px; }
+[data-md-header="true"] [role="status"] { white-space: nowrap; }
+[data-md-header="true"] button, [data-md-header="true"] input { touch-action: manipulation; }
+
+[data-md-sidebar-root="true"] { z-index: 44; }
+[data-md-sidebar-rail="true"] {
+  width: 66px !important; gap: 10px; padding-top: 14px;
+  background: linear-gradient(180deg,#082f3a 0%,#0a3d49 51%,#06242e 100%) !important;
+  border-right: 1px solid #1b5360 !important;
+}
+[data-md-sidebar-rail="true"] .md-sidebar-brand { border-radius: 15px; background: rgb(255 255 255 / 5%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%); }
+[data-md-sidebar-rail="true"] button[data-md-nav-button="true"] {
+  position: relative; min-width: 46px; min-height: 46px; border-radius: 14px !important;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+[data-md-sidebar-rail="true"] button[data-md-nav-button="true"]:focus-visible { outline-color: #5eead4; outline-offset: 2px; }
+[data-md-sidebar-mobile-label="true"] { display: none; }
+[data-md-sidebar-panel="true"] {
+  min-width: 0; border-color: var(--md-border-soft) !important;
+  background: linear-gradient(180deg,#ffffff 0%,#f7fbfc 100%) !important;
+  box-shadow: 14px 0 38px -29px rgb(8 35 49 / 38%) !important;
+}
+[data-md-sidebar-panel="true"] button { min-height: 42px; }
+[data-md-sidebar-panel="true"] input, [data-md-sidebar-panel="true"] select { min-height: 44px; }
+[data-md-sidebar-panel="true"] [role="listitem"], [data-md-sidebar-panel="true"] .group { border-radius: 12px; }
+
+[data-md-editor-shell="true"] { background: linear-gradient(145deg,#e8f0f4 0%,#f5f8fa 42%,#e8f3f3 100%) !important; }
+[data-md-editor-shell="true"] > div.min-h-0.flex-1.overflow-auto { padding: 14px clamp(8px,1.8vw,24px) 26px; overscroll-behavior: contain; }
+.ProseMirror.editor-page { border-radius: 10px !important; border-color: #d4e0e7 !important; box-shadow: 0 26px 58px -44px rgb(3 29 42 / 56%),0 3px 12px -7px rgb(6 37 51 / 23%) !important; }
+.ProseMirror.editor-page:focus-within { box-shadow: 0 26px 58px -44px rgb(3 29 42 / 56%),0 0 0 2px rgb(15 148 136 / 12%) !important; }
+.ProseMirror.editor-page img { box-shadow: 0 8px 22px -18px rgb(5 35 49 / 55%); }
+[data-md-statusbar="true"] { color: #526b79; }
+[data-md-file-opener="true"] { padding: max(16px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
+[data-md-file-modal="true"] { max-height: min(88dvh,800px); overflow-y: auto; }
+
+[data-md-pdf-annotator="true"] { min-height: 0; color: #e8f2f5; background: #071e29; }
+[data-md-pdf-toolbar="true"] {
+  position: relative; z-index: 20; border-color: #224653 !important;
+  background: linear-gradient(112deg,#0a2b38 0%,#103845 58%,#0b2e3b 100%) !important;
+  box-shadow: 0 12px 30px -26px #00141c;
+}
+[data-md-pdf-tools="true"] { border-color: #355763 !important; background: rgb(3 27 37 / 67%) !important; scrollbar-width: thin; }
+[data-md-pdf-annotator="true"] button { touch-action: manipulation; transition: background-color 140ms ease,border-color 140ms ease,color 140ms ease,box-shadow 140ms ease; }
+[data-md-pdf-annotator="true"] [data-md-pdf-text-editor="true"],
+[data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] { border-color: #355462; background: linear-gradient(145deg,#102f3c,#0b2530); }
+[data-md-pdf-annotator="true"] input:not([type="color"]),
+[data-md-pdf-annotator="true"] textarea,
+[data-md-pdf-annotator="true"] select { min-height: 44px; border-radius: 11px; }
+[data-md-pdf-viewer="true"] {
+  background: radial-gradient(ellipse at 50% 0%,#e8f0f4 0%,#cfdce3 75%) !important;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+[data-md-pdf-viewer="true"] > div { border-color: #c7d6dd; border-radius: 12px; box-shadow: 0 20px 42px -25px rgb(4 27 39 / 45%); }
+[data-md-pdf-viewer="true"] canvas { display: block; max-width: 100%; height: auto; }
+[data-md-pdf-viewer="true"] button[aria-current="page"] { box-shadow: 0 0 0 2px rgb(94 234 212 / 13%); }
+[data-md-pdf-annotator="true"] .text-base { overflow-wrap: anywhere; }
+
+.medicaldocs-image-toolbar { border-color: #b8d6dc; border-radius: 13px; box-shadow: 0 14px 32px -22px rgb(4 36 49 / 55%); }
+.medicaldocs-image-toolbar button { min-width: 40px; min-height: 40px; border-radius: 10px; }
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-md-header="true"] { padding: 10px 14px !important; }
+  [data-md-header="true"] > div:last-child { gap: 7px; }
+  [data-md-header="true"] > div:last-child > button { padding-inline: 11px; }
+  [data-md-sidebar-rail="true"] { width: 60px !important; }
+  [data-md-sidebar-panel="true"] { max-width: min(20rem,calc(100vw - 4rem)); }
+  [data-md-ribbon="true"] > div:last-child { max-height: 26dvh; overflow-y: auto; }
+  [data-md-pdf-toolbar="true"] { max-height: 38dvh; overflow-y: auto; }
+  [data-md-pdf-tools="true"] { max-width: 100%; }
+}
+@media (max-width: 767px) {
+  [data-md-workspace="true"] { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+  [data-md-header="true"] { border-radius: 0 0 14px 14px; gap: 7px; padding: 7px 9px 8px !important; }
+  [data-md-header="true"] > div:first-child { gap: 8px; }
+  [data-md-header="true"] .md-brand-mark-shell { width: 40px; height: 40px; border-radius: 12px; }
+  [data-md-header="true"] .md-brand-mark-shell svg { width: 40px; height: 40px; }
+  [data-md-header="true"] > div:first-child h1 { font-size: 14px; }
+  [data-md-header="true"] > div:last-child {
+    width: 100%; min-width: 0; display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 7px;
+    padding: 1px 0 3px; scrollbar-width: none; overscroll-behavior-x: contain;
+  }
+  [data-md-header="true"] > div:last-child::-webkit-scrollbar { display: none; }
+  [data-md-header="true"] > div:last-child > button { min-height: 44px; flex: 0 0 auto; }
+  [data-md-header="true"] [data-md-document-title="true"] { min-width: 128px; min-height: 44px; }
+  [data-md-header="true"] .md-menu-trigger { min-height: 40px; padding-inline: 9px; }
+  [data-md-workspace="true"] [data-md-sidebar-root="true"] {
+    position: fixed; inset: auto 0 0; z-index: 90; display: block; min-height: 0; width: 100%; pointer-events: none;
+  }
+  [data-md-sidebar-rail="true"] {
+    position: relative; display: flex; flex-direction: row; justify-content: space-around; align-items: center;
+    gap: 8px; width: 100% !important; min-height: 0;
+    padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgb(180 226 230 / 20%); border-right: 0 !important; border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 30px -23px rgb(1 23 33 / 85%); pointer-events: auto;
+  }
+  [data-md-sidebar-rail="true"] > div:first-child,
+  [data-md-sidebar-rail="true"] > div:nth-child(2),
+  [data-md-sidebar-rail="true"] > div:last-child { display: none; }
+  [data-md-sidebar-rail="true"] button[data-md-nav-button="true"] {
+    display: flex; flex: 1 1 0; flex-direction: column; justify-content: center; gap: 4px;
+    min-width: 0; min-height: 50px; padding: 5px 2px; background: transparent; box-shadow: none; color: #b4cbd2;
+  }
+  [data-md-sidebar-rail="true"] button[data-md-nav-button="true"][aria-pressed="true"] {
+    background: rgb(94 234 212 / 12%) !important; color: #8af3e3 !important;
+    box-shadow: inset 0 0 0 1px rgb(94 234 212 / 18%) !important;
+  }
+  [data-md-sidebar-mobile-label="true"] { display: block; font-size: 10px; line-height: 1; font-weight: 700; letter-spacing: .01em; }
+  [data-md-sidebar-root="true"][data-md-panel-open="true"] [data-md-sidebar-panel="true"] {
+    position: fixed; z-index: 100; inset: auto 8px calc(78px + env(safe-area-inset-bottom)) 8px;
+    width: auto; max-height: min(70dvh,620px); overflow: auto;
+    border: 1px solid #c9dde2 !important; border-radius: 18px;
+    box-shadow: 0 28px 70px -35px rgb(3 29 42 / 65%) !important; pointer-events: auto;
+  }
+  [data-md-editor-shell="true"] > div.min-h-0.flex-1.overflow-auto { padding: 6px 2px 16px; }
+  .ProseMirror.editor-page { width: min(var(--md-page-width,210mm),calc(100vw - 1.1rem)); min-height: 64vh; margin: 6px auto; padding: 1rem !important; border-radius: 9px !important; }
+  [data-md-ribbon="true"] > div:first-child { min-height: 48px; padding-inline: 6px; }
+  [data-md-ribbon="true"] > div:first-child button { min-height: 44px; padding-inline: 11px; }
+  [data-md-ribbon="true"] > div:last-child { max-height: 28dvh; overflow-x: auto; overflow-y: auto; }
+  [data-md-pdf-toolbar="true"] { max-height: 42dvh; overflow-y: auto; gap: 8px; padding: 8px; }
+  [data-md-pdf-tools="true"] { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  [data-md-pdf-annotator="true"] [data-md-pdf-text-editor="true"] textarea { min-height: 116px; font-size: 16px; line-height: 1.5; }
+  [data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] textarea { min-height: 76px; font-size: 16px; line-height: 1.5; }
+  [data-md-pdf-annotator="true"] [data-md-pdf-ai-answer="true"] { max-height: 34dvh; font-size: 16px; line-height: 1.65; }
+  [data-md-pdf-viewer="true"] { padding: 10px 6px 18px !important; }
+  [data-md-pdf-viewer="true"] canvas { width: auto; max-width: 100%; }
+  .medicaldocs-image-toolbar { max-width: calc(100vw - 1rem); overflow-x: auto; }
+}
+@media (hover: none), (pointer: coarse) {
+  button:not(:disabled), [role="button"], input, select, textarea { touch-action: manipulation; }
+  [data-md-header="true"] button, [data-md-ribbon="true"] button, [data-md-sidebar-rail="true"] button, [data-md-pdf-annotator="true"] button { min-height: 44px; }
+  [data-md-pdf-annotator="true"] [data-md-pdf-tools="true"] button { min-height: 44px; padding-inline: 10px; }
+  [data-md-pdf-annotator="true"] [data-md-pdf-viewer="true"] > div { touch-action: pan-y; }
+  [data-md-pdf-annotator="true"] .touch-none, [data-md-pdf-annotator="true"] .touch-none canvas { touch-action: none !important; }
+  .medicaldocs-image-resize-handle { width: 28px; height: 28px; }
+  .medicaldocs-image-toolbar button { min-width: 44px; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+
+/* Modalità di studio, import e overlay: superfici coerenti, tastiera mobile e safe-area. */
+[data-md-ai-studio="true"] {
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+[data-md-ai-dialog="true"] {
+  width: min(100%, 1180px);
+  max-height: min(94dvh, 1000px) !important;
+  border-color: #cfdee5 !important;
+  border-radius: 22px !important;
+  background: #f7fafb !important;
+  box-shadow: 0 34px 100px -44px rgb(2 27 38 / 75%), 0 6px 22px -14px rgb(2 27 38 / 45%) !important;
+}
+[data-md-ai-dialog="true"] > header {
+  border-bottom-color: #24535f !important;
+  background: linear-gradient(108deg,#082d3a 0%,#0a4552 65%,#0f6770 100%) !important;
+}
+[data-md-ai-dialog="true"] > header h2 { color: #f4fbfd !important; }
+[data-md-ai-dialog="true"] > header p { color: #c0dce2 !important; }
+[data-md-ai-dialog="true"] > header button { min-width: 44px; min-height: 44px; color: #d4ebef !important; }
+[data-md-ai-dialog="true"] button { touch-action: manipulation; }
+[data-md-ai-dialog="true"] input:not([type="radio"]):not([type="checkbox"]),
+[data-md-ai-dialog="true"] textarea,
+[data-md-ai-dialog="true"] select { min-height: 44px; border-radius: 11px; }
+[data-md-ai-dialog="true"] textarea { font-size: 16px; line-height: 1.55; }
+[data-md-ai-dialog="true"] [aria-pressed="true"] { box-shadow: 0 0 0 2px rgb(15 148 136 / 11%); }
+[data-md-file-modal="true"] { background: linear-gradient(160deg,#fff 0%,#f8fbfc 100%); }
+[data-md-file-modal="true"] button { min-height: 46px; border-radius: 13px; }
+[data-md-file-modal="true"] button:hover { border-color: #9ed8d1; background-color: #f0faf8; }
+[data-md-file-modal="true"] button:focus-visible { outline-color: #0f9488; }
+@media (max-width: 767px) {
+  [data-md-ai-studio="true"] { padding: max(6px,env(safe-area-inset-top)) 6px max(6px,env(safe-area-inset-bottom)); }
+  [data-md-ai-dialog="true"] { border-radius: 18px !important; max-height: 96dvh !important; }
+  [data-md-ai-dialog="true"] > div.grid { grid-template-columns: minmax(0,1fr); }
+  [data-md-ai-dialog="true"] > div.grid > aside { border-right: 0; }
+  [data-md-ai-dialog="true"] button { min-height: 44px; }
+  [data-md-file-modal="true"] { padding: 18px !important; border-radius: 18px !important; }
+}
+
+
+/* Final touch pass: handwritten notes, export controls and the standalone PDF page manager. */
+[data-md-ink-toolbar="true"] { padding-block: 10px; }
+[data-md-ink-toolbar="true"] button { min-height: 44px; border-radius: 11px; }
+[data-md-editor-loading="true"] { min-height: 50dvh; }
+[data-md-export-button="true"] { touch-action: manipulation; }
+[data-md-drawing-pad="true"] {
+  padding-top: max(12px,env(safe-area-inset-top));
+  padding-bottom: max(12px,env(safe-area-inset-bottom));
+}
+[data-md-drawing-pad="true"] > div {
+  border-color: #cbdde2;
+  border-radius: 20px;
+  box-shadow: 0 34px 90px -44px rgb(2 27 38 / 75%);
+}
+[data-md-drawing-pad="true"] canvas {
+  max-height: min(58dvh, 680px);
+  touch-action: none;
+  cursor: crosshair;
+}
+[data-md-drawing-pad="true"] button { min-height: 44px; touch-action: manipulation; }
+[data-md-pdf-thumbnails="true"] {
+  background: linear-gradient(180deg,#0a2b38 0%,#071e29 100%);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+[data-md-pdf-thumbnail-card="true"] { min-width: 0; }
+[data-md-pdf-thumbnail-select="true"] { touch-action: manipulation; }
+[data-md-pdf-thumbnail-select="true"]:focus-visible { outline-offset: 2px; }
+[data-md-pdf-thumbnail-select="true"] canvas {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-md-pdf-thumbnails="true"] { width: 11rem; padding: 10px; }
+  [data-md-pdf-thumbnail-card="true"] { padding: 6px; }
+}
+@media (max-width: 767px) {
+  [data-md-drawing-pad="true"] { align-items: stretch; padding-inline: 6px; }
+  [data-md-drawing-pad="true"] > div {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 12px);
+    border-radius: 17px;
+  }
+  [data-md-drawing-pad="true"] > div > div { padding-inline: 12px; }
+  [data-md-drawing-pad="true"] canvas { max-height: 43dvh; min-height: 220px; }
+  [data-md-ink-toolbar="true"] { max-height: 30dvh; overflow-y: auto; overscroll-behavior: contain; }
+  [data-md-ink-toolbar="true"] > div { max-width: 100%; }
+  [data-md-pdf-thumbnails="true"] {
+    width: 100%;
+    max-height: min(27dvh, 230px);
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid #294a56;
+  }
+  [data-md-pdf-thumbnails="true"] > :not([hidden]) ~ :not([hidden]) { margin-top: 0; }
+  [data-md-pdf-thumbnails="true"] > p {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    min-width: 84px;
+    align-items: center;
+    margin: 0;
+    padding: 8px;
+    border-radius: 10px;
+    background: #0a2b38;
+    color: #b9d4db;
+    line-height: 1.4;
+  }
+  [data-md-pdf-thumbnail-card="true"] {
+    display: flex;
+    width: 112px;
+    min-width: 112px;
+    flex: 0 0 112px;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px;
+  }
+  [data-md-pdf-thumbnail-select="true"] { gap: 5px; padding: 4px; }
+  [data-md-pdf-thumbnail-select="true"] canvas { max-height: 78px; }
+  [data-md-pdf-thumbnail-card="true"] > div { gap: 3px; margin-top: 4px; }
+}
+@media (hover: none), (pointer: coarse) {
+  [data-md-export-button="true"],
+  [data-md-drawing-pad="true"] button,
+  [data-md-pdf-thumbnails="true"] button,
+  [data-md-ink-toolbar="true"] button { min-height: 44px; }
 }

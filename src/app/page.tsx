@@ -14,6 +14,7 @@ import { parseFileToHtml } from '@/lib/importDocx'
 import { extractTextFromPdf } from '@/lib/importPdf'
 import { markdownToHtml } from '@/lib/markdown'
 import { db, MedicalDocument } from '@/lib/db'
+import type { DocumentPageSection } from '@/types/documentPages'
 
 const PdfAnnotator = dynamic(
   () => import('@/components/pdf/PdfAnnotator').then((mod) => mod.PdfAnnotator),
@@ -43,6 +44,11 @@ export default function Home() {
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
   const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
   const insertIntoEditorRef = useRef<((html: string) => void) | null>(null);
+  const editorPageSectionsRef = useRef<(() => DocumentPageSection[]) | null>(null);
+  const registerEditorPageSections = useCallback((handler: (() => DocumentPageSection[]) | null) => {
+    editorPageSectionsRef.current = handler;
+  }, []);
+  const getEditorPageSections = useCallback(() => editorPageSectionsRef.current?.() ?? [], []);
   const registerEditorInsert = useCallback((handler: ((html: string) => void) | null) => {
     insertIntoEditorRef.current = handler;
   }, []);
@@ -345,7 +351,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
+    <div data-md-app-shell="true" className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
       <Header 
         onExport={handleExport} 
         loadingFormat={loadingFormat} 
@@ -362,7 +368,7 @@ export default function Home() {
           <PdfAnnotator file={pdfAnnotatorFile} onClose={() => setPdfAnnotatorFile(null)} />
         </div>
       ) : (
-        <div className="flex flex-1 overflow-hidden">
+        <div data-md-workspace="true" className="flex flex-1 overflow-hidden">
           <Sidebar 
             onLoadDocument={loadDocument} 
             onUpdateDocumentMetadata={handleUpdateDocumentMetadata}
@@ -377,6 +383,7 @@ export default function Home() {
               initialContent={activeDoc.content}
               isSaving={isSaving}
               onRegisterInsert={registerEditorInsert}
+               onRegisterPageSections={registerEditorPageSections}
             />
           </main>
         </div>
@@ -389,6 +396,7 @@ export default function Home() {
           onClose={() => setIsAIStudioOpen(false)}
           documentTitle={activeDoc.title}
           content={activeDoc.content}
+           getPageSections={getEditorPageSections}
           onInsert={handleInsertAIResult}
         />
       )}
