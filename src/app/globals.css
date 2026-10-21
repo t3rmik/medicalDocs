@@ -664,8 +664,8 @@ table { border-collapse: separate; border-spacing: 0; }
     box-shadow: inset 0 0 0 1px rgb(94 234 212 / 18%) !important;
   }
   [data-md-sidebar-mobile-label="true"] { display: block; font-size: 10px; line-height: 1; font-weight: 700; letter-spacing: .01em; }
-  [data-md-sidebar-root="true"] [data-md-sidebar-panel="true"] {
-    position: fixed; inset: auto 8px calc(78px + env(safe-area-inset-bottom)) 8px;
+  [data-md-sidebar-root="true"][data-md-panel-open="true"] [data-md-sidebar-panel="true"] {
+    position: fixed; z-index: 100; inset: auto 8px calc(78px + env(safe-area-inset-bottom)) 8px;
     width: auto; max-height: min(70dvh,620px); overflow: auto;
     border: 1px solid #c9dde2 !important; border-radius: 18px;
     box-shadow: 0 28px 70px -35px rgb(3 29 42 / 65%) !important; pointer-events: auto;
