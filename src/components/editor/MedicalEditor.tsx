@@ -1,16 +1,16 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { Loader2 } from 'lucide-react'
+import { MedicalDocsLoader as Loader2 } from '@/components/icons/MedicalDocsIcons'
 import { EditorErrorBoundary } from './EditorErrorBoundary'
 import type { DocumentPageSection } from '@/types/documentPages'
 
 const EditorCore = dynamic(() => import('./EditorCore'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[600px] flex items-center justify-center bg-slate-100">
-      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      <span className="ml-3 text-sm text-slate-600 font-medium">Caricamento Editor Word...</span>
+    <div data-md-editor-loading="true" className="flex h-full min-h-[50dvh] w-full items-center justify-center bg-gradient-to-br from-slate-100 via-white to-teal-50 px-4">
+      <Loader2 className="h-8 w-8 animate-spin text-teal-700" />
+      <span className="ml-3 text-sm font-semibold text-slate-600">Preparazione del foglio di lavoro…</span>
     </div>
   )
 })

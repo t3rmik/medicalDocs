@@ -25,6 +25,7 @@ import { Ribbon } from './Ribbon'
 import { StatusBar } from './StatusBar'
 import { InkLayer } from './InkLayer'
 import { MathEquation } from './MathEquation'
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PaginationPlus, PAGE_SIZES } from 'tiptap-pagination-plus'
 import type { DocumentPageSection } from '@/types/documentPages'
 
@@ -344,10 +345,10 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
         <div data-md-ink-toolbar="true" className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
           <span className="mr-1 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva</span>
           <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Strumento di scrittura">
-            <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}>✎ Penna</button>
-            <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}>▰ Evidenzia</button>
-            <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}>⌫ Gomma</button>
-            <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}>↗ Seleziona</button>
+            <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="pen" size={16} /> <span>Penna</span></button>
+            <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="highlighter" size={16} /> <span>Evidenzia</span></button>
+            <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="eraser" size={16} /> <span>Gomma</span></button>
+            <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="select" size={16} /> <span>Seleziona</span></button>
           </div>
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5" role="group" aria-label="Colori rapidi">
             {[

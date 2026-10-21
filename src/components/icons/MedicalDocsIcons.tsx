@@ -13,7 +13,7 @@ export type MedicalDocsIconName =
   | 'chevron-down' | 'chevron-left' | 'chevron-right' | 'download' | 'zoom-in' | 'zoom-out'
   | 'edit' | 'shield-alert' | 'stamp' | 'check-circle' | 'move' | 'type' | 'close'
   | 'copy' | 'folder' | 'folder-open' | 'file-plus' | 'printer' | 'save' | 'loader'
-  | 'command' | 'plus' | 'arrow-up-right' | 'alert-circle' | 'chevron-up' | 'minus'
+  | 'command' | 'plus' | 'arrow-up-right' | 'alert-circle' | 'chevron-up' | 'minus' | 'eraser' | 'rotate' | 'select'
 
 interface MedicalDocsIconProps {
   name: MedicalDocsIconName
@@ -292,6 +292,15 @@ export function MedicalDocsIcon({
       break
     case 'minus':
       drawing = <path {...common} d="M4 12h16" strokeWidth="2"/>
+      break
+    case 'eraser':
+      drawing = <g {...common}><path d="m4 14 9-9a2 2 0 0 1 2.8 0l4.2 4.2a2 2 0 0 1 0 2.8l-8.5 8.5H7z"/><path d="m8 10 6.5 6.5M4 21h16" strokeWidth="1.6"/></g>
+      break
+    case 'rotate':
+      drawing = <g {...common}><path d="M20 8V3l-2 2a8.5 8.5 0 1 0 2.3 10" strokeWidth="1.8"/><path d="M20 3v5h-5" strokeWidth="1.8"/></g>
+      break
+    case 'select':
+      drawing = <g {...common}><path d="M5 3.5v16.8l4.5-4.4 3.1 6.1 3.1-1.5-3.1-6.1 6.2-.2z" strokeWidth="1.7"/><path d="m15.7 4.2 2-2M18.6 7h2.3" strokeWidth="1.5"/></g>
       break
     case 'check':
       drawing = <g {...common}>

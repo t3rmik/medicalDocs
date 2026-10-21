@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useRef } from 'react'
-import { RotateCw, Trash2 } from 'lucide-react'
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PageOperation } from '@/types'
 
 interface PageThumbnailsProps {
@@ -63,7 +63,7 @@ export function PageThumbnails({
   onDeletePage,
 }: PageThumbnailsProps) {
   return (
-    <div className="w-56 bg-slate-800 border-r border-slate-700 flex flex-col p-3 overflow-y-auto space-y-4">
+    <div data-md-pdf-thumbnails="true" className="w-56 shrink-0 bg-slate-900 border-r border-slate-700 flex flex-col p-3 overflow-y-auto space-y-4">
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pagine PDF ({totalPages})</p>
       
       {Array.from({ length: totalPages }).map((_, index) => {
@@ -74,35 +74,41 @@ export function PageThumbnails({
         if (isDeleted) return null;
 
         return (
-          <div 
-            key={index} 
-            className={`relative rounded-lg p-2 border-2 transition cursor-pointer flex flex-col items-center bg-slate-900 ${
-              currentPage === index ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500'
-            }`}
-            onClick={() => onPageSelect(index)}
+          <div
+            key={index}
+            data-md-pdf-thumbnail-card="true"
+            className={`rounded-xl border p-2 transition ${currentPage === index ? 'border-teal-400 bg-teal-950/50 shadow-[0_0_0_2px_rgba(45,212,191,0.10)]' : 'border-slate-700 bg-slate-800/70 hover:border-slate-500'}`}
           >
-            <ThumbnailCanvas pdfDoc={pdfDoc} pageIndex={index} rotation={rotation} />
-
-            <div className="flex items-center space-x-2 w-full justify-between px-1 text-slate-400 mt-2">
-              <span className="text-xs">P. {index + 1}</span>
-              <div className="flex space-x-1">
-                <button 
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onRotatePage(index); }}
-                  className="p-1 hover:text-white hover:bg-slate-700 rounded" 
-                  title="Ruota 90°"
-                >
-                  <RotateCw className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onDeletePage(index); }}
-                  className="p-1 hover:text-red-400 hover:bg-slate-700 rounded" 
-                  title="Elimina pagina"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+            <button
+              type="button"
+              data-md-pdf-thumbnail-select="true"
+              onClick={() => onPageSelect(index)}
+              aria-label={`Vai alla pagina ${index + 1}`}
+              aria-current={currentPage === index ? 'page' : undefined}
+              className="flex min-h-11 w-full flex-col items-center gap-2 rounded-lg px-1 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300"
+            >
+              <ThumbnailCanvas pdfDoc={pdfDoc} pageIndex={index} rotation={rotation} />
+              <span className={`text-xs font-semibold ${currentPage === index ? 'text-teal-100' : 'text-slate-300'}`}>Pagina {index + 1}</span>
+            </button>
+            <div className="mt-1 flex items-center justify-end gap-1">
+              <button
+                type="button"
+                onClick={() => onRotatePage(index)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                title={`Ruota pagina ${index + 1} di 90 gradi`}
+                aria-label={`Ruota pagina ${index + 1}`}
+              >
+                <MedicalDocsIcon name="rotate" size={17} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeletePage(index)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-300 transition hover:bg-rose-950 hover:text-rose-300"
+                title={`Elimina pagina ${index + 1}`}
+                aria-label={`Elimina pagina ${index + 1}`}
+              >
+                <MedicalDocsIcon name="trash" size={17} />
+              </button>
             </div>
           </div>
         );

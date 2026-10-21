@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { Download, Loader2 } from 'lucide-react'
+import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { ExportFormat } from '@/types'
 
 interface ExportButtonProps {
@@ -16,16 +16,17 @@ export function ExportButton({ format, onClick, loading }: ExportButtonProps) {
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`px-3 py-1.5 rounded-md font-semibold text-xs transition flex items-center space-x-1.5 ${
+      data-md-export-button="true"
+      className={`min-h-11 rounded-xl px-3.5 py-2.5 font-semibold text-sm transition flex items-center gap-2 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
         isWord
-          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-          : 'bg-red-600 hover:bg-red-700 text-white'
+          ? 'bg-gradient-to-r from-teal-700 to-teal-600 hover:brightness-105 text-white shadow-teal-900/15'
+          : 'bg-slate-950 hover:bg-slate-800 text-white'
       } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {loading ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        <MedicalDocsIcon name="loader" size={16} className="animate-spin" />
       ) : (
-        <Download className="w-3.5 h-3.5" />
+        <MedicalDocsIcon name="download" size={16} />
       )}
       <span>{isWord ? 'Esporta Word (.docx)' : 'Esporta PDF'}</span>
     </button>
