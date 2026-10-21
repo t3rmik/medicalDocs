@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import Image from 'next/image'
+import { MedicalDocsIcon, MedicalDocsMark } from '@/components/icons/MedicalDocsIcons'
 import {
   FolderOpen,
   FilePlus,
@@ -124,14 +124,14 @@ export function Header({
     <>
       <header data-md-header="true" className="relative z-50 flex flex-col gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-[0_8px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur-xl print:hidden sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
-            <Image src="/medicaldocs-mark.png" alt="Logo MedicalDocs" width={48} height={48} priority className="h-12 w-12 object-contain" />
+          <div className="md-brand-mark-shell relative flex h-12 w-12 shrink-0 items-center justify-center">
+            <MedicalDocsMark size={48} className="h-12 w-12" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <h1 className="text-base font-bold tracking-tight text-slate-950"><span>Medical</span><span className="text-teal-600">Docs</span><span className="ml-1 text-sm font-semibold text-slate-500">Pro</span></h1>
               <span className="inline-flex items-center gap-1 rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-teal-700">
-                <Sparkles className="h-3 w-3" />
+                <MedicalDocsIcon name="spark" size={13} />
                 WORKSPACE
               </span>
             </div>
@@ -209,7 +209,7 @@ export function Header({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div data-md-topbar-controls="true" className="flex flex-wrap items-center gap-2 lg:justify-end">
           <button
             type="button"
             onClick={openCommandPalette}
@@ -229,7 +229,7 @@ export function Header({
             className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 px-3.5 py-2.5 text-sm font-semibold text-teal-800 shadow-sm transition hover:border-teal-300 hover:from-teal-100 hover:to-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
             aria-label="Apri AI Studio"
           >
-            <Sparkles className="h-4 w-4" />
+            <MedicalDocsIcon name="spark" size={17} />
             <span>AI Studio</span>
           </button>
           <label className="min-w-[170px] flex-1 lg:max-w-[260px]">
@@ -238,7 +238,7 @@ export function Header({
               type="text"
               value={activeFileName}
               onChange={(event) => onTitleChange(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
+              data-md-document-title="true" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
               placeholder="Nome documento..."
               aria-label="Nome documento"
             />
@@ -246,6 +246,7 @@ export function Header({
           <button
             type="button"
             onClick={() => onExport('word')}
+            data-md-export-action="word"
             disabled={loadingFormat === 'word'}
             className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-900/10 transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -255,6 +256,7 @@ export function Header({
           <button
             type="button"
             onClick={() => onExport('pdf')}
+            data-md-export-action="pdf"
             disabled={loadingFormat === 'pdf'}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
