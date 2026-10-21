@@ -263,8 +263,9 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        renderTask = page.render({ canvasContext: context, viewport });
-        await renderTask.promise;
+        const currentRenderTask = page.render({ canvasContext: context, viewport });
+        renderTask = currentRenderTask;
+        await currentRenderTask.promise;
         if (!isMounted) return;
 
         // Read the actual PDF text objects; no character-count page simulation.
