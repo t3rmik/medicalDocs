@@ -6,7 +6,7 @@ import { LoveMessages } from '@/components/shared/LoveMessages'
 export const metadata: Metadata = {
   title: 'MedicalDocs Pro',
   description: 'Editor di documenti e appunti di studio per la laurea',
-  icons: { icon: '/medicaldocs-mark.png' },
+  icons: { icon: '/medicaldocs-mark.svg' },
 }
 
 export default function RootLayout({

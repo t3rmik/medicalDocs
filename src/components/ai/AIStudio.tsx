@@ -1,23 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { markdownToHtml, markdownToPlainText } from '@/lib/markdown'
 import {
-  X,
-  Sparkles,
-  FileText,
-  ListTree,
-  Layers,
-  HelpCircle,
-  BookOpen,
-  Wand2,
-  MessageSquare,
-  Loader2,
-  Copy,
-  Check,
-  ArrowUpRight,
-  ShieldAlert,
-} from 'lucide-react'
+  MedicalDocsClose as X,
+  MedicalDocsSpark as Sparkles,
+  MedicalDocsDocument as FileText,
+  MedicalDocsOutline as ListTree,
+  MedicalDocsLayers as Layers,
+  MedicalDocsHelp as HelpCircle,
+  MedicalDocsBookOpen as BookOpen,
+  MedicalDocsSpark as Wand2,
+  MedicalDocsMessage as MessageSquare,
+  MedicalDocsLoader as Loader2,
+  MedicalDocsCopy as Copy,
+  MedicalDocsCheckCircle as Check,
+  MedicalDocsArrowUpRight as ArrowUpRight,
+  MedicalDocsShieldAlert as ShieldAlert,
+} from '@/components/icons/MedicalDocsIcons'
+
+import type { DocumentPageSection } from '@/types/documentPages'
 
 type AIAction = 'summarize' | 'outline' | 'flashcards' | 'quiz' | 'explain' | 'rewrite' | 'ask'
 
@@ -27,6 +29,7 @@ interface AIStudioProps {
   documentTitle: string;
   content: string;
   onInsert: (result: string, actionLabel: string) => void;
+  getPageSections?: () => DocumentPageSection[];
 }
 
 const ACTIONS: Array<{ id: AIAction; label: string; description: string; icon: typeof Sparkles }> = [
@@ -39,13 +42,7 @@ const ACTIONS: Array<{ id: AIAction; label: string; description: string; icon: t
   { id: 'ask', label: 'Domanda libera', description: 'Fai una domanda sul documento', icon: MessageSquare },
 ]
 
-interface PdfPageSection {
-  number: number;
-  text: string;
-  title?: string;
-}
-
-function detectPdfPageSections(text: string): PdfPageSection[] {
+function detectPdfPageSections(text: string): DocumentPageSection[] {
   const matches = Array.from(text.matchAll(/(?:^|\n)\s*Pagina\s+(\d+)\s*(?=\n)/gi));
   if (matches.length === 0) return [];
 
@@ -65,13 +62,13 @@ function detectPdfPageSections(text: string): PdfPageSection[] {
   }).filter((page) => Number.isInteger(page.number) && page.number > 0 && page.text.length > 0);
 }
 
-function detectExplicitPageSections(markup: string): PdfPageSection[] {
+function detectExplicitPageSections(markup: string): DocumentPageSection[] {
   if (typeof window === 'undefined') return []
   const parsed = new DOMParser().parseFromString(markup, 'text/html')
   const blocks = Array.from(parsed.body.children)
   if (!blocks.some((block) => block.matches('[data-page-break="true"]'))) return []
 
-  const pages: PdfPageSection[] = []
+  const pages: DocumentPageSection[] = []
   let buffer: string[] = []
   const flush = () => {
     const text = buffer.filter(Boolean).join('\n\n').trim()
@@ -92,45 +89,12 @@ function detectExplicitPageSections(markup: string): PdfPageSection[] {
   return pages.length > 1 ? pages : []
 }
 
-function estimateTextPages(text: string): PdfPageSection[] {
-  const normalized = (text || '').trim()
-  if (normalized.length < 1200) return []
-
-  // Keep intermediate chunks as strings, then convert them to typed page sections.
-  const parts: string[] = []
-  let start = 0
-  const targetLength = 1600
-  while (start < normalized.length) {
-    let end = Math.min(normalized.length, start + targetLength)
-    if (end < normalized.length) {
-      const paragraphBreak = normalized.lastIndexOf('\n\n', end)
-      if (paragraphBreak > start + 700) {
-        end = paragraphBreak
-      } else {
-        const wordBreak = normalized.lastIndexOf(' ', end)
-        if (wordBreak > start + 1000) end = wordBreak
-      }
-    }
-    const part = normalized.slice(start, end).trim()
-    if (part) parts.push(part)
-    start = end
-    while (start < normalized.length && /\s/.test(normalized[start])) start += 1
-  }
-
-  if (parts.length < 2) return []
-  return parts.map((part, index) => ({
-    number: index + 1,
-    title: 'Sezione ' + (index + 1) + ' (pagina stimata)',
-    text: 'Sezione ' + (index + 1) + '\n' + part,
-  }))
-}
-
-function detectTopicSections(markup: string): PdfPageSection[] {
+function detectTopicSections(markup: string): DocumentPageSection[] {
   if (typeof window === 'undefined') return []
   const parsed = new DOMParser().parseFromString(markup, 'text/html')
   const blocks = Array.from(parsed.body.children)
   const headingPattern = /^H[1-4]$/
-  const sections: PdfPageSection[] = []
+  const sections: DocumentPageSection[] = []
   let currentTitle = ''
   let currentParts: string[] = []
   let preamble: string[] = []
@@ -206,7 +170,7 @@ function extractPlainText(markup: string): string {
     .trim()
 }
 
-export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: AIStudioProps) {
+export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert, getPageSections }: AIStudioProps) {
   const [selectedAction, setSelectedAction] = useState<AIAction>('summarize')
   const [instruction, setInstruction] = useState('')
   const [result, setResult] = useState('')
@@ -224,20 +188,54 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
   const [selectedTopics, setSelectedTopics] = useState<number[]>([])
   const [topicFocus, setTopicFocus] = useState('')
   const [selectedPageNumbers, setSelectedPageNumbers] = useState<number[]>([])
+  const [livePageSections, setLivePageSections] = useState<DocumentPageSection[]>([])
+
+  useEffect(() => {
+    if (!isOpen || !getPageSections) {
+      setLivePageSections([])
+      return
+    }
+    let scheduled = false
+    const refreshPages = () => {
+      const next = getPageSections()
+      setLivePageSections((current) => {
+        const unchanged = current.length === next.length && current.every((page, index) =>
+          page.number === next[index]?.number &&
+          page.title === next[index]?.title &&
+          page.text === next[index]?.text
+        )
+        return unchanged ? current : next
+      })
+    }
+    refreshPages()
+    const root = document.querySelector<HTMLElement>('.ProseMirror.editor-page')
+    if (!root || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      if (scheduled) return
+      scheduled = true
+      window.requestAnimationFrame(() => {
+        scheduled = false
+        refreshPages()
+      })
+    })
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [content, getPageSections, isOpen])
 
   if (!isOpen) return null
 
   const plainText = extractPlainText(content)
   const markedPages = detectPdfPageSections(plainText)
   const explicitPages = detectExplicitPageSections(content)
-  const hasExactPageBoundaries = markedPages.length > 0 || explicitPages.length > 1
-  const pageSections = markedPages.length > 1
+  const hasExactPageBoundaries = markedPages.length > 0 || explicitPages.length > 1 || livePageSections.length > 1
+  // Original imported PDF page markers take priority. Otherwise use the editor's
+  // current physical pagination, including how manual breaks affect the layout.
+  // Explicit-break grouping is only a fallback before live page measurements exist.
+  const pageSections = markedPages.length > 0
     ? markedPages
-    : explicitPages.length > 1
-      ? explicitPages
-      : markedPages.length === 1
-        ? markedPages
-        : estimateTextPages(plainText)
+    : livePageSections.length > 0
+      ? livePageSections
+      : explicitPages
   const topicSections = detectTopicSections(content)
   const currentAction = ACTIONS.find((action) => action.id === selectedAction) || ACTIONS[0]
 
@@ -259,7 +257,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
         : plainText
 
     if (sourceMode === 'pages' && selectedPages.length === 0) {
-      setError('Seleziona almeno una pagina o una sezione da includere nel lavoro dell’AI.')
+      setError('Seleziona almeno una pagina da includere nel lavoro dell’AI.')
       setIsLoading(false)
       return
     }
@@ -342,10 +340,11 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
 
   return (
     <div
+      data-md-ai-studio="true"
       className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/45 px-3 py-5 backdrop-blur-sm sm:px-6 sm:py-10"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}
     >
-      <section className="my-auto flex max-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-[#f8fbfc] shadow-2xl shadow-slate-950/30 ring-1 ring-slate-950/5 sm:max-h-[calc(100vh-5rem)]" role="dialog" aria-modal="true" aria-labelledby="ai-studio-title">
+      <section data-md-ai-dialog="true" className="my-auto flex max-h-[calc(100dvh-1.25rem)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-[#f8fbfc] shadow-2xl shadow-slate-950/30 ring-1 ring-slate-950/5 sm:max-h-[calc(100vh-5rem)]" role="dialog" aria-modal="true" aria-labelledby="ai-studio-title">
         <header className="flex items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-4 sm:px-6">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-900/15">
             <Sparkles className="h-5 w-5" />
@@ -425,6 +424,12 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                   </label>
                 </div>
 
+                {pageSections.length <= 1 && plainText.length > 150 && (
+                  <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] leading-5 text-slate-600">
+                    Non sono rilevabili più pagine reali per questo documento. Non dividerò il testo in sezioni stimate: usa interruzioni di pagina oppure controlla che l’impaginazione sia pronta.
+                  </p>
+                )}
+
                 {sourceMode === 'pages' && pageSections.length > 1 && (
                   <div className="mt-3 rounded-xl border border-teal-100 bg-white p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -442,7 +447,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                     <div className="mt-3 grid max-h-48 gap-2 overflow-y-auto overscroll-contain pr-1 sm:max-h-56 sm:grid-cols-2">
                       {pageSections.map((page) => {
                         const checked = selectedPageNumbers.includes(page.number)
-                        const preview = page.text.replace(/^Pagina\s+\d+\s*/i, '').replace(/^Sezione\s+\d+\s*/i, '').replace(/\s+/g, ' ').trim()
+                        const preview = page.text.replace(/^Pagina\s+\d+\s*/i, '').replace(/\s+/g, ' ').trim()
                         return (
                           <label key={page.number} className={'flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition ' + (checked ? 'border-teal-300 bg-teal-50/80' : 'border-slate-200 bg-white hover:border-teal-200 hover:bg-slate-50')}>
                             <input type="checkbox" checked={checked}
@@ -451,14 +456,14 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert }: 
                                 : current.filter((number) => number !== page.number))}
                               className="mt-0.5 h-4 w-4 shrink-0 accent-teal-700" />
                             <span className="min-w-0">
-                              <span className="block text-xs font-bold text-slate-800">{page.title || (hasExactPageBoundaries ? 'Pagina ' + page.number : 'Sezione ' + page.number + ' · pagina stimata')}</span>
+                              <span className="block text-xs font-bold text-slate-800">{page.title || 'Pagina ' + page.number}</span>
                               <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-slate-500">{preview.slice(0, 140) || 'Nessuna anteprima testuale'}</span>
                             </span>
                           </label>
                         )
                       })}
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-slate-500">{hasExactPageBoundaries ? 'Sono elencate le pagine riconosciute nel documento.' : 'Il documento non conserva le pagine originali: le sezioni sono stimate dalla lunghezza del testo.'}</p>
+                    <p className="mt-2 text-[11px] leading-4 text-slate-500">{hasExactPageBoundaries ? 'Pagine originali o confini di pagina rilevati nell’impaginazione corrente.' : 'Le pagine non sono ancora distinguibili con certezza.'}</p>
                   </div>
                 )}
 
