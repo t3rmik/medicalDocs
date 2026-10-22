@@ -366,7 +366,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
             <>
           <span className="mr-1 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva</span>
           <button type="button" className="md-ink-toolbar-collapse" onClick={() => setInkToolbarCollapsed(true)} aria-label="Riduci gli strumenti della penna" title="Riduci gli strumenti della penna"><span aria-hidden="true">−</span><span className="sr-only">Riduci gli strumenti</span></button>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Strumento di scrittura">
+          <div className="md-ink-tool-selector flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" data-md-ink-tools="true" role="group" aria-label="Strumento di scrittura">
             <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="pen" size={16} /> <span>Penna</span></button>
             <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="highlighter" size={16} /> <span>Evidenzia</span></button>
             <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="eraser" size={16} /> <span>Gomma</span></button>
@@ -399,6 +399,16 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           <button type="button" onClick={toggleInkMode} className="min-h-10 rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-800">Fine</button>
             </>
           )}
+        </div>
+      )}
+      {inkMode && inkToolbarCollapsed && (
+        <div data-md-ink-quick-history="true" role="group" aria-label="Cronologia dei tratti" className="md-ink-quick-history">
+          <button type="button" onClick={undoInkStroke} disabled={!canUndoInk} aria-label="Annulla ultimo tratto" title="Annulla ultimo tratto" className="md-ink-history-button">
+            <MedicalDocsIcon name="undo" size={20} />
+          </button>
+          <button type="button" onClick={redoInkStroke} disabled={!canRedoInk} aria-label="Ripeti tratto annullato" title="Ripeti tratto annullato" className="md-ink-history-button">
+            <MedicalDocsIcon name="redo" size={20} />
+          </button>
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto">
