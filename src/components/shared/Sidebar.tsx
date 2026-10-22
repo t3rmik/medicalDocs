@@ -1,6 +1,7 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import { StudyChatPanel } from '@/components/ai/StudyChatPanel'
 import {
   MedicalDocsIcon,
@@ -43,6 +44,7 @@ function normaliseFolder(value?: string): string {
 
 export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentMetadata, activeDocId, currentHtml }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>(null)
+  const [chatExpanded, setChatExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [folderFilter, setFolderFilter] = useState<string>('Tutte le cartelle')
   const [customFolders, setCustomFolders] = useState<string[]>([])
@@ -123,7 +125,20 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
       }))
     } catch { return [] }
   }, [activeTab, deferredHtml])
-  const openTab = (tab: Exclude<SidebarTab, null>) => setActiveTab(activeTab === tab ? null : tab)
+  const openTab = (tab: Exclude<SidebarTab, null>) => {
+    const nextTab = activeTab === tab ? null : tab
+    setActiveTab(nextTab)
+    if (nextTab !== 'chat') setChatExpanded(false)
+  }
+  useEffect(() => {
+    if (!chatExpanded) return
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setChatExpanded(false)
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [chatExpanded])
+
   const railButtonClass = (selected: boolean) =>
     'relative flex items-center justify-center rounded-xl p-2.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-400 ' +
     (selected ? 'bg-white/15 text-teal-200 shadow-inner ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/10 hover:text-white')
@@ -159,7 +174,13 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
       </aside>
 
       {activeTab && (
-        <section data-md-sidebar-panel="true" className="flex min-h-0 w-[min(21rem,calc(100vw-4rem))] flex-col border-r border-slate-200 bg-[#fbfdfd] p-3.5 shadow-xl shadow-slate-900/5 sm:p-4">
+        <section
+          data-md-sidebar-panel="true"
+          data-md-chat-expanded={activeTab === 'chat' && chatExpanded ? 'true' : 'false'}
+          className="flex min-h-0 w-[min(21rem,calc(100vw-4rem))] flex-col border-r border-slate-200 bg-[#fbfdfd] p-3.5 shadow-xl shadow-slate-900/5 sm:p-4"
+          role={activeTab === 'chat' && chatExpanded ? 'dialog' : undefined}
+          aria-label={activeTab === 'chat' ? 'Tutor di studio' : undefined}
+        >
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold tracking-tight text-slate-900">
@@ -171,9 +192,23 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
                 </p>
               )}
             </div>
-            <button type="button" onClick={() => setActiveTab(null)} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Chiudi pannello" title="Chiudi pannello">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              {activeTab === 'chat' && (
+                <button
+                  type="button"
+                  onClick={() => setChatExpanded((expanded) => !expanded)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
+                  aria-label={chatExpanded ? 'Riduci il tutor di studio' : 'Espandi il tutor di studio'}
+                  title={chatExpanded ? 'Riduci pannello' : 'Apri il tutor in grande'}
+                  aria-pressed={chatExpanded}
+                >
+                  {chatExpanded ? <Minimize2 className="h-4 w-4" aria-hidden="true" /> : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+                </button>
+              )}
+              <button type="button" onClick={() => { setActiveTab(null); setChatExpanded(false) }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600" aria-label="Chiudi pannello" title="Chiudi pannello">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {(activeTab === 'docs' || activeTab === 'favorites') && (
