@@ -119,6 +119,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio' | 'Pagine' | 'Modelli'>('Home');
   const [tabletPanelOpen, setTabletPanelOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [toolsDismissed, setToolsDismissed] = useState(false);
   const [tableWidth, setTableWidth] = useState(100);
   const [tablePaddingX, setTablePaddingX] = useState(8);
   const [tablePaddingY, setTablePaddingY] = useState(6);
@@ -323,9 +324,35 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   }, [tabletPanelOpen, inkMode])
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || !event.altKey) return; if (event.key.toLowerCase() === 'p') { event.preventDefault(); setActiveTab('Pagine'); } if (event.key.toLowerCase() === 'm') { event.preventDefault(); setActiveTab('Modelli'); } };
-    window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler);
-  }, []);
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setTabletPanelOpen(false)
+        setMobileToolsOpen(false)
+        setToolsDismissed(true)
+        return
+      }
+      if (!(event.ctrlKey || event.metaKey) || !event.altKey) return
+      if (event.key.toLowerCase() === 'p') { event.preventDefault(); setToolsDismissed(false); setTabletPanelOpen(true); setMobileToolsOpen(true); setActiveTab('Pagine') }
+      if (event.key.toLowerCase() === 'm') { event.preventDefault(); setToolsDismissed(false); setTabletPanelOpen(true); setMobileToolsOpen(true); setActiveTab('Modelli') }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  useEffect(() => {
+    const tabletPortrait = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait)').matches
+    if (!tabletPanelOpen && !mobileToolsOpen && !tabletPortrait) return
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (ribbonRootRef.current?.contains(target)) return
+      setTabletPanelOpen(false)
+      setMobileToolsOpen(false)
+      setToolsDismissed(true)
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointerDown)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointerDown)
+  }, [tabletPanelOpen, mobileToolsOpen])
   const insertTemplate = (template: EditorTemplate) => { editor?.chain().focus().insertContent(template.content).run(); toast.success('Modello inserito: ' + template.name); };
   const saveCustomTemplate = () => {
     const name = templateName.trim(), body = templateBody.trim();
@@ -555,6 +582,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         onClick={() => {
           setTabletPanelOpen(selected ? !tabletPanelOpen : true);
           setMobileToolsOpen(true);
+          setToolsDismissed(false);
           setActiveTab(name);
         }}
         aria-expanded={selected && tabletPanelOpen}
@@ -589,9 +617,9 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   );
 
   return (
-    <div ref={ribbonRootRef} onPointerDownCapture={rememberEditorSelection} data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-mobile-tools-open={mobileToolsOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
+    <div ref={ribbonRootRef} onPointerDownCapture={rememberEditorSelection} data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-tools-dismissed={toolsDismissed ? 'true' : 'false'} data-md-mobile-tools-open={mobileToolsOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
-        <button type="button" data-md-mobile-ribbon-toggle="true" onClick={() => setMobileToolsOpen((open) => !open)} aria-expanded={mobileToolsOpen} aria-controls="medicaldocs-ribbon-tools" className="md-mobile-ribbon-toggle" aria-label={mobileToolsOpen ? 'Nascondi strumenti documento' : 'Mostra strumenti documento'}>
+        <button type="button" data-md-mobile-ribbon-toggle="true" onClick={() => { setMobileToolsOpen((open) => !open); setToolsDismissed(false) }} aria-expanded={mobileToolsOpen} aria-controls="medicaldocs-ribbon-tools" className="md-mobile-ribbon-toggle" aria-label={mobileToolsOpen ? 'Nascondi strumenti documento' : 'Mostra strumenti documento'}>
           {mobileToolsOpen ? <CloseTab className="h-4 w-4" aria-hidden="true" /> : <MobileMenuTab className="h-4 w-4" aria-hidden="true" />}
           <span>{mobileToolsOpen ? 'Chiudi strumenti' : 'Strumenti'}</span>
           {!mobileToolsOpen && <MobileChevronTab className="h-4 w-4" aria-hidden="true" />}
@@ -611,7 +639,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-700">Strumenti</p>
             <p className="truncate text-sm font-bold text-slate-900">{activeTab}</p>
           </div>
-          <button type="button" onClick={() => setTabletPanelOpen(false)} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700" aria-label="Chiudi pannello strumenti">
+          <button type="button" onClick={() => { setTabletPanelOpen(false); setToolsDismissed(true) }} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700" aria-label="Chiudi pannello strumenti">
             <CloseTab className="h-4 w-4" aria-hidden="true" /> Chiudi
           </button>
         </div>
@@ -701,7 +729,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         )}
 
         {activeTab === 'Studio' && (
-          <div className="w-full min-w-0">
+          <div data-md-studio-tools="true" className="w-full min-w-0">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-bold text-slate-900">Strumenti per studiare</p>
@@ -709,11 +737,11 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               </div>
               <span className="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-1 text-[10px] font-bold text-teal-800">4 strumenti</span>
             </div>
-            <div className="grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+            <div data-md-studio-cards="true" className="grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
               <button
                 type="button"
                 onClick={() => insertStudyTemplate(`<h2>Schema della lezione</h2><h3>Obiettivi</h3><ul><li><p>Che cosa devo imparare?</p></li></ul><h3>Concetti chiave</h3><p>Scrivi qui i concetti principali...</p><h3>Esempi e collegamenti</h3><p>Aggiungi esempi, casi e collegamenti utili...</p><h3>Riepilogo in 3 punti</h3><ol><li><p>Primo punto</p></li><li><p>Secondo punto</p></li><li><p>Terzo punto</p></li></ol>`, 'Schema della lezione')}
-                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white p-3.5 text-left transition hover:border-teal-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                className="group flex min-h-[100px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white p-3.5 text-left transition hover:border-teal-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
               >
                 <span className="block min-w-0">
                   <span className="block text-sm font-bold text-teal-950">Schema della lezione</span>
@@ -724,7 +752,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <button
                 type="button"
                 onClick={() => insertStudyTemplate(`<h2>Domande di ripasso</h2><ol><li><p>Qual è il concetto più importante?</p></li><li><p>Come lo spiegherei con parole mie?</p></li><li><p>Quale esempio posso ricordare?</p></li><li><p>Che cosa devo rivedere?</p></li></ol><h3>Risposte e dubbi</h3><p>Completa qui le risposte...</p>`, 'Domande di ripasso')}
-                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-3.5 text-left transition hover:border-violet-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
+                className="group flex min-h-[100px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-3.5 text-left transition hover:border-violet-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
               >
                 <span className="block min-w-0">
                   <span className="block text-sm font-bold text-violet-950">Domande di ripasso</span>
@@ -735,7 +763,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <button
                 type="button"
                 onClick={() => insertStudyTemplate(`<h2>Flashcard</h2><p><strong>Domanda</strong></p><p>Scrivi una domanda breve...</p><p><strong>Risposta</strong></p><p>Scrivi una risposta chiara e sintetica...</p><hr/><p><strong>Domanda successiva</strong></p><p>Scrivi qui...</p><p><strong>Risposta</strong></p><p>Scrivi qui...</p>`, 'Flashcard')}
-                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-3.5 text-left transition hover:border-amber-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                className="group flex min-h-[100px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-3.5 text-left transition hover:border-amber-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
               >
                 <span className="block min-w-0">
                   <span className="block text-sm font-bold text-amber-950">Flashcard</span>
@@ -746,7 +774,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <button
                 type="button"
                 onClick={() => insertStudyTemplate(`<h2>Checklist di ripasso</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Ho letto e compreso gli appunti</p></li><li data-type="taskItem" data-checked="false"><p>So spiegare i concetti senza guardare</p></li><li data-type="taskItem" data-checked="false"><p>Ho fatto una pausa</p></li><li data-type="taskItem" data-checked="false"><p>Ho segnato i dubbi da chiarire</p></li></ul>`, 'Checklist di ripasso')}
-                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-3.5 text-left transition hover:border-emerald-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                className="group flex min-h-[100px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-3.5 text-left transition hover:border-emerald-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
               >
                 <span className="block min-w-0">
                   <span className="block text-sm font-bold text-emerald-950">Checklist di ripasso</span>
