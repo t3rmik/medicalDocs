@@ -85,10 +85,13 @@ const StudyTable = Table.extend({
       ...this.parent?.(),
       mdWidth: {
         default: 100,
-        parseHTML: (element: HTMLElement) => Number(element.getAttribute('data-md-width') || 100),
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-md-width') || 100)
+          return Number.isFinite(value) ? Math.max(35, Math.min(180, value)) : 100
+        },
         renderHTML: (attributes: Record<string, unknown>) => {
           const rawWidth = Number(attributes.mdWidth)
-          const width = Number.isFinite(rawWidth) ? Math.max(35, Math.min(100, rawWidth)) : 100
+          const width = Number.isFinite(rawWidth) ? Math.max(35, Math.min(180, rawWidth)) : 100
           return { 'data-md-width': String(width), style: 'width: ' + width + '%; min-width: ' + width + '%;' }
         },
       },
@@ -107,6 +110,32 @@ const StudyTable = Table.extend({
           return ['compact', 'normal', 'comfortable'].includes(value) ? value : 'normal'
         },
         renderHTML: (attributes: Record<string, unknown>) => ({ 'data-md-density': String(attributes.mdDensity || 'normal') }),
+      },
+      mdCellPaddingX: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-md-cell-padding-x'))
+          return Number.isFinite(value) && value >= 2 && value <= 32 ? value : null
+        },
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const raw = attributes.mdCellPaddingX
+          if (typeof raw !== 'number' || !Number.isFinite(raw)) return {}
+          const value = Math.max(2, Math.min(32, raw))
+          return { 'data-md-cell-padding-x': String(value), style: '--md-table-padding-x: ' + value + 'px' }
+        },
+      },
+      mdCellPaddingY: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-md-cell-padding-y'))
+          return Number.isFinite(value) && value >= 2 && value <= 32 ? value : null
+        },
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const raw = attributes.mdCellPaddingY
+          if (typeof raw !== 'number' || !Number.isFinite(raw)) return {}
+          const value = Math.max(2, Math.min(32, raw))
+          return { 'data-md-cell-padding-y': String(value), style: '--md-table-padding-y: ' + value + 'px' }
+        },
       },
     }
   },
