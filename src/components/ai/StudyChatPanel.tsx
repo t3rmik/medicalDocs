@@ -17,6 +17,8 @@ type StudyMessage = {
   fallbackUsed?: boolean
 }
 
+const CHAT_STORAGE_KEY = 'medicaldocs.study-chat.history.v1'
+
 const QUICK_PROMPTS = [
   { label: 'Fotosintesi', prompt: 'Spiegami la fotosintesi clorofilliana con le fasi, l’equazione generale e un modo semplice per ricordarla.' },
   { label: 'Mitosi o meiosi?', prompt: 'Confronta mitosi e meiosi in una tabella semplice: scopo, numero di divisioni, cellule prodotte e corredo cromosomico.' },
@@ -26,7 +28,22 @@ const QUICK_PROMPTS = [
 ]
 
 export function StudyChatPanel() {
-  const [messages, setMessages] = useState<StudyMessage[]>([])
+  const [messages, setMessages] = useState<StudyMessage[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const parsed: unknown = JSON.parse(window.localStorage.getItem(CHAT_STORAGE_KEY) || '[]')
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((item): item is StudyMessage =>
+        Boolean(item && typeof item === 'object' &&
+          ((item as StudyMessage).role === 'user' || (item as StudyMessage).role === 'assistant') &&
+          typeof (item as StudyMessage).content === 'string' &&
+          (item as StudyMessage).content.length <= 12_000
+        )
+      ).slice(-20)
+    } catch {
+      return []
+    }
+  })
   const [question, setQuestion] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState('')
@@ -36,6 +53,14 @@ export function StudyChatPanel() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isSending])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-20)))
+    } catch {
+      // Chat still works for the current session when browser storage is unavailable.
+    }
+  }, [messages])
 
   const ask = async (rawQuestion: string) => {
     const prompt = rawQuestion.trim()
@@ -192,19 +217,21 @@ export function StudyChatPanel() {
           maxLength={2500}
           className="w-full min-w-0 rounded-xl border border-transparent bg-white px-2.5 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-teal-200 focus:ring-2 focus:ring-teal-50"
         />
-        <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-          <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-slate-400">
-            <span>Invio per inviare</span>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-slate-400">
+            <span>Invio invia</span>
             <span aria-hidden="true">·</span>
-            <span>Maiuscole + Invio per andare a capo</span>
+            <span className="hidden min-[640px]:inline">Maiusc + Invio va a capo</span>
           </div>
+          {messages.length > 0 && (
+            <button type="button" disabled={isSending} onClick={clearChat} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 hover:border-teal-300 hover:bg-teal-50 disabled:opacity-40" aria-label="Inizia una nuova chat">
+              Nuova
+            </button>
+          )}
           <button type="submit" disabled={isSending || question.trim().length < 3} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-700 to-cyan-700 px-3 text-xs font-bold text-white shadow-sm transition hover:from-teal-800 hover:to-cyan-800 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Invia domanda">
             {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             <span>Invia</span>
           </button>
-          {messages.length > 0 && (
-            <button type="button" disabled={isSending} onClick={clearChat} className="hidden" aria-label="Nuova chat">Nuova</button>
-          )}
         </div>
       </form>
       <p className="mt-1.5 px-1 text-[10px] leading-4 text-slate-400">Per domande difficili la risposta può essere più lunga. Verifica formule e concetti con il materiale del corso.</p>
