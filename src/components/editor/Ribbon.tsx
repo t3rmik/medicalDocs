@@ -49,6 +49,7 @@ const LEGACY_PAGE_LAYOUT_KEY = 'medicaldocs.pageLayout.v1';
 const CUSTOM_TEMPLATE_KEY = 'medicaldocs.customTemplates.v1';
 const PAGE_DIMENSIONS: Record<PageFormat, { width: number; height: number }> = { A4: { width: 210, height: 297 }, A5: { width: 148, height: 210 }, A3: { width: 297, height: 420 }, Letter: { width: 216, height: 279 } };
 const PAGE_MARGIN_MM: Record<Exclude<PageMargins, 'custom'>, number> = { normal: 12, narrow: 3, wide: 25.4 };
+const FONT_SIZE_OPTIONS = ['8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '24pt', '28pt', '36pt', '48pt'] as const;
 const DEFAULT_CUSTOM_MARGINS: PageMarginValues = { top: 4, right: 4, bottom: 4, left: 4 };
 const clampMargin = (value: unknown, fallback = 4) => {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -120,6 +121,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [templateBody, setTemplateBody] = useState('');
   const [equationOpen, setEquationOpen] = useState(false);
   const [equationLatex, setEquationLatex] = useState('x^2 + y^2 = z^2');
+  const [selectedFontSize, setSelectedFontSize] = useState('12pt');
 
   useEffect(() => {
     try {
@@ -182,6 +184,22 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   }, [editor, pageFormat, pageOrientation, pageMargins, customMargins, layoutLoaded]);
   useEffect(() => { if (!templatesLoaded) return; try { window.localStorage.setItem(CUSTOM_TEMPLATE_KEY, JSON.stringify(customTemplates)); } catch { toast.error('Spazio locale insufficiente per salvare il modello personale.'); } }, [customTemplates, templatesLoaded]);
   useEffect(() => {
+    if (!editor) return
+    const syncSelectedFontSize = () => {
+      const size = editor.getAttributes('textStyle').fontSize
+      const nextSize = typeof size === 'string' && size.trim() ? size : '12pt'
+      setSelectedFontSize((current) => current === nextSize ? current : nextSize)
+    }
+    syncSelectedFontSize()
+    editor.on('selectionUpdate', syncSelectedFontSize)
+    editor.on('transaction', syncSelectedFontSize)
+    return () => {
+      editor.off('selectionUpdate', syncSelectedFontSize)
+      editor.off('transaction', syncSelectedFontSize)
+    }
+  }, [editor])
+
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || !event.altKey) return; if (event.key.toLowerCase() === 'p') { event.preventDefault(); setActiveTab('Pagine'); } if (event.key.toLowerCase() === 'm') { event.preventDefault(); setActiveTab('Modelli'); } };
     window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler);
   }, []);
@@ -213,6 +231,13 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   }
 
   if (!editor) return null;
+
+  const applyFontSize = (fontSize: string) => {
+    if (editor.isDestroyed || !fontSize) return
+    setSelectedFontSize(fontSize)
+    editor.chain().focus().setMark('textStyle', { fontSize }).run()
+  }
+
 
   const findSelectedTable = () => {
     const { state } = editor
@@ -378,6 +403,20 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                 <option value="Arial">Arial</option>
                 <option value="Inter">Inter</option>
                 <option value="Times New Roman">Times New Roman</option>
+              </select>
+              <select
+                value={selectedFontSize}
+                onChange={(event) => applyFontSize(event.target.value)}
+                aria-label="Dimensione del testo"
+                title="Dimensione del testo"
+                className="min-h-9 w-[88px] rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              >
+                {!FONT_SIZE_OPTIONS.includes(selectedFontSize as (typeof FONT_SIZE_OPTIONS)[number]) && (
+                  <option value={selectedFontSize}>{selectedFontSize}</option>
+                )}
+                {FONT_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>{size.replace('pt', ' pt')}</option>
+                ))}
               </select>
               
               <div className="flex items-center ml-1 bg-white border border-slate-300 rounded p-0.5">

@@ -29,6 +29,24 @@ import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PaginationPlus, PAGE_SIZES } from 'tiptap-pagination-plus'
 import type { DocumentPageSection } from '@/types/documentPages'
 
+const FontSizeTextStyle = TextStyle.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fontSize: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.fontSize || null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const fontSize = typeof attributes.fontSize === 'string' ? attributes.fontSize : ''
+          if (!fontSize || !/^\\d+(?:\\.\\d+)?(?:px|pt|em|rem|%)$/.test(fontSize)) return {}
+          return { style: 'font-size: ' + fontSize }
+        },
+      },
+    }
+  },
+})
+
+
 
 const PageBreak = Node.create({
   name: 'pageBreak',
@@ -122,7 +140,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      TextStyle, Color, FontFamily, Underline, Subscript, Superscript,
+      FontSizeTextStyle, Color, FontFamily, Underline, Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       StudyTable.configure({ resizable: true }), TableRow, TableHeader, TableCell,
