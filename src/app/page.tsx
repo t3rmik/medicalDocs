@@ -372,6 +372,18 @@ export default function Home() {
 
       const blob = await res.blob();
       if (!blob.size) throw new Error('Il file esportato è vuoto.');
+      if (format === 'word') {
+        const signature = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (signature[0] !== 0x50 || signature[1] !== 0x4b ||
+            !contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+          throw new Error('Il server non ha restituito un file Word valido. Nessun file difettoso è stato scaricato: riprova o esporta in PDF.');
+        }
+      }
+      if (format === 'pdf') {
+        const signature = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+        if (String.fromCharCode(...signature) !== '%PDF-') throw new Error('Il server non ha restituito un PDF valido. Riprova.');
+      }
 
       const extension = format === 'word' ? 'docx' : format;
       const safeTitle = (doc.title || 'Documento')
@@ -387,7 +399,8 @@ export default function Home() {
       link.click();
       link.remove();
       // Keep the Blob URL alive while large downloads initialise.
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      // On touch devices, native Files/share hand-off can be delayed; keep the Blob URL valid longer.
+      window.setTimeout(() => URL.revokeObjectURL(url), isTouchConstrainedDevice() ? 5 * 60_000 : 60_000);
       toast.success(`Esportato come ${extension.toUpperCase()} con successo!`, { id: toastId });
     } catch (err) {
       if (format === 'pdf' && !pdfAnnotatorFile) {

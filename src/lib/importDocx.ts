@@ -16,8 +16,15 @@ export async function parseFileToHtml(file: File): Promise<string> {
     const mammothModule = await import('mammoth');
     const mammoth = mammothModule.default ?? mammothModule;
     const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    if (bytes.byteLength < 500 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+      throw new Error('Il file non sembra un DOCX integro (pacchetto ZIP mancante o incompleto). Se proviene da un download del tablet, esportalo di nuovo e controlla che il download sia terminato.');
+    }
     const result = await mammoth.convertToHtml({ arrayBuffer });
-    return result.value || '<p>Documento Word vuoto.</p>';
+    if (!result.value.trim()) {
+      throw new Error('Il file Word è leggibile ma non contiene testo importabile. Se contiene solo immagini o formule, prova ad aprirlo con Word oppure esportalo in PDF.');
+    }
+    return result.value;
   }
 
   if (extension === 'txt') {

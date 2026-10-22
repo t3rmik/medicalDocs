@@ -79,6 +79,99 @@ function toExactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return copy.buffer as ArrayBuffer;
 }
 
+function escapeHtmlText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function decodeHtmlAttribute(value: string): string {
+  return value.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+/** Make editor-only nodes portable in Word: equations become readable LaTeX and pen SVGs become rasterizable. */
+function prepareWordHtml(html: string): string {
+  let safe = html.replace(/<div\b(?=[^>]*data-md-equation=["']true["'])[^>]*>[\s\S]*?<\/div>/gi, (block) => {
+    const raw = block.match(/\bdata-latex=["']([^"']*)["']/i)?.[1] || 'Formula matematica';
+    return '<p><strong>Formula:</strong> ' + escapeHtmlText(decodeHtmlAttribute(raw).slice(0, 2_000)) + '</p>';
+  });
+  safe = safe.replace(/<div\b(?=[^>]*data-medicaldocs-ink-layer(?:=["'][^"']*["'])?)[^>]*>[\s\S]*?<\/div>/gi, (block) => {
+    const svg = block.match(/<svg\b[\s\S]*?<\/svg>/i)?.[0];
+    if (!svg) return '<p>[Annotazione a mano libera non disponibile in questo file]</p>';
+    return '<div class="medicaldocs-ink-layer" data-word-ink-layer="true">' + svg + '</div>';
+  });
+  return safe
+    .replace(/\scontenteditable=(["'])[^"']*\1/gi, '')
+    .replace(/\sdraggable=(["'])[^"']*\1/gi, '')
+    .replace(/\sdata-(?:drag-handle|node-view-wrapper|type)=(["'])[^"']*\1/gi, '');
+}
+
+async function rasterizeWordInkLayers(html: string, browser: Awaited<ReturnType<typeof puppeteer.launch>>): Promise<string> {
+  const layerPattern = /<div\b(?=[^>]*data-word-ink-layer=["']true["'])[^>]*>[\s\S]*?<\/div>/gi;
+  const layers = Array.from(html.matchAll(layerPattern));
+  if (!layers.length) return html;
+  const page = await browser.newPage();
+  const replacements: Array<{ original: string; replacement: string }> = [];
+  try {
+    for (const match of layers) {
+      const original = match[0];
+      const svgMatch = original.match(/<svg\b[\s\S]*?<\/svg>/i);
+      if (!svgMatch) continue;
+      const safeSvg = svgMatch[0]
+        .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+        .replace(/\son[a-z]+\s*=\s*(["'])[^"']*\1/gi, '')
+        .replace(/\s(?:href|xlink:href)\s*=\s*(["'])[^"']*\1/gi, '');
+      await page.setContent('<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:transparent}svg{display:block}</style></head><body>' + safeSvg + '</body></html>', { waitUntil: 'load', timeout: 7_000 });
+      const png = await page.$eval('svg', async (source) => {
+        const svg = source.cloneNode(true) as SVGSVGElement;
+        const box = svg.viewBox?.baseVal;
+        const sourceWidth = Number(svg.getAttribute('width')) || box?.width || 800;
+        const sourceHeight = Number(svg.getAttribute('height')) || box?.height || 1122;
+        const width = Math.max(1, Math.min(1600, sourceWidth));
+        const height = Math.max(1, Math.min(2400, sourceHeight));
+        svg.setAttribute('width', String(width));
+        svg.setAttribute('height', String(height));
+        const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        try {
+          const image = new Image();
+          image.src = url;
+          await image.decode();
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Canvas non disponibile per le annotazioni Word.');
+          context.drawImage(image, 0, 0, width, height);
+          return { src: canvas.toDataURL('image/png'), width: sourceWidth, height: sourceHeight };
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      });
+      replacements.push({
+        original,
+        replacement: '<div class="medicaldocs-ink-layer"><img src="' + png.src + '" width="' + png.width + '" height="' + png.height + '" alt="Annotazioni a mano libera" style="max-width:100%;height:auto;" /></div>',
+      });
+    }
+  } finally {
+    await page.close().catch(() => undefined);
+  }
+  let result = html;
+  for (const item of replacements) result = result.replace(item.original, item.replacement);
+  return result;
+}
+
+async function launchExportBrowser(): Promise<Awaited<ReturnType<typeof puppeteer.launch>>> {
+  if (process.env.VERCEL) {
+    return await puppeteerCore.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      defaultViewport: { width: 1280, height: 720 },
+      headless: 'shell',
+    }) as Awaited<ReturnType<typeof puppeteer.launch>>;
+  }
+  return await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'], headless: true });
+}
+
 export async function POST(req: Request) {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
 
@@ -170,7 +263,12 @@ export async function POST(req: Request) {
     if (format === 'word') {
       const { widthMm, heightMm, margins } = pageLayout;
       const mmToTwips = (value: number) => Math.round(value * 56.6929);
-      const fileBuffer = await HTMLToDOCX(exportContent, null, {
+      let wordContent = prepareWordHtml(exportContent);
+      if (/data-word-ink-layer=["']true["']/i.test(wordContent)) {
+        browser = await launchExportBrowser();
+        wordContent = await rasterizeWordInkLayers(wordContent, browser);
+      }
+      const fileBuffer = await HTMLToDOCX(wordContent, null, {
         orientation: pageLayout.orientation,
         pageSize: { width: mmToTwips(widthMm), height: mmToTwips(heightMm) },
         margins: {
@@ -183,11 +281,27 @@ export async function POST(req: Request) {
         fontSize: 22,
         lang: 'it-IT',
       });
-
-      return new NextResponse(toExactArrayBuffer(new Uint8Array(fileBuffer)), {
+      const wordBytes = new Uint8Array(fileBuffer as ArrayBuffer);
+      if (wordBytes.byteLength < 500 || wordBytes[0] !== 0x50 || wordBytes[1] !== 0x4b) {
+        throw new Error('La conversione Word non ha prodotto un pacchetto DOCX valido. Il file non è stato scaricato.');
+      }
+      try {
+        const mammothModule = await import('mammoth');
+        const mammoth = mammothModule.default ?? mammothModule;
+        await mammoth.convertToHtml({ buffer: Buffer.from(wordBytes) });
+      } catch (validationError) {
+        console.error('[MedicalDocs] Generated DOCX failed validation', validationError);
+        return NextResponse.json(
+          { error: 'Il file Word generato non ha superato il controllo di integrità. Riprova senza annotazioni/formule particolari oppure esporta prima in PDF.' },
+          { status: 502 }
+        );
+      }
+      return new NextResponse(toExactArrayBuffer(wordBytes), {
         headers: {
           ...headers,
           'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'X-MedicalDocs-Export-Format': 'docx',
+          'Cache-Control': 'no-store',
         },
       });
     }
@@ -195,19 +309,7 @@ export async function POST(req: Request) {
     // Vercel Serverless non dispone necessariamente del browser scaricato da Puppeteer.
     // In produzione usiamo il binario Chromium compilato per ambienti serverless;
     // in sviluppo manteniamo il browser installato da Puppeteer per il sistema locale.
-    if (process.env.VERCEL) {
-      browser = await puppeteerCore.launch({
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
-        defaultViewport: { width: 1280, height: 720 },
-        headless: 'shell',
-      });
-    } else {
-      browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        headless: true,
-      });
-    }
+    browser = await launchExportBrowser();
     const page = await browser.newPage();
     // Il contenuto è fornito dall'utente: non eseguire script né inviare dati a host esterni.
     await page.setJavaScriptEnabled(false);

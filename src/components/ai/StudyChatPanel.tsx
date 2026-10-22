@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { markdownToHtml } from '@/lib/markdown'
+import { copyMarkdownToClipboard, markdownToHtml, normalizeAIOutput } from '@/lib/markdown'
 import {
   MedicalDocsSpark as Sparkles,
   MedicalDocsMessage as MessageSquare,
   MedicalDocsLoader as Loader2,
   MedicalDocsArrowUpRight as Send,
+  MedicalDocsCopy as Copy,
+  MedicalDocsCheckCircle as Check,
 } from '@/components/icons/MedicalDocsIcons'
 
 type StudyMessage = {
@@ -33,6 +35,7 @@ export function StudyChatPanel() {
   const [question, setQuestion] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState('')
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -102,7 +105,7 @@ export function StudyChatPanel() {
       if (typeof payload.result !== 'string' || !payload.result.trim()) throw new Error('Il tutor non ha restituito una risposta.')
       setMessages((current) => [...current, {
         role: 'assistant',
-        content: payload.result!.trim(),
+        content: normalizeAIOutput(payload.result!.trim()),
         provider: payload.provider,
         model: payload.model,
         fallbackUsed: payload.fallbackUsed,
@@ -112,6 +115,16 @@ export function StudyChatPanel() {
     } finally {
       setIsSending(false)
       window.setTimeout(() => textareaRef.current?.focus(), 60)
+    }
+  }
+
+  const copyAnswer = async (content: string, index: number) => {
+    try {
+      await copyMarkdownToClipboard(content)
+      setCopiedMessageIndex(index)
+      window.setTimeout(() => setCopiedMessageIndex((current) => current === index ? null : current), 1800)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Non è stato possibile copiare la risposta.')
     }
   }
 
@@ -179,11 +192,20 @@ export function StudyChatPanel() {
               </div>
             ) : (
               <div className="min-w-0 max-w-[98%] rounded-2xl rounded-bl-md border border-slate-200 bg-white px-3.5 py-3 text-sm leading-6 text-slate-700 shadow-sm">
-                <div className="mb-2 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide text-teal-800">
-                  <Sparkles size={13} />
-                  <span>Tutor di studio</span>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide text-teal-800">
+                    <Sparkles size={13} />
+                    <span>Tutor di studio</span>
+                  </div>
+                  <button type="button" onClick={() => void copyAnswer(message.content, index)}
+                    className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-teal-200 hover:bg-teal-50"
+                    aria-label={copiedMessageIndex === index ? 'Risposta copiata' : 'Copia risposta del tutor'}
+                    title="Copia la risposta mantenendo titoli, elenchi e tabelle quando supportato">
+                    {copiedMessageIndex === index ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedMessageIndex === index ? 'Copiato' : 'Copia'}
+                  </button>
                 </div>
-                <div className="md-study-chat-answer break-words" dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }} />
+                <div className="md-study-chat-answer break-words" dangerouslySetInnerHTML={{ __html: markdownToHtml(normalizeAIOutput(message.content)) }} />
                 {message.model && (
                   <p className="mt-3 border-t border-slate-100 pt-2 text-[10px] text-slate-400">
                     Modello: {message.model}{message.fallbackUsed ? ' · modello alternativo' : ''}
