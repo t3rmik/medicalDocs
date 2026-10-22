@@ -1,6 +1,4 @@
-﻿import mammoth from 'mammoth';
-
-function escapeHtml(value: string): string {
+﻿function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -14,6 +12,9 @@ export async function parseFileToHtml(file: File): Promise<string> {
   const extension = file.name.split('.').pop()?.toLowerCase();
 
   if (extension === 'docx') {
+    // Keep the substantial DOCX parser out of the editor's initial bundle.
+    const mammothModule = await import('mammoth');
+    const mammoth = mammothModule.default ?? mammothModule;
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer });
     return result.value || '<p>Documento Word vuoto.</p>';

@@ -5,9 +5,10 @@ import { MedicalDocsLoader as Loader2 } from '@/components/icons/MedicalDocsIcon
 interface OcrProgressProps {
   status: string;
   progress: number;
+  onCancel?: () => void;
 }
 
-export function OcrProgress({ status, progress }: OcrProgressProps) {
+export function OcrProgress({ status, progress, onCancel }: OcrProgressProps) {
   return (
     <div data-md-ocr-progress="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md">
       <div className="w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl shadow-slate-950/25 flex flex-col items-center">
@@ -25,6 +26,7 @@ export function OcrProgress({ status, progress }: OcrProgressProps) {
           />
         </div>
         <span className="text-xs font-semibold text-slate-600">{progress}% completato</span>
+        {onCancel && <button type="button" onClick={onCancel} className="mt-1 min-h-10 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Annulla importazione</button>}
       </div>
     </div>
   );

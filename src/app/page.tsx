@@ -11,10 +11,10 @@ import { FileOpener } from '@/components/shared/FileOpener'
 import { OcrProgress } from '@/components/pdf/OcrProgress'
 import { PdfModeChoice } from '@/types'
 import { parseFileToHtml } from '@/lib/importDocx'
-import { extractTextFromPdf } from '@/lib/importPdf'
 import { markdownToHtml } from '@/lib/markdown'
 import { db, MedicalDocument } from '@/lib/db'
 import { consumeSharedFile } from '@/lib/sharedFileInbox'
+import { getFileSizeError, getMaxImportBytes, isTouchConstrainedDevice, MAX_PDF_OCR_BYTES } from '@/lib/fileLimits'
 import type { DocumentPageSection } from '@/types/documentPages'
 
 const PdfAnnotator = dynamic(
@@ -46,6 +46,7 @@ export default function Home() {
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
   const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
   const insertIntoEditorRef = useRef<((html: string) => void) | null>(null);
+  const importAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -72,7 +73,8 @@ export default function Home() {
       void consumeSharedFile().then((file) => {
         if (cancelled) return;
         if (!file) { toast.error('MedicalDocs è stato aperto, ma il browser non ha trasferito il file. Usa “Apri / Importa” come alternativa.', { duration: 10000 }); return; }
-        if (file.size > 25 * 1024 * 1024) { toast.error('Il file supera il limite di 25 MB.'); return; }
+        const maxBytes = getMaxImportBytes(file.name, isTouchConstrainedDevice());
+        if (!maxBytes || file.size > maxBytes) { toast.error(getFileSizeError(file.name, maxBytes || MAX_PDF_OCR_BYTES), { duration: 10000 }); return; }
         if (multipleFiles) toast('MedicalDocs apre un documento alla volta: è stato aperto il primo file selezionato.', { duration: 8000 });
         setSharedFile(file);
         setIsFileOpenerOpen(true);
@@ -294,16 +296,25 @@ export default function Home() {
       setPdfAnnotatorFile(file);
       return;
     }
-    
+    if (ext === 'pdf' && pdfMode === 'convert' && file.size > MAX_PDF_OCR_BYTES) {
+      toast.error('Per conversione/OCR il limite è 25 MB. I PDF più grandi possono essere aperti per annotazione oppure divisi in parti.', { duration: 10000 });
+      return;
+    }
+
     setPdfAnnotatorFile(null);
-    
+
     try {
       let html = '';
       if (ext === 'pdf' && pdfMode === 'convert') {
-        setOcrState({ active: true, status: 'Estrazione testo e OCR in corso...', progress: 0 });
+        importAbortControllerRef.current?.abort();
+        const controller = new AbortController();
+        importAbortControllerRef.current = controller;
+        setOcrState({ active: true, status: 'Preparazione PDF per estrazione testo/OCR...', progress: 2 });
+        const { extractTextFromPdf } = await import('@/lib/importPdf');
         const res = await extractTextFromPdf(file, (status, progress) => {
           setOcrState({ active: true, status, progress });
-        });
+        }, controller.signal);
+        if (controller.signal.aborted) return;
         html = res.html;
       } else {
         html = await parseFileToHtml(file);
@@ -321,8 +332,10 @@ export default function Home() {
       toast.success('File caricato e visualizzato correttamente!');
       
     } catch (err: any) {
-      toast.error(`Errore caricamento file: ${err.message}`);
+      if (err?.name === 'AbortError') toast('Importazione PDF annullata.');
+      else toast.error(`Errore caricamento file: ${err?.message || 'errore imprevisto'}`);
     } finally {
+      importAbortControllerRef.current = null;
       setOcrState({ active: false, status: '', progress: 0 });
     }
   };
@@ -366,7 +379,8 @@ export default function Home() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      // Keep the Blob URL alive while large downloads initialise.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast.success(`Esportato come ${extension.toUpperCase()} con successo!`, { id: toastId });
     } catch (err) {
       if (format === 'pdf' && !pdfAnnotatorFile) {
@@ -436,7 +450,7 @@ export default function Home() {
           onInsert={handleInsertAIResult}
         />
       )}
-      {ocrState.active && <OcrProgress status={ocrState.status} progress={ocrState.progress} />}
+      {ocrState.active && <OcrProgress status={ocrState.status} progress={ocrState.progress} onCancel={() => importAbortControllerRef.current?.abort()} />}
     </div>
   );
 }

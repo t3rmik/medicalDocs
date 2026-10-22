@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 import { storeSharedFile } from '@/lib/sharedFileInbox'
+import { getFileSizeError, getMaxImportBytes, isTouchConstrainedDevice } from '@/lib/fileLimits'
+import toast from 'react-hot-toast'
 
 type LaunchFileHandle = { getFile: () => Promise<File> }
 type LaunchParams = { files?: LaunchFileHandle[] }
@@ -19,9 +21,13 @@ export function ServiceWorkerRegister() {
       const handles = params.files || []
       if (!handles.length) return
       try {
-        // The existing import dialog handles one document at a time. Prefer the first
-        // file, and pass a flag so the UI can explain this when multiple files were selected.
+        // The existing import dialog handles one document at a time.
         const file = await handles[0].getFile()
+        const maxBytes = getMaxImportBytes(file.name, isTouchConstrainedDevice())
+        if (!maxBytes || file.size > maxBytes) {
+          toast.error(getFileSizeError(file.name, maxBytes))
+          return
+        }
         await storeSharedFile(file)
         const multipleFiles = handles.length > 1 ? '&multipleFiles=1' : ''
         window.location.assign('/?shared=1' + multipleFiles)
