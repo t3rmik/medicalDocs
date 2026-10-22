@@ -56,6 +56,7 @@ export function normalizeAIOutput(markdown: string): string {
   const lines = markdown.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim().split('\n')
   const output: string[] = []
   let inCode = false
+
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trimEnd()
     const trimmed = line.trim()
@@ -66,16 +67,26 @@ export function normalizeAIOutput(markdown: string): string {
       continue
     }
     if (inCode) { output.push(line); continue }
+
+    const previous = output.length ? output[output.length - 1].trim() : ''
     const next = lines[index + 1]?.trim() || ''
-    const structural = /^#{1,6}\s+/.test(trimmed) || /^([-*+]|\d+[.)])\s+/.test(trimmed) ||
-      /^>\s?/.test(trimmed) || /^([-*_])(?:\s*\1){2,}$/.test(trimmed) ||
-      (couldBeTableRow(trimmed) && isTableDivider(next)) || /^\*\*[^*]{2,100}\*\*:?$/.test(trimmed)
-    if (structural && output.length && output[output.length - 1] !== '') output.push('')
+    const listKind = /^[-*+]\s+/.test(trimmed) ? 'ul' : /^\d+[.)]\s+/.test(trimmed) ? 'ol' : null
+    const previousListKind = /^[-*+]\s+/.test(previous) ? 'ul' : /^\d+[.)]\s+/.test(previous) ? 'ol' : null
+    const heading = /^#{1,6}\s+/.test(trimmed)
+    const quote = /^>\s?/.test(trimmed)
+    const rule = /^([-*_])(?:\s*\1){2,}$/.test(trimmed)
+    const tableStart = couldBeTableRow(trimmed) && isTableDivider(next)
+    const boldLabel = /^\*\*[^*]{2,100}\*\*:?$/.test(trimmed)
+    const structural = Boolean(heading || listKind || quote || rule || tableStart || boldLabel)
+
+    // Separate blocks, not individual items within the same list.
+    const sameListContinuation = Boolean(listKind && previousListKind === listKind)
+    if (structural && output.length && previous && !sameListContinuation) output.push('')
     output.push(line)
   }
+
   return output.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
-
 export function markdownToHtml(markdown: string, headingOffset = 0): string {
   const lines = normalizeAIOutput(markdown).split('\n')
   const output: string[] = []
