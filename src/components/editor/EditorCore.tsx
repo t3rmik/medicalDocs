@@ -104,6 +104,8 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const [inkBrushSize, setInkBrushSize] = useState(2.4)
   const [inkInputMode, setInkInputMode] = useState<'pen' | 'finger'>('pen')
   const [inkTool, setInkTool] = useState<'pen' | 'highlighter' | 'eraser' | 'select'>('pen')
+  const [eraserMode, setEraserMode] = useState<'stroke' | 'precision'>('stroke')
+  const [eraserSize, setEraserSize] = useState(24)
   const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false)
 
   useEffect(() => {
@@ -290,29 +292,31 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           paths: [], width: Math.max(1, root.clientWidth || 800),
           height: Math.max(root.scrollHeight, root.clientHeight, 1122),
           enabled: Boolean(patch.enabled), color: inkColor,
-          brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, undoStack: [], redoStack: [], selectedId: null, ...patch,
+          brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, eraserMode, eraserSize, undoStack: [], redoStack: [], selectedId: null, ...patch,
         },
       }).run();
       return;
     }
     editor.view.dispatch(editor.state.tr.setNodeMarkup(existing.pos, undefined, { ...existing.node.attrs, ...patch }));
-  }, [editor, findInkLayer, inkColor, inkBrushSize, inkInputMode]);
+  }, [editor, findInkLayer, inkColor, inkBrushSize, inkInputMode, eraserMode, eraserSize]);
 
   const toggleInkMode = useCallback(() => {
     const next = !inkMode;
-    updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool });
+    updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, eraserMode, eraserSize });
     setInkMode(next);
     setInkToolbarCollapsed(false);
-  }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode, inkTool]);
+  }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode, inkTool, eraserMode, eraserSize]);
 
   const chooseInkTool = (tool: 'pen' | 'highlighter' | 'eraser' | 'select') => {
     setInkTool(tool);
     setInkMode(true);
-    updateInkLayer({ enabled: true, tool, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode });
+    updateInkLayer({ enabled: true, tool, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, eraserMode, eraserSize });
   };
 
   const changeInkColor = (value: string) => { setInkColor(value); updateInkLayer({ color: value }); };
   const changeInkBrushSize = (value: number) => { setInkBrushSize(value); updateInkLayer({ brushSize: value }); };
+  const changeEraserMode = (value: 'stroke' | 'precision') => { setEraserMode(value); updateInkLayer({ eraserMode: value }); };
+  const changeEraserSize = (value: number) => { setEraserSize(value); updateInkLayer({ eraserSize: value }); };
   const changeInkInputMode = (value: 'pen' | 'finger') => { setInkInputMode(value); updateInkLayer({ inputMode: value }); };
   const undoInkStroke = () => {
     const existing = findInkLayer();
@@ -372,6 +376,19 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
             <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="eraser" size={16} /> <span>Gomma</span></button>
             <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="select" size={16} /> <span>Seleziona</span></button>
           </div>
+          {inkTool === 'eraser' ? (
+            <>
+              <div data-md-eraser-modes="true" role="group" aria-label="Modalità gomma" className="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 p-1">
+                <button type="button" onClick={() => changeEraserMode('stroke')} aria-pressed={eraserMode === 'stroke'} title="Rimuove tutto il tratto continuo toccato" className={"min-h-10 rounded-lg px-2.5 py-2 text-xs font-semibold " + (eraserMode === 'stroke' ? 'bg-rose-700 text-white shadow-sm' : 'text-rose-900 hover:bg-white')}>Tratto intero</button>
+                <button type="button" onClick={() => changeEraserMode('precision')} aria-pressed={eraserMode === 'precision'} title="Rimuove solo la zona sotto la punta della gomma" className={"min-h-10 rounded-lg px-2.5 py-2 text-xs font-semibold " + (eraserMode === 'precision' ? 'bg-rose-700 text-white shadow-sm' : 'text-rose-900 hover:bg-white')}>Precisione</button>
+              </div>
+              <label className="flex min-h-10 min-w-40 flex-1 items-center gap-2 rounded-xl border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 sm:max-w-64">Spessore gomma
+                <input type="range" min="8" max="48" step="2" value={eraserSize} onChange={(event) => changeEraserSize(Number(event.target.value))} className="min-w-0 flex-1 accent-rose-600" aria-label="Spessore della gomma" />
+                <span className="w-7 text-right tabular-nums">{eraserSize}</span>
+              </label>
+            </>
+          ) : (
+            <>
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5" role="group" aria-label="Colori rapidi">
             {[
               { color: '#154e73', label: 'Blu petrolio' }, { color: '#1d4ed8', label: 'Blu' },
@@ -389,6 +406,8 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
             <input type="range" min="1" max="8" step="0.2" value={inkBrushSize} onChange={(event) => changeInkBrushSize(Number(event.target.value))} className="min-w-0 flex-1 accent-indigo-600" aria-label="Spessore della penna" />
             <span className="w-7 text-right tabular-nums">{inkBrushSize.toFixed(1)}</span>
           </label>
+            </>
+          )}
           <label className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">
             <input type="checkbox" checked={inkInputMode === 'finger'} onChange={(event) => changeInkInputMode(event.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-indigo-600" /> Disegna col dito
           </label>
