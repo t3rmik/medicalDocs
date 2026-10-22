@@ -14,6 +14,7 @@ import { parseFileToHtml } from '@/lib/importDocx'
 import { extractTextFromPdf } from '@/lib/importPdf'
 import { markdownToHtml } from '@/lib/markdown'
 import { db, MedicalDocument } from '@/lib/db'
+import { consumeSharedFile } from '@/lib/sharedFileInbox'
 import type { DocumentPageSection } from '@/types/documentPages'
 
 const PdfAnnotator = dynamic(
@@ -40,10 +41,42 @@ export default function Home() {
 
   const [loadingFormat, setLoadingFormat] = useState<string | null>(null);
   const [isFileOpenerOpen, setIsFileOpenerOpen] = useState(false);
+  const [sharedFile, setSharedFile] = useState<File | null>(null);
   const [pdfAnnotatorFile, setPdfAnnotatorFile] = useState<File | null>(null);
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
   const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
   const insertIntoEditorRef = useRef<((html: string) => void) | null>(null);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const shared = url.searchParams.get('shared');
+    const failed = url.searchParams.get('shareFailed');
+    const openFile = url.searchParams.get('openFile');
+    if (!shared && !failed && openFile !== '1') return;
+    url.searchParams.delete('shared');
+    url.searchParams.delete('shareFailed');
+    url.searchParams.delete('openFile');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    if (openFile === '1') setIsFileOpenerOpen(true);
+    if (failed) {
+      const message = failed === 'too-large' ? 'Il file supera il limite di 25 MB.'
+        : failed === 'unsupported' ? 'Questo formato non è supportato da MedicalDocs.'
+        : 'Il browser non ha consegnato il file a MedicalDocs. In WhatsApp prova Condividi → MedicalDocs; se non funziona, apri MedicalDocs e usa “Apri / Importa”.';
+      toast.error(message, { duration: 10000 });
+      return;
+    }
+    if (shared === '1') {
+      let cancelled = false;
+      void consumeSharedFile().then((file) => {
+        if (cancelled) return;
+        if (!file) { toast.error('MedicalDocs è stato aperto, ma il browser non ha trasferito il file. Usa “Apri / Importa” come alternativa.', { duration: 10000 }); return; }
+        if (file.size > 25 * 1024 * 1024) { toast.error('Il file supera il limite di 25 MB.'); return; }
+        setSharedFile(file);
+        setIsFileOpenerOpen(true);
+      }).catch(() => { if (!cancelled) toast.error('Non è stato possibile leggere il file condiviso. Usa “Apri / Importa”.'); });
+      return () => { cancelled = true; };
+    }
+  }, []);
   const editorPageSectionsRef = useRef<(() => DocumentPageSection[]) | null>(null);
   const registerEditorPageSections = useCallback((handler: (() => DocumentPageSection[]) | null) => {
     editorPageSectionsRef.current = handler;
@@ -389,7 +422,7 @@ export default function Home() {
         </div>
       )}
 
-      <FileOpener isOpen={isFileOpenerOpen} onClose={() => setIsFileOpenerOpen(false)} onFileSelect={handleFileSelect} />
+      <FileOpener isOpen={isFileOpenerOpen} initialFile={sharedFile} onClose={() => { setIsFileOpenerOpen(false); setSharedFile(null); }} onFileSelect={handleFileSelect} />
       {isAIStudioOpen && (
         <AIStudio
           isOpen={true}

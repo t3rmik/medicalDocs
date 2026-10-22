@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { PwaInstallControl } from '@/components/shared/PwaInstallControl'
 import {
   MedicalDocsIcon,
   MedicalDocsMark,
@@ -211,6 +212,7 @@ export function Header({
         </div>
 
         <div data-md-topbar-controls="true" className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <PwaInstallControl />
           <button
             type="button"
             onClick={openCommandPalette}

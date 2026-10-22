@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { BookOpen as BookOpenTab, Files as PagesTab, Home as HomeTab, Layout as LayoutTab, Sparkles as StudyTab, Table2 as TableTab, FilePlus as InsertTab, X as CloseTab } from 'lucide-react'
 import { Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import toast from 'react-hot-toast'
@@ -105,6 +106,7 @@ interface RibbonProps {
 
 export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio' | 'Pagine' | 'Modelli'>('Home');
+  const [tabletPanelOpen, setTabletPanelOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
   const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
@@ -282,20 +284,36 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
     editor.chain().focus().updateAttributes('table', { mdDensity }).run()
   }
 
-  const TabButton = ({ name }: { name: typeof activeTab }) => (
-    <button 
-      type="button"
-      onClick={() => setActiveTab(name)}
-      className={cn(
-        "whitespace-nowrap rounded-t-lg border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
-        activeTab === name 
-          ? "border-teal-600 bg-teal-50/70 text-teal-700" 
-          : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-      )}
-    >
-      {name}
-    </button>
-  );
+  const TabButton = ({ name }: { name: typeof activeTab }) => {
+    const Icon = name === 'Home' ? HomeTab
+      : name === 'Inserisci' ? InsertTab
+      : name === 'Tabella' ? TableTab
+      : name === 'Layout' ? LayoutTab
+      : name === 'Studio' ? StudyTab
+      : name === 'Pagine' ? PagesTab
+      : BookOpenTab;
+    const selected = activeTab === name;
+    return (
+      <button
+        type="button"
+        data-md-ribbon-tab={name}
+        onClick={() => {
+          setTabletPanelOpen(selected ? !tabletPanelOpen : true);
+          setActiveTab(name);
+        }}
+        aria-expanded={selected && tabletPanelOpen}
+        aria-controls="medicaldocs-ribbon-tools"
+        title={name}
+        className={cn(
+          "whitespace-nowrap rounded-t-lg border-b-2 px-4 py-2 text-xs font-semibold transition-colors",
+          selected ? "border-teal-600 bg-teal-50/70 text-teal-700" : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+        )}
+      >
+        <Icon className="md-ribbon-tab-icon h-4 w-4" aria-hidden="true" />
+        <span className="md-ribbon-tab-label">{name}</span>
+      </button>
+    );
+  };
 
   const IconButton = ({ onClick, isActive = false, disabled = false, icon: Icon, title }: any) => (
     <button
@@ -315,7 +333,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   );
 
   return (
-    <div data-md-ribbon="true" data-md-active-tab={activeTab} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
+    <div data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
@@ -326,7 +344,16 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         <TabButton name="Modelli" />
       </div>
 
-      <div className="flex min-h-[54px] flex-wrap items-center gap-3 overflow-x-auto p-2.5">
+      <div id="medicaldocs-ribbon-tools" data-md-tool-panel="true" className="flex min-h-[54px] flex-wrap items-center gap-3 overflow-x-auto p-2.5">
+        <div data-md-tablet-tools-header="true" className="hidden items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-teal-700">Strumenti</p>
+            <p className="truncate text-sm font-bold text-slate-900">{activeTab}</p>
+          </div>
+          <button type="button" onClick={() => setTabletPanelOpen(false)} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700" aria-label="Chiudi pannello strumenti">
+            <CloseTab className="h-4 w-4" aria-hidden="true" /> Chiudi
+          </button>
+        </div>
         {activeTab === 'Home' && (
           <>
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">

@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { MedicalDocsAlertCircle as AlertCircle, MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PdfModeChoice } from '@/types'
 
@@ -8,12 +8,29 @@ interface FileOpenerProps {
   isOpen: boolean;
   onClose: () => void;
   onFileSelect: (file: File, pdfMode?: PdfModeChoice) => void;
+  initialFile?: File | null;
 }
 
-export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
+export function FileOpener({ isOpen, onClose, onFileSelect, initialFile = null }: FileOpenerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const handledInitialFileRef = useRef<File | null>(null);
+
+  useEffect(() => {
+    if (!initialFile) { handledInitialFileRef.current = null; return; }
+    if (!isOpen || handledInitialFileRef.current === initialFile) return;
+    handledInitialFileRef.current = initialFile;
+    setSelectedFile(null);
+    setError(null);
+    const ext = initialFile.name.split('.').pop()?.toLowerCase();
+    const validExtensions = ['docx', 'pdf', 'txt', 'html', 'htm'];
+    if (!ext || !validExtensions.includes(ext)) { setError('Formato non supportato. Caricare un file .docx, PDF, TXT o HTML.'); return; }
+    if (initialFile.size > 25 * 1024 * 1024) { setError('Dimensione massima superata. Il file non può eccedere i 25 MB.'); return; }
+    if (ext === 'pdf') { setSelectedFile(initialFile); return; }
+    onFileSelect(initialFile);
+    onClose();
+  }, [isOpen, initialFile, onFileSelect, onClose]);
 
   if (!isOpen) return null;
 
