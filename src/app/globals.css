@@ -126,22 +126,20 @@ textarea:focus-visible {
   background: rgba(13, 148, 136, 0.12);
 }
 
-/* MedicalDocs table layout presets retained in document HTML and exports. */
+/* MedicalDocs table layout presets retained in document HTML and exports.
+   Explicit per-table CSS variables override these presets without losing their defaults. */
 .ProseMirror table[data-md-align="left"] { margin-left: 0 !important; margin-right: auto !important; }
 .ProseMirror table[data-md-align="center"] { margin-left: auto !important; margin-right: auto !important; }
 .ProseMirror table[data-md-align="right"] { margin-left: auto !important; margin-right: 0 !important; }
-.ProseMirror table[data-md-density="compact"] td,
-.ProseMirror table[data-md-density="compact"] th { padding: 3px 5px; }
-.ProseMirror table[data-md-density="normal"] td,
-.ProseMirror table[data-md-density="normal"] th { padding: 6px 8px; }
-.ProseMirror table[data-md-density="comfortable"] td,
-.ProseMirror table[data-md-density="comfortable"] th { padding: 12px 14px; }
+.ProseMirror table[data-md-density="compact"] { --md-table-padding-y: 3px; --md-table-padding-x: 5px; }
+.ProseMirror table[data-md-density="normal"] { --md-table-padding-y: 6px; --md-table-padding-x: 8px; }
+.ProseMirror table[data-md-density="comfortable"] { --md-table-padding-y: 12px; --md-table-padding-x: 14px; }
 
 .ProseMirror table td,
 .ProseMirror table th {
   min-width: 1em;
   border: 1px solid #cbd5e1;
-  padding: 6px 8px;
+  padding: var(--md-table-padding-y, 6px) var(--md-table-padding-x, 8px);
   vertical-align: top;
   box-sizing: border-box;
   position: relative;
@@ -1587,4 +1585,50 @@ select option:checked { color: #075e59 !important; background: #ccfbf1 !importan
 @media (max-width: 767px) {
   .md-ai-table { min-width: 25rem; }
   .md-ai-response p, .md-study-chat-answer p { line-height: 1.65; }
+}
+
+
+/* Expanded tutor mode is opt-in; the compact sidebar remains unchanged by default. */
+[data-md-sidebar-root="true"] [data-md-sidebar-panel="true"][data-md-chat-expanded="true"] {
+  position: fixed !important;
+  z-index: 160 !important;
+  top: max(10px, env(safe-area-inset-top)) !important;
+  right: max(10px, env(safe-area-inset-right)) !important;
+  bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  left: 78px !important;
+  width: min(920px, calc(100vw - 98px)) !important;
+  max-width: calc(100vw - 98px) !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: clamp(12px, 2vw, 22px) !important;
+  border: 1px solid #c8dfe4 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 28px 90px -38px rgb(2 27 38 / 72%), 0 8px 28px -18px rgb(2 27 38 / 38%) !important;
+  pointer-events: auto !important;
+}
+[data-md-sidebar-root="true"] [data-md-sidebar-panel="true"][data-md-chat-expanded="true"] [data-md-study-chat="true"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+@media (max-width: 767px) {
+  [data-md-sidebar-root="true"] [data-md-sidebar-panel="true"][data-md-chat-expanded="true"] {
+    top: max(6px, env(safe-area-inset-top)) !important;
+    right: 6px !important;
+    bottom: max(6px, env(safe-area-inset-bottom)) !important;
+    left: 6px !important;
+    width: auto !important;
+    max-width: none !important;
+    border-radius: 18px !important;
+    padding: 12px !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) and (any-pointer: coarse) {
+  [data-md-sidebar-root="true"] [data-md-sidebar-panel="true"][data-md-chat-expanded="true"] {
+    left: 70px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
 }
