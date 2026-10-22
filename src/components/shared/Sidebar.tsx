@@ -139,6 +139,19 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
     return () => window.removeEventListener('keydown', handleEscape)
   }, [chatExpanded])
 
+  useEffect(() => {
+    if (!activeTab) return
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const root = document.querySelector('[data-md-sidebar-root="true"]')
+      if (event.target instanceof Node && root?.contains(event.target)) return
+      setActiveTab(null)
+      setChatExpanded(false)
+    }
+    // Bubble phase: let the editor receive the pointer event before its side panel unmounts.
+    document.addEventListener('pointerdown', closeOnOutsidePointerDown)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointerDown)
+  }, [activeTab])
+
   const railButtonClass = (selected: boolean) =>
     'relative flex items-center justify-center rounded-xl p-2.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-400 ' +
     (selected ? 'bg-white/15 text-teal-200 shadow-inner ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/10 hover:text-white')
