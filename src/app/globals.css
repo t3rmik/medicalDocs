@@ -1704,8 +1704,10 @@ select option:checked { color: #075e59 !important; background: #ccfbf1 !importan
   overflow-wrap: normal;
   word-break: normal;
 }
-[data-md-ribbon="true"][data-md-tools-dismissed="true"] > [data-md-tool-panel="true"] {
-  display: none !important;
+@media (min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) {
+  [data-md-ribbon="true"][data-md-tools-dismissed="true"] > [data-md-tool-panel="true"] {
+    display: none !important;
+  }
 }
 @media (min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait) {
   [data-md-ribbon="true"][data-md-tools-dismissed="false"] > [data-md-tool-panel="true"] {
