@@ -313,14 +313,26 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
     const ribbon = ribbonRootRef.current
     const shell = ribbon?.closest<HTMLElement>('[data-md-editor-shell="true"]')
     if (!shell) return
-    const tabletLandscape = typeof window !== 'undefined' &&
-      window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape)').matches
-    if (tabletLandscape && tabletPanelOpen && !inkMode) {
-      shell.setAttribute('data-md-tools-panel-open', 'true')
-    } else {
+
+    // Do not rely on pointer media features: Android tablet browsers can report them differently
+    // in desktop-site mode. The dock is a viewport/orientation layout, not an input-mode setting.
+    const landscapeTablet = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (orientation: landscape)')
+    const syncPanelLayout = () => {
+      if (landscapeTablet.matches && tabletPanelOpen && !inkMode) {
+        shell.setAttribute('data-md-tools-panel-open', 'true')
+      } else {
+        shell.removeAttribute('data-md-tools-panel-open')
+      }
+    }
+
+    syncPanelLayout()
+    window.addEventListener('resize', syncPanelLayout)
+    landscapeTablet.addEventListener('change', syncPanelLayout)
+    return () => {
+      window.removeEventListener('resize', syncPanelLayout)
+      landscapeTablet.removeEventListener('change', syncPanelLayout)
       shell.removeAttribute('data-md-tools-panel-open')
     }
-    return () => shell.removeAttribute('data-md-tools-panel-open')
   }, [tabletPanelOpen, inkMode])
 
   useEffect(() => {
