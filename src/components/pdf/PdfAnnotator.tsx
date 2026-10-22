@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { createWorker } from 'tesseract.js';
 import toast from 'react-hot-toast';
 import {
   MedicalDocsIcon,
@@ -54,42 +53,43 @@ interface PdfTextTarget {
 
 
 function groupTextItemsIntoLines(items: PdfTextTarget[]): PdfTextTarget[] {
-  const ordered = [...items].sort((a, b) => {
-    const dy = (a.y + a.height / 2) - (b.y + b.height / 2);
-    return Math.abs(dy) > 4 ? dy : a.x - b.x;
-  });
-  const rows: PdfTextTarget[][] = [];
+  // Previous code scanned every existing row per item (quadratic on dense PDFs).
+  const ordered = [...items].sort((a, b) =>
+    (a.y + a.height / 2) - (b.y + b.height / 2) || a.x - b.x
+  );
+  const rows: Array<{ items: PdfTextTarget[]; centerTotal: number; heightTotal: number }> = [];
   for (const item of ordered) {
     const center = item.y + item.height / 2;
-    let matched: PdfTextTarget[] | null = null;
-    let closest = Number.POSITIVE_INFINITY;
-    for (const row of rows) {
-      const rowCenter = row.reduce((sum, current) => sum + current.y + current.height / 2, 0) / row.length;
-      const rowHeight = row.reduce((sum, current) => sum + current.height, 0) / row.length;
-      const distance = Math.abs(center - rowCenter);
-      if (distance <= Math.max(4, Math.min(12, Math.max(item.height, rowHeight) * 0.7)) && distance < closest) {
-        matched = row;
-        closest = distance;
+    const current = rows[rows.length - 1];
+    if (current) {
+      const rowCenter = current.centerTotal / current.items.length;
+      const rowHeight = current.heightTotal / current.items.length;
+      const tolerance = Math.max(4, Math.min(12, Math.max(item.height, rowHeight) * 0.7));
+      if (Math.abs(center - rowCenter) <= tolerance) {
+        current.items.push(item);
+        current.centerTotal += center;
+        current.heightTotal += item.height;
+        continue;
       }
     }
-    if (matched) matched.push(item); else rows.push([item]);
+    rows.push({ items: [item], centerTotal: center, heightTotal: item.height });
   }
   const lines: PdfTextTarget[] = [];
-  for (const row of rows) {
-    const horizontal = [...row].sort((a, b) => a.x - b.x);
+  for (const rowInfo of rows) {
+    const horizontal = [...rowInfo.items].sort((a, b) => a.x - b.x);
     let segment: PdfTextTarget[] = [];
     const flush = () => {
       if (!segment.length) return;
-      const left = Math.min(...segment.map((item) => item.x));
-      const top = Math.min(...segment.map((item) => item.y));
-      const right = Math.max(...segment.map((item) => item.x + item.width));
-      const bottom = Math.max(...segment.map((item) => item.y + item.height));
+      const bounds = segment.reduce((acc, item) => ({
+        left: Math.min(acc.left, item.x), top: Math.min(acc.top, item.y),
+        right: Math.max(acc.right, item.x + item.width), bottom: Math.max(acc.bottom, item.y + item.height),
+      }), { left: Number.POSITIVE_INFINITY, top: Number.POSITIVE_INFINITY, right: Number.NEGATIVE_INFINITY, bottom: Number.NEGATIVE_INFINITY });
       const sourceTextIds = segment.flatMap((item) => item.sourceTextIds?.length ? item.sourceTextIds : [item.id]);
       const text = segment.map((item) => item.text.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').trim();
       if (text) lines.push({
         id: segment.length === 1 ? segment[0].id : 'line-' + sourceTextIds.join('-'),
-        page: segment[0].page, text, x: left, y: top,
-        width: Math.max(3, right - left), height: Math.max(5, bottom - top),
+        page: segment[0].page, text, x: bounds.left, y: bounds.top,
+        width: Math.max(3, bounds.right - bounds.left), height: Math.max(5, bounds.bottom - bounds.top),
         fontSize: segment.reduce((sum, item) => sum + item.fontSize, 0) / segment.length,
         source: segment[0].source, sourceTextIds,
       });
@@ -134,6 +134,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
+  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [redactColor, setRedactColor] = useState('#0f172a');
@@ -210,23 +211,35 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   useEffect(() => {
     let isMounted = true
+    let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null
     const loadPdf = async () => {
       try {
         setLoading(true)
+        setPdfLoadError(null)
         setPdfDoc(null)
+        setNumPages(0)
+        setPageNum(1)
         const arrayBuffer = await file.arrayBuffer()
-        const loadedPdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+        if (!isMounted) return
+        // Cap decoded images and destroy the task when the viewer closes or switches files.
+        loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(arrayBuffer),
+          maxImageSize: 16_000_000,
+          isEvalSupported: false,
+        })
+        const loadedPdf = await loadingTask.promise
+        if (!isMounted) {
+          await loadingTask.destroy().catch(() => undefined)
+          return
+        }
 
-        // Fit the first page to the available reading area on phone/tablet.
         let fittedScale = 1.2
         try {
           const firstPage = await loadedPdf.getPage(1)
           const pageWidth = firstPage.getViewport({ scale: 1 }).width
           const viewer = document.querySelector<HTMLElement>('[data-md-pdf-viewer="true"]')
           const availableWidth = (viewer?.clientWidth || window.innerWidth - 48) - 48
-          if (pageWidth > 0 && availableWidth > 0) {
-            fittedScale = Math.max(0.5, Math.min(3, availableWidth / pageWidth))
-          }
+          if (pageWidth > 0 && availableWidth > 0) fittedScale = Math.max(0.5, Math.min(3, availableWidth / pageWidth))
         } catch {
           // Keep the normal zoom if the viewer cannot be measured.
         }
@@ -240,13 +253,18 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       } catch (err: any) {
         if (isMounted) {
           console.error('Errore caricamento PDF Viewer:', err)
-          toast.error('Impossibile caricare il visualizzatore PDF.')
+          const message = 'Impossibile caricare il PDF. Se è molto grande o contiene scansioni pesanti, prova a ridurlo o dividerlo.'
+          setPdfLoadError(message)
+          toast.error(message, { duration: 9000 })
           setLoading(false)
         }
       }
     }
     void loadPdf()
-    return () => { isMounted = false }
+    return () => {
+      isMounted = false
+      if (loadingTask) void loadingTask.destroy().catch(() => undefined)
+    }
   }, [file]);
 
   useEffect(() => {
@@ -256,23 +274,28 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
     const renderPage = async () => {
       try {
         const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale });
+        const displayViewport = page.getViewport({ scale });
+        // A very large page at high zoom can otherwise allocate hundreds of MB in a single RGBA canvas.
+        const pixelCount = displayViewport.width * displayViewport.height;
+        const maxCanvasPixels = 12_000_000;
+        const renderFactor = pixelCount > maxCanvasPixels ? Math.sqrt(maxCanvasPixels / pixelCount) : 1;
+        const renderViewport = renderFactor < 1 ? page.getViewport({ scale: scale * renderFactor }) : displayViewport;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', { alpha: false });
         if (!context) return;
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        // Await a narrowed non-null task; keep the outer reference only for effect cleanup.
-        const currentRenderTask = page.render({ canvasContext: context, viewport });
+        canvas.width = Math.max(1, Math.ceil(renderViewport.width));
+        canvas.height = Math.max(1, Math.ceil(renderViewport.height));
+        canvas.style.width = Math.ceil(displayViewport.width) + 'px';
+        canvas.style.height = Math.ceil(displayViewport.height) + 'px';
+        const currentRenderTask = page.render({ canvasContext: context, viewport: renderViewport });
         renderTask = currentRenderTask;
         await currentRenderTask.promise;
         if (!isMounted) return;
 
-        // Read the actual PDF text objects; no character-count page simulation.
         const textContent = await page.getTextContent();
-        const transform = viewport.transform;
+        const transform = displayViewport.transform;
         const targets: PdfTextTarget[] = [];
         textContent.items.forEach((rawItem: any, index: number) => {
           if (typeof rawItem.str !== 'string' || !rawItem.str.trim() || !Array.isArray(rawItem.transform)) return;
@@ -454,9 +477,10 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       return;
     }
     setIsOcrLoading(true);
-    let worker: Awaited<ReturnType<typeof createWorker>> | null = null;
+    let worker: any = null;
     try {
-      worker = await createWorker('ita+eng');
+      const tesseract = await import('tesseract.js');
+      worker = await tesseract.createWorker('ita+eng');
       const result = await worker.recognize(canvasRef.current);
       const words = (result.data.words || []).filter((word: any) => String(word.text || '').trim() && (word.confidence == null || word.confidence >= 25));
       const detected: PdfTextTarget[] = words.map((word: any, index: number) => {
@@ -833,7 +857,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      // Keep Blob URLs alive while large downloads initialise.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast.success('PDF modificato esportato.');
     } catch (err) {
       console.error('Export PDF non riuscito:', err);
@@ -980,7 +1005,9 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         <PageThumbnails pdfDoc={pdfDoc} totalPages={numPages} currentPage={pageNum} onPageSelect={setPageNum} />
         <div data-md-pdf-viewer="true" className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-slate-950 px-2 py-4 sm:px-8 sm:py-8">
         {loading ? (
-          <div className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
+          <div role="status" className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
+        ) : pdfLoadError ? (
+          <div role="alert" className="m-4 max-w-xl rounded-xl border border-amber-700/60 bg-amber-950/40 p-4 text-sm leading-6 text-amber-100">{pdfLoadError}</div>
         ) : (
           <div
             ref={containerRef}
@@ -996,8 +1023,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             <svg
               aria-hidden="true"
               className="absolute left-0 top-0 pointer-events-none z-20"
-              width={canvasRef.current?.width || 0}
-              height={canvasRef.current?.height || 0}
+              width={canvasRef.current?.clientWidth || canvasRef.current?.width || 0}
+              height={canvasRef.current?.clientHeight || canvasRef.current?.height || 0}
             >
               {annotations.filter((ann) => ann.page === pageNum && ann.type === 'draw' && ann.points && ann.points.length > 1).map((ann) => (
                 <g key={ann.id}>
