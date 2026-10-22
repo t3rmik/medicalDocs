@@ -239,7 +239,12 @@ export async function POST(req: Request) {
         h1,h2,h3{font-weight:700;line-height:1.3;margin:1.4em 0 .55em;color:#0f172a}
         h1{font-size:2rem}h2{font-size:1.55rem}h3{font-size:1.2rem}p{margin:.7em 0}
         ul,ol{padding-left:1.5rem}li{margin:.25rem 0}blockquote{border-left:3px solid #5eead4;margin:1.25rem 0;padding:.25rem 0 .25rem 1rem;color:#475569}
-        table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5e1;padding:6px 8px;vertical-align:top}
+        table{border-collapse:collapse;width:100%}
+        table[data-md-density="compact"]{--md-table-padding-y:3px;--md-table-padding-x:5px}
+        table[data-md-density="normal"]{--md-table-padding-y:6px;--md-table-padding-x:8px}
+        table[data-md-density="comfortable"]{--md-table-padding-y:12px;--md-table-padding-x:14px}
+        th,td{border:1px solid #cbd5e1;padding:var(--md-table-padding-y,6px) var(--md-table-padding-x,8px);vertical-align:top}
+        @media print{table[data-md-width]{width:100%!important;min-width:0!important;max-width:100%!important}}
         img{max-width:100%;height:auto}.page-break{break-before:page;page-break-before:always;height:0}
       </style></head><body>${exportContent}</body></html>`;
       return new NextResponse(htmlFile, {
@@ -349,7 +354,11 @@ export async function POST(req: Request) {
             ul, ol { padding-left: 1.5rem; } li { margin: .25rem 0; }
             blockquote { border-left: 3px solid #5eead4; margin: 1.25rem 0; padding: .25rem 0 .25rem 1rem; color: #475569; }
             table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: top; }
+            table[data-md-density="compact"] { --md-table-padding-y: 3px; --md-table-padding-x: 5px; }
+            table[data-md-density="normal"] { --md-table-padding-y: 6px; --md-table-padding-x: 8px; }
+            table[data-md-density="comfortable"] { --md-table-padding-y: 12px; --md-table-padding-x: 14px; }
+            th, td { border: 1px solid #cbd5e1; padding: var(--md-table-padding-y, 6px) var(--md-table-padding-x, 8px); vertical-align: top; }
+            @media print { table[data-md-width] { width: 100% !important; min-width: 0 !important; max-width: 100% !important; } }
             img { max-width: 100%; height: auto; }
             .page-break { break-before: page; page-break-before: always; height: 0; }
           </style>
