@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookOpen as BookOpenTab, Files as PagesTab, Home as HomeTab, Layout as LayoutTab, Sparkles as StudyTab, Table2 as TableTab, FilePlus as InsertTab, X as CloseTab, Menu as MobileMenuTab, ChevronDown as MobileChevronTab } from 'lucide-react'
 import { Editor } from '@tiptap/react'
-import { NodeSelection } from '@tiptap/pm/state'
+import { NodeSelection, Selection } from '@tiptap/pm/state'
 import toast from 'react-hot-toast'
 import {
   MedicalDocsBold as Bold,
@@ -173,6 +173,31 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       bottom: margins.bottom * 96 / 25.4,
       left: margins.left * 96 / 25.4,
     });
+
+    const printStyleId = 'medicaldocs-dynamic-print-layout'
+    let printStyle = document.getElementById(printStyleId) as HTMLStyleElement | null
+    if (!printStyle) {
+      printStyle = document.createElement('style')
+      printStyle.id = printStyleId
+      document.head.appendChild(printStyle)
+    }
+    printStyle.textContent = `
+      @page { size: ${width}mm ${height}mm; margin: 0; }
+      @media print {
+        [data-md-editor-zoom-wrapper="true"] { zoom: 1 !important; }
+        .ProseMirror.editor-page {
+          box-sizing: border-box !important;
+          width: ${width}mm !important;
+          max-width: none !important;
+          min-height: ${height}mm !important;
+          padding: ${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm !important;
+          margin: 0 !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+        }
+      }
+    `
     try {
       window.localStorage.setItem(PAGE_LAYOUT_KEY, JSON.stringify({
         format: pageFormat,
@@ -310,6 +335,43 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
     editor.chain().focus().updateAttributes('table', { mdDensity }).run()
   }
 
+  const moveCurrentBlock = (direction: 'up' | 'down') => {
+    if (editor.isDestroyed) return
+    const { doc, selection } = editor.state
+    const entries: Array<{ node: typeof doc.firstChild; pos: number }> = []
+    doc.forEach((node, pos) => entries.push({ node, pos }))
+    const selectionPos = selection.from
+    const currentIndex = entries.findIndex(({ node, pos }) =>
+      node !== null && selectionPos >= pos && selectionPos < pos + node.nodeSize
+    )
+    if (currentIndex < 0) {
+      toast.error('Posiziona il cursore o seleziona un elemento da spostare.')
+      return
+    }
+    const neighbourIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (neighbourIndex < 0 || neighbourIndex >= entries.length) {
+      toast('L’elemento è già al limite del documento in questa direzione.')
+      return
+    }
+
+    const current = entries[currentIndex]
+    const neighbour = entries[neighbourIndex]
+    if (!current.node || !neighbour.node) return
+    const from = current.pos
+    const to = from + current.node.nodeSize
+    const insertPos = direction === 'up'
+      ? neighbour.pos
+      : neighbour.pos + neighbour.node.nodeSize - current.node.nodeSize
+
+    const transaction = editor.state.tr.delete(from, to)
+    transaction.insert(insertPos, current.node)
+    const cursorPos = Math.min(transaction.doc.content.size, insertPos + 1)
+    transaction.setSelection(Selection.near(transaction.doc.resolve(Math.max(0, cursorPos)), 1))
+    editor.view.dispatch(transaction.scrollIntoView())
+    editor.commands.focus()
+    toast.success(direction === 'up' ? 'Elemento spostato sopra.' : 'Elemento spostato sotto.')
+  }
+
   const TabButton = ({ name }: { name: typeof activeTab }) => {
     const Icon = name === 'Home' ? HomeTab
       : name === 'Inserisci' ? InsertTab
@@ -392,6 +454,11 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <IconButton icon={Undo} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Annulla" />
               <IconButton icon={Redo} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Ripristina" />
               <IconButton icon={RemoveFormatting} onClick={() => editor.chain().focus().unsetAllMarks().run()} title="Cancella formattazione" />
+            </div>
+
+            <div className="flex items-center gap-1 border-r border-slate-300 pr-3" role="group" aria-label="Sposta elemento selezionato">
+              <IconButton icon={ArrowUp} onClick={() => moveCurrentBlock('up')} title="Sposta elemento selezionato sopra" />
+              <IconButton icon={ArrowDown} onClick={() => moveCurrentBlock('down')} title="Sposta elemento selezionato sotto" />
             </div>
 
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
@@ -718,8 +785,11 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
             {pageMargins === 'custom' && (
               <div className="rounded-xl border border-teal-100 bg-teal-50/70 p-3 sm:p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div><p className="text-xs font-bold text-slate-800">Margini personalizzati</p><p className="text-[11px] text-slate-500">Imposta ogni lato in millimetri · da 0 a 40 mm</p></div>
-                  <button type="button" onClick={() => setCustomMargins({ top: 4, right: 4, bottom: 4, left: 4 })} className="min-h-9 rounded-lg border border-teal-200 bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100">Ripristina 4 mm</button>
+                  <div><p className="text-xs font-bold text-slate-800">Margini personalizzati</p><p className="text-[11px] text-slate-500">Distanza dal bordo del foglio in millimetri · da 0 a 40 mm</p></div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => { setCustomMargins((current) => ({ ...current, top: 0 })); setPageMargins('custom'); }} className="min-h-9 rounded-lg border border-teal-200 bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100">Superiore 0 mm</button>
+                    <button type="button" onClick={() => setCustomMargins({ top: 4, right: 4, bottom: 4, left: 4 })} className="min-h-9 rounded-lg border border-teal-200 bg-white px-3 py-1.5 text-xs font-semibold text-teal-800 hover:bg-teal-100">Ripristina 4 mm</button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {([
@@ -731,7 +801,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                     <label key={side} className="grid gap-1 text-[11px] font-semibold text-slate-700">
                       {label}
                       <div className="flex items-center rounded-lg border border-slate-200 bg-white pr-2 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
-                        <input type="number" min="0" max="40" step="0.5" value={customMargins[side]}
+                        <input type="number" min="0" max="40" step="0.1" value={customMargins[side]}
                           onChange={(event) => {
                             const value = Number(event.target.value);
                             if (event.target.value !== '' && Number.isFinite(value)) {

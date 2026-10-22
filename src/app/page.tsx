@@ -348,10 +348,17 @@ export default function Home() {
       if (format !== 'pdf' && doc.content.length > 2_900_000) {
         throw new Error('Il documento è troppo grande per l’esportazione server. Riduci o dividi le immagini e riprova.');
       }
+      let pageLayout: unknown = null;
+      try {
+        const storedLayout = window.localStorage.getItem('medicaldocs.pageLayout.v2');
+        if (storedLayout) pageLayout = JSON.parse(storedLayout);
+      } catch {
+        // Export remains available if local layout preferences are malformed.
+      }
       const res = await fetch('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: doc.content, format, title: doc.title }),
+        body: JSON.stringify({ content: doc.content, format, title: doc.title, pageLayout }),
       });
 
       if (!res.ok) {

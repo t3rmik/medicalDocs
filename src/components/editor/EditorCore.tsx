@@ -117,6 +117,8 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const initialContentRef = useRef(initialContent)
   initialContentRef.current = initialContent
   const [zoom, setZoom] = useState(100)
+  const [fitScale, setFitScale] = useState(1)
+  const editorViewportRef = useRef<HTMLDivElement | null>(null)
   const [inkMode, setInkMode] = useState(false)
   const [inkColor, setInkColor] = useState('#154e73')
   const [inkBrushSize, setInkBrushSize] = useState(2.4)
@@ -125,6 +127,43 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const [eraserMode, setEraserMode] = useState<'stroke' | 'precision'>('stroke')
   const [eraserSize, setEraserSize] = useState(24)
   const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false)
+
+  useEffect(() => {
+    if (!editor) return
+    const viewport = editorViewportRef.current
+    if (!viewport) return
+
+    const updateFitScale = () => {
+      const computedStyle = window.getComputedStyle(editor.view.dom)
+      const rawWidth = computedStyle.getPropertyValue('--md-page-width').trim() || '210mm'
+      const match = rawWidth.match(/^([0-9]+(?:\.[0-9]+)?)(mm|cm|in|px)?$/)
+      if (!match) {
+        setFitScale(1)
+        return
+      }
+      const amount = Number(match[1])
+      const unit = match[2] || 'px'
+      const pageWidthPx = unit === 'mm' ? amount * 96 / 25.4
+        : unit === 'cm' ? amount * 96 / 2.54
+        : unit === 'in' ? amount * 96
+        : amount
+      const usableWidth = Math.max(260, viewport.clientWidth - 20)
+      const next = Math.max(0.72, Math.min(1, usableWidth / Math.max(1, pageWidthPx)))
+      setFitScale((current) => Math.abs(current - next) < 0.005 ? current : next)
+    }
+
+    updateFitScale()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateFitScale) : null
+    observer?.observe(viewport)
+    observer?.observe(editor.view.dom)
+    window.addEventListener('resize', updateFitScale)
+    window.addEventListener('orientationchange', updateFitScale)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateFitScale)
+      window.removeEventListener('orientationchange', updateFitScale)
+    }
+  }, [editor])
 
   useEffect(() => {
     if (!inkMode) return
@@ -448,8 +487,8 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           </button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">
-        <div style={{ zoom: zoom / 100 }}>
+      <div ref={editorViewportRef} data-md-editor-viewport="true" className="min-h-0 flex-1 overflow-auto">
+        <div data-md-editor-zoom-wrapper="true" style={{ zoom: (zoom / 100) * fitScale }}>
           <EditorContent editor={editor} />
         </div>
       </div>
