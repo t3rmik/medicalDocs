@@ -1,6 +1,7 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { StudyChatPanel } from '@/components/ai/StudyChatPanel'
 import {
   MedicalDocsIcon,
   MedicalDocsMark,
@@ -27,7 +28,7 @@ interface SidebarProps {
 
 const DEFAULT_FOLDERS = ['Generale', 'Biologia', 'Chimica', 'Personale'] as const
 const CUSTOM_FOLDERS_KEY = 'medicaldocs-custom-folders-v1'
-type SidebarTab = 'docs' | 'favorites' | 'outline' | null
+type SidebarTab = 'docs' | 'favorites' | 'outline' | 'chat' | null
 
 function searchableDocumentText(value: string): string {
   return value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLocaleLowerCase('it')
@@ -147,6 +148,11 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
           <MedicalDocsIcon name="outline" size={22} />
           <span data-md-sidebar-mobile-label="true">Indice</span>
         </button>
+        <button type="button" data-md-nav-button="true" data-md-study-chat-launcher="true" onClick={() => openTab('chat')} className={railButtonClass(activeTab === 'chat')} title="Tutor IA: domande libere di studio" aria-label="Apri Tutor IA per domande libere di studio" aria-pressed={activeTab === 'chat'}>
+          <MedicalDocsIcon name="spark" size={22} />
+          <span data-md-sidebar-mobile-label="true">Tutor IA</span>
+          <span className="sr-only">Chat separata dall’IA che analizza il documento</span>
+        </button>
         <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-teal-200" title="MedicalDocs Pro">
           <span className="text-[10px] font-black tracking-tight">MD</span>
         </div>
@@ -157,9 +163,9 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold tracking-tight text-slate-900">
-                {activeTab === 'docs' ? 'La tua libreria' : activeTab === 'favorites' ? 'Documenti preferiti' : 'Struttura documento'}
+                {activeTab === 'docs' ? 'La tua libreria' : activeTab === 'favorites' ? 'Documenti preferiti' : activeTab === 'chat' ? 'Tutor di studio' : 'Struttura documento'}
               </h2>
-              {activeTab !== 'outline' && (
+              {activeTab !== 'outline' && activeTab !== 'chat' && (
                 <p className="mt-1 text-xs text-slate-500">
                   {activeTab === 'favorites' ? String(favoriteCount) + ' documenti nei preferiti' : String(allDocs?.length || 0) + ' documenti salvati su questo dispositivo'}
                 </p>
@@ -170,7 +176,7 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
             </button>
           </div>
 
-          {activeTab !== 'outline' && (
+          {(activeTab === 'docs' || activeTab === 'favorites') && (
             <div className="flex min-h-0 flex-1 flex-col">
               <label className="relative mb-2.5 block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -262,6 +268,8 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
               </div>
             </div>
           )}
+
+          {activeTab === 'chat' && <StudyChatPanel />}
 
           {activeTab === 'outline' && (
             <div className="flex-1 space-y-1 overflow-y-auto">

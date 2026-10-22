@@ -1375,3 +1375,129 @@ table { border-collapse: separate; border-spacing: 0; }
              var(--md-page-padding-bottom, 4mm) var(--md-page-padding-left, 4mm) !important;
   }
 }
+
+
+/* Tablet/phone native dropdowns: keep both the closed control and native option list on the light MedicalDocs palette. */
+select,
+select:active,
+select:focus,
+select:focus-visible,
+select option,
+select optgroup {
+  color-scheme: light !important;
+}
+select,
+select:active,
+select:focus {
+  color: #173746 !important;
+  background-color: #ffffff !important;
+  border-color: #c9d9e0;
+}
+select option,
+select optgroup {
+  color: #173746 !important;
+  background: #ffffff !important;
+}
+select option:checked {
+  color: #075e59 !important;
+  background: #ccfbf1 !important;
+}
+@media (hover: none), (pointer: coarse) {
+  select,
+  select.bg-transparent,
+  [data-md-sidebar-panel="true"] select,
+  [data-md-ribbon="true"] select,
+  [data-md-ai-dialog="true"] select {
+    min-height: 44px;
+    color-scheme: light !important;
+    color: #173746 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #c9d9e0;
+    border-radius: 10px;
+    font-size: 14px;
+    -webkit-text-fill-color: #173746;
+  }
+  select option,
+  select optgroup {
+    color: #173746 !important;
+    background: #ffffff !important;
+    -webkit-text-fill-color: #173746;
+  }
+  [data-md-sidebar-panel="true"] select.bg-transparent {
+    background-color: #ffffff !important;
+    text-align: left;
+    padding: 8px 10px;
+  }
+}
+[data-md-study-chat-launcher="true"] {
+  margin-top: 4px;
+  border: 1px solid rgb(94 234 212 / 28%);
+  background: linear-gradient(145deg, rgb(45 212 191 / 18%), rgb(14 116 144 / 20%));
+  color: #c8fff6;
+}
+[data-md-study-chat-launcher="true"][aria-pressed="true"] {
+  background: linear-gradient(145deg, rgb(45 212 191 / 32%), rgb(14 116 144 / 34%)) !important;
+  color: #ffffff !important;
+}
+[data-md-study-chat="true"] {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-md-study-chat-messages="true"] {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 2px 12px;
+  scrollbar-gutter: stable;
+}
+[data-md-study-chat="true"] textarea {
+  min-height: 48px;
+  max-height: 32dvh;
+  resize: vertical;
+  font-size: 16px;
+  line-height: 1.45;
+}
+.md-study-chat-answer h2,
+.md-study-chat-answer h3 {
+  margin: 0.75rem 0 0.35rem;
+  font-weight: 750;
+  line-height: 1.3;
+  color: #0b4652;
+}
+.md-study-chat-answer h2 { font-size: 0.98rem; }
+.md-study-chat-answer h3 { font-size: 0.9rem; }
+.md-study-chat-answer p { margin: 0.4rem 0; }
+.md-study-chat-answer ul,
+.md-study-chat-answer ol { margin: 0.35rem 0 0.5rem; padding-left: 1.2rem; }
+.md-study-chat-answer ul { list-style: disc; }
+.md-study-chat-answer ol { list-style: decimal; }
+.md-study-chat-answer li { margin: 0.15rem 0; }
+.md-study-chat-answer code {
+  border-radius: 0.3rem;
+  background: #eef6f7;
+  padding: 0.08rem 0.25rem;
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+}
+.md-study-chat-answer pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 0.7rem;
+  background: #102b3a;
+  padding: 0.75rem;
+  color: #f0fdfa;
+  white-space: pre;
+}
+@media (max-width: 767px) {
+  [data-md-sidebar-root="true"] [data-md-sidebar-panel="true"] {
+    width: min(21rem, calc(100vw - 4rem));
+    padding: 12px;
+  }
+  [data-md-study-chat="true"] textarea {
+    max-height: 24dvh;
+  }
+}
