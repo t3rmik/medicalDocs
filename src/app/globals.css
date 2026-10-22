@@ -1725,3 +1725,71 @@ select option:checked { color: #075e59 !important; background: #ccfbf1 !importan
 [data-md-study-chat-intro="true"] p + p {
   max-width: 100%;
 }
+
+
+/* Fix tablet tool cards: grid to the actual floating panel width, never viewport breakpoints. */
+[data-md-model-tools="true"],
+[data-md-page-tools="true"] {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+}
+[data-md-model-cards="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+[data-md-model-cards="true"] > div {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: stretch;
+}
+[data-md-model-cards="true"] > div > button.md-template-card {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+[data-md-model-cards="true"] .md-template-card > span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+[data-md-page-cards="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+[data-md-page-cards="true"] > button.md-tool-card {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 54px;
+  justify-content: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+@container (min-width: 560px) {
+  [data-md-page-cards="true"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+@container (min-width: 820px) {
+  [data-md-model-cards="true"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  [data-md-page-cards="true"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+@container (min-width: 1080px) {
+  [data-md-page-cards="true"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+}
+@container (max-width: 300px) {
+  [data-md-model-cards="true"],
+  [data-md-page-cards="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
