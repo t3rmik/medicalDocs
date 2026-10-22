@@ -122,6 +122,8 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [tableWidth, setTableWidth] = useState(100);
   const [tablePaddingX, setTablePaddingX] = useState(8);
   const [tablePaddingY, setTablePaddingY] = useState(6);
+  const [tableAlignment, setTableAlignment] = useState<'left' | 'center' | 'right'>('left');
+  const [tableDensity, setTableDensity] = useState<'compact' | 'normal' | 'comfortable'>('normal');
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
   const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
@@ -280,9 +282,12 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       }
       const parsedWidth = Number(tableNode.attrs.mdWidth)
       const nextWidth = Number.isFinite(parsedWidth) ? Math.max(35, Math.min(180, parsedWidth)) : 100
-      const density = tableNode.attrs.mdDensity
-      const defaults = density === 'compact' ? { x: 5, y: 3 }
-        : density === 'comfortable' ? { x: 14, y: 12 }
+      const rawAlignment = tableNode.attrs.mdAlign
+      const nextAlignment = rawAlignment === 'center' || rawAlignment === 'right' ? rawAlignment : 'left'
+      const rawDensity = tableNode.attrs.mdDensity
+      const nextDensity = rawDensity === 'compact' || rawDensity === 'comfortable' ? rawDensity : 'normal'
+      const defaults = nextDensity === 'compact' ? { x: 5, y: 3 }
+        : nextDensity === 'comfortable' ? { x: 14, y: 12 }
         : { x: 8, y: 6 }
       const rawX = tableNode.attrs.mdCellPaddingX
       const rawY = tableNode.attrs.mdCellPaddingY
@@ -291,6 +296,8 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       setTableWidth((current) => current === nextWidth ? current : nextWidth)
       setTablePaddingX((current) => current === nextX ? current : nextX)
       setTablePaddingY((current) => current === nextY ? current : nextY)
+      setTableAlignment((current) => current === nextAlignment ? current : nextAlignment)
+      setTableDensity((current) => current === nextDensity ? current : nextDensity)
     }
     editor.on('selectionUpdate', syncTableControls)
     editor.on('transaction', syncTableControls)
@@ -395,6 +402,12 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   }
 
 
+  const insertStudyTemplate = (html: string, label: string) => {
+    const inserted = editor.chain().focus().insertContent(html).run()
+    if (inserted) toast.success(label + ' inserito.')
+    else toast.error('Non è stato possibile inserire ' + label.toLocaleLowerCase('it') + '.')
+  }
+
   const findSelectedTable = () => {
     const { state } = editor
     if (state.selection instanceof NodeSelection && state.selection.node.type.name === 'table') {
@@ -458,6 +471,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       toast.error('Posiziona il cursore dentro una tabella.')
       return
     }
+    setTableAlignment(mdAlign)
     editor.chain().focus().updateAttributes('table', { mdAlign }).run()
   }
 
@@ -471,6 +485,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       : { x: 8, y: 6 }
     setTablePaddingX(defaults.x)
     setTablePaddingY(defaults.y)
+    setTableDensity(mdDensity)
     editor.chain().focus().updateAttributes('table', { mdDensity, mdCellPaddingX: null, mdCellPaddingY: null }).run()
   }
 
@@ -686,59 +701,60 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         )}
 
         {activeTab === 'Studio' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="mr-1 min-w-40">
-              <p className="text-xs font-semibold text-slate-800">Strumenti per studiare</p>
-              <p className="text-[11px] text-slate-500">Inserisci schemi pronti e poi compila gli spazi.</p>
+          <div className="w-full min-w-0">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-slate-900">Strumenti per studiare</p>
+                <p className="mt-0.5 text-xs leading-5 text-slate-500">Scegli una struttura: verrà inserita nel punto del cursore e resterà modificabile nell’editor.</p>
+              </div>
+              <span className="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-1 text-[10px] font-bold text-teal-800">4 strumenti</span>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().insertContent(
-                  '<h2>Schema della lezione</h2><h3>Obiettivi</h3><ul><li><p>Che cosa devo imparare?</p></li></ul><h3>Concetti chiave</h3><p>Scrivi qui i concetti principali...</p><h3>Esempi e collegamenti</h3><p>Aggiungi esempi, casi e collegamenti utili...</p><h3>Riepilogo in 3 punti</h3><ol><li><p>Primo punto</p></li><li><p>Secondo punto</p></li><li><p>Terzo punto</p></li></ol>'
-                ).run();
-                toast.success('Schema di studio inserito.');
-              }}
-              className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-800 transition hover:bg-teal-100"
-            >
-              Schema lezione
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().insertContent(
-                  '<h2>Domande di ripasso</h2><ol><li><p>Qual è il concetto più importante?</p></li><li><p>Come lo spiegherei con parole mie?</p></li><li><p>Quale esempio posso ricordare?</p></li><li><p>Che cosa devo rivedere?</p></li></ol><h3>Risposte e dubbi</h3><p>Completa qui le risposte...</p>'
-                ).run();
-                toast.success('Domande di ripasso inserite.');
-              }}
-              className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800 transition hover:bg-violet-100"
-            >
-              Domande di ripasso
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().insertContent(
-                  '<h2>Flashcard</h2><p><strong>Domanda</strong></p><p>Scrivi una domanda breve...</p><p><strong>Risposta</strong></p><p>Scrivi una risposta chiara e sintetica...</p><hr/><p><strong>Domanda successiva</strong></p><p>Scrivi qui...</p><p><strong>Risposta</strong></p><p>Scrivi qui...</p>'
-                ).run();
-                toast.success('Modello flashcard inserito.');
-              }}
-              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-            >
-              Flashcard
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().insertContent(
-                  '<h2>Checklist di ripasso</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Ho letto e compreso gli appunti</p></li><li data-type="taskItem" data-checked="false"><p>So spiegare i concetti senza guardare</p></li><li data-type="taskItem" data-checked="false"><p>Ho fatto una pausa</p></li><li data-type="taskItem" data-checked="false"><p>Ho segnato i dubbi da chiarire</p></li></ul>'
-                ).run();
-                toast.success('Checklist di ripasso inserita.');
-              }}
-              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
-            >
-              Checklist di studio
-            </button>
+            <div className="grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => insertStudyTemplate(`<h2>Schema della lezione</h2><h3>Obiettivi</h3><ul><li><p>Che cosa devo imparare?</p></li></ul><h3>Concetti chiave</h3><p>Scrivi qui i concetti principali...</p><h3>Esempi e collegamenti</h3><p>Aggiungi esempi, casi e collegamenti utili...</p><h3>Riepilogo in 3 punti</h3><ol><li><p>Primo punto</p></li><li><p>Secondo punto</p></li><li><p>Terzo punto</p></li></ol>`, 'Schema della lezione')}
+                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white p-3.5 text-left transition hover:border-teal-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+              >
+                <span className="block min-w-0">
+                  <span className="block text-sm font-bold text-teal-950">Schema della lezione</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">Obiettivi, concetti, esempi e riepilogo in tre punti.</span>
+                </span>
+                <span className="text-xs font-bold text-teal-800 group-hover:underline">Inserisci schema <span aria-hidden="true">↗</span></span>
+              </button>
+              <button
+                type="button"
+                onClick={() => insertStudyTemplate(`<h2>Domande di ripasso</h2><ol><li><p>Qual è il concetto più importante?</p></li><li><p>Come lo spiegherei con parole mie?</p></li><li><p>Quale esempio posso ricordare?</p></li><li><p>Che cosa devo rivedere?</p></li></ol><h3>Risposte e dubbi</h3><p>Completa qui le risposte...</p>`, 'Domande di ripasso')}
+                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-3.5 text-left transition hover:border-violet-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
+              >
+                <span className="block min-w-0">
+                  <span className="block text-sm font-bold text-violet-950">Domande di ripasso</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">Quattro domande per richiamare i concetti senza rileggere tutto.</span>
+                </span>
+                <span className="text-xs font-bold text-violet-800 group-hover:underline">Inserisci domande <span aria-hidden="true">↗</span></span>
+              </button>
+              <button
+                type="button"
+                onClick={() => insertStudyTemplate(`<h2>Flashcard</h2><p><strong>Domanda</strong></p><p>Scrivi una domanda breve...</p><p><strong>Risposta</strong></p><p>Scrivi una risposta chiara e sintetica...</p><hr/><p><strong>Domanda successiva</strong></p><p>Scrivi qui...</p><p><strong>Risposta</strong></p><p>Scrivi qui...</p>`, 'Flashcard')}
+                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-3.5 text-left transition hover:border-amber-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+              >
+                <span className="block min-w-0">
+                  <span className="block text-sm font-bold text-amber-950">Flashcard</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">Modello domanda/risposta da compilare e usare per ripassare.</span>
+                </span>
+                <span className="text-xs font-bold text-amber-800 group-hover:underline">Inserisci flashcard <span aria-hidden="true">↗</span></span>
+              </button>
+              <button
+                type="button"
+                onClick={() => insertStudyTemplate(`<h2>Checklist di ripasso</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Ho letto e compreso gli appunti</p></li><li data-type="taskItem" data-checked="false"><p>So spiegare i concetti senza guardare</p></li><li data-type="taskItem" data-checked="false"><p>Ho fatto una pausa</p></li><li data-type="taskItem" data-checked="false"><p>Ho segnato i dubbi da chiarire</p></li></ul>`, 'Checklist di ripasso')}
+                className="group flex min-h-[118px] min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-3.5 text-left transition hover:border-emerald-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              >
+                <span className="block min-w-0">
+                  <span className="block text-sm font-bold text-emerald-950">Checklist di ripasso</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">Controlla comprensione, richiamo attivo, pause e dubbi.</span>
+                </span>
+                <span className="text-xs font-bold text-emerald-800 group-hover:underline">Inserisci checklist <span aria-hidden="true">↗</span></span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -889,16 +905,16 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <button type="button" onClick={() => setSelectedTableWidth(100)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Adatta alla pagina</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Allineamento tabella">
-              <button type="button" onClick={() => setSelectedTableAlignment('left')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Sinistra</button>
-              <button type="button" onClick={() => setSelectedTableAlignment('center')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Centro</button>
-              <button type="button" onClick={() => setSelectedTableAlignment('right')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Destra</button>
+              <button type="button" aria-pressed={tableAlignment === 'left'} onClick={() => setSelectedTableAlignment('left')} className={'min-h-10 rounded-lg border px-2.5 text-xs font-semibold transition ' + (tableAlignment === 'left' ? 'border-teal-300 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-50')}>Sinistra</button>
+              <button type="button" aria-pressed={tableAlignment === 'center'} onClick={() => setSelectedTableAlignment('center')} className={'min-h-10 rounded-lg border px-2.5 text-xs font-semibold transition ' + (tableAlignment === 'center' ? 'border-teal-300 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-50')}>Centro</button>
+              <button type="button" aria-pressed={tableAlignment === 'right'} onClick={() => setSelectedTableAlignment('right')} className={'min-h-10 rounded-lg border px-2.5 text-xs font-semibold transition ' + (tableAlignment === 'right' ? 'border-teal-300 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-50')}>Destra</button>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2" role="group" aria-label="Spaziatura interna delle celle">
               <div className="flex flex-wrap items-center gap-1">
                 <span className="px-1 text-[11px] font-semibold text-slate-500">Preset</span>
-                <button type="button" onClick={() => setSelectedTableDensity('compact')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Compatta</button>
-                <button type="button" onClick={() => setSelectedTableDensity('normal')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Normale</button>
-                <button type="button" onClick={() => setSelectedTableDensity('comfortable')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Ampia</button>
+                <button type="button" aria-pressed={tableDensity === 'compact'} onClick={() => setSelectedTableDensity('compact')} className={'min-h-10 rounded-lg border px-2.5 text-xs font-semibold transition ' + (tableDensity === 'compact' ? 'border-teal-300 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-50')}>Compatta</button>
+                <button type="button" aria-pressed={tableDensity === 'normal'} onClick={() => setSelectedTableDensity('normal')} className={'min-h-10 rounded-lg border px-2.5 text-xs font-semibold transition ' + (tableDensity === 'normal' ? 'border-teal-300 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-50')}>Normale</button>
+                <button type="button" aria-pressed={tableDensity === 'comfortable'} onClick={() => setSelectedTableDensity('comfortable')} className={'min-h-10 rounded-lg border px-2.5 text-xs font-semibold transition ' + (tableDensity === 'comfortable' ? 'border-teal-300 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-teal-50')}>Ampia</button>
               </div>
               <label className="flex min-w-[8.5rem] flex-1 flex-col gap-1 px-1 text-[11px] font-semibold text-slate-600">
                 <span className="flex items-center justify-between gap-2">Margine orizzontale <strong className="text-teal-800">{tablePaddingX}px</strong></span>
@@ -910,16 +926,16 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="Modifica struttura tabella">
-              <button type="button" disabled={!editor.can().addRowBefore()} onClick={() => editor.chain().focus().addRowBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Riga sopra</button>
-              <button type="button" disabled={!editor.can().addRowAfter()} onClick={() => editor.chain().focus().addRowAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Rows className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Riga sotto</button>
-              <button type="button" disabled={!editor.can().addColumnBefore()} onClick={() => editor.chain().focus().addColumnBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Colonna prima</button>
-              <button type="button" disabled={!editor.can().addColumnAfter()} onClick={() => editor.chain().focus().addColumnAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Columns className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Colonna dopo</button>
-              <button type="button" disabled={!editor.can().toggleHeaderRow()} onClick={() => editor.chain().focus().toggleHeaderRow().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Intestazione</button>
+              <button type="button" disabled={!editor.can().addRowBefore()} onClick={() => editor.chain().focus().addRowBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">+ Riga sopra</button>
+              <button type="button" disabled={!editor.can().addRowAfter()} onClick={() => editor.chain().focus().addRowAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Rows className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Riga sotto</button>
+              <button type="button" disabled={!editor.can().addColumnBefore()} onClick={() => editor.chain().focus().addColumnBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">+ Colonna prima</button>
+              <button type="button" disabled={!editor.can().addColumnAfter()} onClick={() => editor.chain().focus().addColumnAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Columns className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Colonna dopo</button>
+              <button type="button" disabled={!editor.can().toggleHeaderRow()} onClick={() => editor.chain().focus().toggleHeaderRow().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Intestazione</button>
               <button type="button" disabled={!editor.can().mergeCells()} onClick={() => editor.chain().focus().mergeCells().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Merge className="mr-1 inline h-3.5 w-3.5" />Unisci celle</button>
               <button type="button" disabled={!editor.can().splitCell()} onClick={() => editor.chain().focus().splitCell().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><SplitSquareHorizontal className="mr-1 inline h-3.5 w-3.5" />Dividi cella</button>
-              <button type="button" disabled={!editor.can().deleteRow()} onClick={() => editor.chain().focus().deleteRow().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina riga</button>
-              <button type="button" disabled={!editor.can().deleteColumn()} onClick={() => editor.chain().focus().deleteColumn().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina colonna</button>
-              <button type="button" disabled={!editor.can().deleteTable()} onClick={() => editor.chain().focus().deleteTable().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Elimina tabella</button>
+              <button type="button" disabled={!editor.can().deleteRow()} onClick={() => editor.chain().focus().deleteRow().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40">Elimina riga</button>
+              <button type="button" disabled={!editor.can().deleteColumn()} onClick={() => editor.chain().focus().deleteColumn().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40">Elimina colonna</button>
+              <button type="button" disabled={!editor.can().deleteTable()} onClick={() => editor.chain().focus().deleteTable().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Elimina tabella</button>
             </div>
           </div>
         )}
