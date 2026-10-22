@@ -206,6 +206,9 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         customMargins,
       }));
     } catch {}
+    return () => {
+      document.getElementById(printStyleId)?.remove()
+    }
   }, [editor, pageFormat, pageOrientation, pageMargins, customMargins, layoutLoaded]);
   useEffect(() => { if (!templatesLoaded) return; try { window.localStorage.setItem(CUSTOM_TEMPLATE_KEY, JSON.stringify(customTemplates)); } catch { toast.error('Spazio locale insufficiente per salvare il modello personale.'); } }, [customTemplates, templatesLoaded]);
   useEffect(() => {

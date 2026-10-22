@@ -128,42 +128,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const [eraserSize, setEraserSize] = useState(24)
   const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false)
 
-  useEffect(() => {
-    if (!editor) return
-    const viewport = editorViewportRef.current
-    if (!viewport) return
 
-    const updateFitScale = () => {
-      const computedStyle = window.getComputedStyle(editor.view.dom)
-      const rawWidth = computedStyle.getPropertyValue('--md-page-width').trim() || '210mm'
-      const match = rawWidth.match(/^([0-9]+(?:\.[0-9]+)?)(mm|cm|in|px)?$/)
-      if (!match) {
-        setFitScale(1)
-        return
-      }
-      const amount = Number(match[1])
-      const unit = match[2] || 'px'
-      const pageWidthPx = unit === 'mm' ? amount * 96 / 25.4
-        : unit === 'cm' ? amount * 96 / 2.54
-        : unit === 'in' ? amount * 96
-        : amount
-      const usableWidth = Math.max(260, viewport.clientWidth - 20)
-      const next = Math.max(0.72, Math.min(1, usableWidth / Math.max(1, pageWidthPx)))
-      setFitScale((current) => Math.abs(current - next) < 0.005 ? current : next)
-    }
-
-    updateFitScale()
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateFitScale) : null
-    observer?.observe(viewport)
-    observer?.observe(editor.view.dom)
-    window.addEventListener('resize', updateFitScale)
-    window.addEventListener('orientationchange', updateFitScale)
-    return () => {
-      observer?.disconnect()
-      window.removeEventListener('resize', updateFitScale)
-      window.removeEventListener('orientationchange', updateFitScale)
-    }
-  }, [editor])
 
   useEffect(() => {
     if (!inkMode) return
@@ -218,6 +183,43 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
       },
     },
   });
+
+  useEffect(() => {
+    if (!editor) return
+    const viewport = editorViewportRef.current
+    if (!viewport) return
+
+    const updateFitScale = () => {
+      const computedStyle = window.getComputedStyle(editor.view.dom)
+      const rawWidth = computedStyle.getPropertyValue('--md-page-width').trim() || '210mm'
+      const match = rawWidth.match(/^([0-9]+(?:\.[0-9]+)?)(mm|cm|in|px)?$/)
+      if (!match) {
+        setFitScale(1)
+        return
+      }
+      const amount = Number(match[1])
+      const unit = match[2] || 'px'
+      const pageWidthPx = unit === 'mm' ? amount * 96 / 25.4
+        : unit === 'cm' ? amount * 96 / 2.54
+        : unit === 'in' ? amount * 96
+        : amount
+      const usableWidth = Math.max(260, viewport.clientWidth - 20)
+      const next = Math.max(0.72, Math.min(1, usableWidth / Math.max(1, pageWidthPx)))
+      setFitScale((current) => Math.abs(current - next) < 0.005 ? current : next)
+    }
+
+    updateFitScale()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateFitScale) : null
+    observer?.observe(viewport)
+    observer?.observe(editor.view.dom)
+    window.addEventListener('resize', updateFitScale)
+    window.addEventListener('orientationchange', updateFitScale)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateFitScale)
+      window.removeEventListener('orientationchange', updateFitScale)
+    }
+  }, [editor])
 
   const getActualPageSections = useCallback((): DocumentPageSection[] => {
     if (!editor || typeof window === 'undefined') return []
