@@ -28,22 +28,8 @@ const QUICK_PROMPTS = [
 ]
 
 export function StudyChatPanel() {
-  const [messages, setMessages] = useState<StudyMessage[]>(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const parsed: unknown = JSON.parse(window.localStorage.getItem(CHAT_STORAGE_KEY) || '[]')
-      if (!Array.isArray(parsed)) return []
-      return parsed.filter((item): item is StudyMessage =>
-        Boolean(item && typeof item === 'object' &&
-          ((item as StudyMessage).role === 'user' || (item as StudyMessage).role === 'assistant') &&
-          typeof (item as StudyMessage).content === 'string' &&
-          (item as StudyMessage).content.length <= 12_000
-        )
-      ).slice(-20)
-    } catch {
-      return []
-    }
-  })
+  const [messages, setMessages] = useState<StudyMessage[]>([])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [question, setQuestion] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState('')
@@ -51,25 +37,48 @@ export function StudyChatPanel() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
+    try {
+      const parsed: unknown = JSON.parse(window.localStorage.getItem(CHAT_STORAGE_KEY) || '[]')
+      if (Array.isArray(parsed)) {
+        setMessages(parsed.filter((item): item is StudyMessage =>
+          Boolean(item && typeof item === 'object' &&
+            ((item as StudyMessage).role === 'user' || (item as StudyMessage).role === 'assistant') &&
+            typeof (item as StudyMessage).content === 'string' &&
+            (item as StudyMessage).content.length <= 12_000
+          )
+        ).slice(-20))
+      }
+    } catch {
+      // Start a fresh in-memory chat when saved history is invalid.
+    } finally {
+      setHistoryLoaded(true)
+    }
+  }, [])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isSending])
 
   useEffect(() => {
+    if (!historyLoaded) return
     try {
       window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-20)))
     } catch {
       // Chat still works for the current session when browser storage is unavailable.
     }
-  }, [messages])
+  }, [messages, historyLoaded])
 
-  const ask = async (rawQuestion: string) => {
+  const ask = async (rawQuestion: string, isRetry = false) => {
     const prompt = rawQuestion.trim()
     if (!prompt || isSending) return
     setError('')
     setQuestion('')
-    setMessages((current) => [...current, { role: 'user', content: prompt }])
+    const lastMessage = messages[messages.length - 1]
+    const retryingLastQuestion = isRetry && lastMessage?.role === 'user' && lastMessage.content === prompt
+    if (!retryingLastQuestion) setMessages((current) => [...current, { role: 'user', content: prompt }])
     setIsSending(true)
-    const history = messages.slice(-10).map((message) => ({ role: message.role, content: message.content }))
+    const contextMessages = retryingLastQuestion ? messages.slice(0, -1) : messages
+    const history = contextMessages.slice(-10).map((message) => ({ role: message.role, content: message.content }))
     try {
       const response = await fetch('/api/ai', {
         method: 'POST',
@@ -198,7 +207,7 @@ export function StudyChatPanel() {
       {error && (
         <div role="alert" className="mt-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs leading-5 text-rose-800">
           <p>{error}</p>
-          <button type="button" onClick={() => { setError(''); void ask(messages.filter((message) => message.role === 'user').slice(-1)[0]?.content || question) }} className="mt-1 font-bold underline underline-offset-2">
+          <button type="button" onClick={() => { const lastQuestion = messages.filter((message) => message.role === 'user').slice(-1)[0]?.content; setError(''); if (lastQuestion) void ask(lastQuestion, true) }} className="mt-1 font-bold underline underline-offset-2">
             Riprova l’ultima domanda
           </button>
         </div>

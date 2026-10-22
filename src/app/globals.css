@@ -1501,3 +1501,28 @@ select option:checked {
     max-height: 24dvh;
   }
 }
+
+
+/* Tablet tutor drawer: give the standalone study chat room to breathe without squeezing the paper canvas. */
+@media (min-width: 768px) and (max-width: 1023px) and (any-pointer: coarse) {
+  [data-md-sidebar-root="true"][data-md-sidebar-active="chat"][data-md-panel-open="true"] [data-md-sidebar-panel="true"] {
+    position: fixed;
+    z-index: 100;
+    left: 64px;
+    top: 76px;
+    bottom: 12px;
+    width: min(25rem, calc(100vw - 88px));
+    max-height: calc(100dvh - 88px);
+    overflow: hidden;
+    border: 1px solid #d3e1e7;
+    border-radius: 0 18px 18px 0;
+    box-shadow: 0 24px 64px -32px rgb(7 42 55 / 48%);
+  }
+}
+@media (min-width: 768px) and (max-width: 900px) and (any-pointer: coarse) and (orientation: landscape) {
+  [data-md-sidebar-root="true"][data-md-sidebar-active="chat"][data-md-panel-open="true"] [data-md-sidebar-panel="true"] {
+    top: 62px;
+    bottom: 8px;
+    max-height: calc(100dvh - 70px);
+  }
+}

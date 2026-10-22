@@ -129,7 +129,7 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
     (selected ? 'bg-white/15 text-teal-200 shadow-inner ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/10 hover:text-white')
 
   return (
-    <div data-md-sidebar-root="true" data-md-panel-open={activeTab ? 'true' : 'false'} className="flex min-h-0 shrink-0 print:hidden">
+    <div data-md-sidebar-root="true" data-md-panel-open={activeTab ? 'true' : 'false'} data-md-sidebar-active={activeTab || 'none'} className="flex min-h-0 shrink-0 print:hidden">
       <aside data-md-sidebar-rail="true" className="z-40 flex w-14 shrink-0 flex-col items-center gap-3 border-r border-[#0d4654] bg-gradient-to-b from-[#092d39] via-[#0b3545] to-[#071f2e] py-4 shadow-xl sm:w-16">
         <div className="md-sidebar-brand mb-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
           <MedicalDocsMark size={34} className="h-9 w-9" />
