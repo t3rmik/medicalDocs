@@ -104,6 +104,18 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const [inkBrushSize, setInkBrushSize] = useState(2.4)
   const [inkInputMode, setInkInputMode] = useState<'pen' | 'finger'>('pen')
   const [inkTool, setInkTool] = useState<'pen' | 'highlighter' | 'eraser' | 'select'>('pen')
+  const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false)
+
+  useEffect(() => {
+    if (!inkMode) return
+    const collapseToolbarForWriting = () => {
+      const isTouchTablet = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse)').matches
+      if (isTouchTablet) setInkToolbarCollapsed(true)
+    }
+    window.addEventListener('medicaldocs:ink-gesture-start', collapseToolbarForWriting)
+    return () => window.removeEventListener('medicaldocs:ink-gesture-start', collapseToolbarForWriting)
+  }, [inkMode])
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -249,6 +261,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     editor.commands.setContent(initialContentRef.current, false)
     setZoom(100)
     setInkMode(false)
+    setInkToolbarCollapsed(false)
     setInkTool('pen')
     setInkInputMode('pen')
   }, [editor, documentVersion])
@@ -289,6 +302,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     const next = !inkMode;
     updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool });
     setInkMode(next);
+    setInkToolbarCollapsed(false);
   }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode, inkTool]);
 
   const chooseInkTool = (tool: 'pen' | 'highlighter' | 'eraser' | 'select') => {
@@ -342,8 +356,16 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     <div data-md-editor-shell="true" className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-teal-50 to-[#e5eff2]">
       <Ribbon editor={editor} onToggleInk={toggleInkMode} inkMode={inkMode} />
       {inkMode && (
-        <div data-md-ink-toolbar="true" className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+        <div data-md-ink-toolbar="true" data-md-ink-collapsed={inkToolbarCollapsed ? 'true' : 'false'} className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+          {inkToolbarCollapsed ? (
+            <button type="button" className="md-ink-toolbar-mini" onClick={() => setInkToolbarCollapsed(false)} aria-label="Riapri gli strumenti della penna" title="Riapri gli strumenti della penna">
+              {inkTool === 'highlighter' ? <MedicalDocsIcon name="highlighter" size={20} /> : inkTool === 'eraser' ? <MedicalDocsIcon name="eraser" size={20} /> : inkTool === 'select' ? <MedicalDocsIcon name="select" size={20} /> : <MedicalDocsIcon name="pen" size={20} />}
+              <span className="md-ink-toolbar-mini-color" style={{ backgroundColor: inkColor }} aria-hidden="true" />
+            </button>
+          ) : (
+            <>
           <span className="mr-1 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva</span>
+          <button type="button" className="md-ink-toolbar-collapse" onClick={() => setInkToolbarCollapsed(true)} aria-label="Riduci gli strumenti della penna" title="Riduci gli strumenti della penna"><span aria-hidden="true">−</span><span className="sr-only">Riduci gli strumenti</span></button>
           <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Strumento di scrittura">
             <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="pen" size={16} /> <span>Penna</span></button>
             <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="highlighter" size={16} /> <span>Evidenzia</span></button>
@@ -375,6 +397,8 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           <button type="button" onClick={redoInkStroke} disabled={!canRedoInk} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" title="Ripeti azione">↷</button>
           <button type="button" onClick={clearInkStrokes} className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Cancella tutto</button>
           <button type="button" onClick={toggleInkMode} className="min-h-10 rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-800">Fine</button>
+            </>
+          )}
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto">

@@ -225,6 +225,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     if (tool === 'eraser') {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('medicaldocs:ink-gesture-start'))
       gestureRef.current = { pointerId: event.pointerId, kind: 'erase', start: point, originalPaths: paths, livePaths: eraseAt(point, paths) }
       setPreviewPaths(eraseAt(point, paths))
       return
@@ -241,6 +242,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
       segments: [],
     }
     gestureRef.current = { pointerId: event.pointerId, kind: 'draw', start: point, stroke, originalPaths: paths, lastPoint: point }
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('medicaldocs:ink-gesture-start'))
     setLiveStroke(stroke)
   }
 

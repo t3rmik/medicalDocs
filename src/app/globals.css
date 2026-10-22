@@ -1060,3 +1060,31 @@ table { border-collapse: separate; border-spacing: 0; }
 }
 .md-ribbon-tab-icon { display:none; }
 .md-ribbon-tab-label { display:inline; }
+
+
+/* Compact writing palette: after the first gesture, leave only a small reopen button over the canvas. */
+@media (min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) {
+  [data-md-ink-toolbar="true"] .md-ink-toolbar-collapse {
+    position: absolute; top: 10px; right: 10px; display: inline-flex;
+    align-items: center; justify-content: center; width: 36px; min-width: 36px;
+    height: 36px; min-height: 36px; padding: 0; border: 1px solid #c7d2fe;
+    border-radius: 10px; background: #eef2ff; color: #3730a3;
+    font-size: 24px; line-height: 1; touch-action: manipulation;
+  }
+  [data-md-ink-toolbar="true"][data-md-ink-collapsed="true"] {
+    width: 48px; min-width: 48px; max-width: 48px; max-height: 48px;
+    padding: 0; overflow: visible; border: 0; background: transparent; box-shadow: none;
+  }
+  [data-md-ink-toolbar="true"] .md-ink-toolbar-mini {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 48px !important; min-width: 48px !important; height: 48px !important;
+    min-height: 48px !important; padding: 0 !important; border: 1px solid #a5b4fc !important;
+    border-radius: 16px !important; background: #4338ca !important; color: #fff !important;
+    box-shadow: 0 12px 25px -12px rgb(49 46 129 / 70%), 0 2px 7px rgb(15 23 42 / 15%);
+    touch-action: manipulation;
+  }
+  [data-md-ink-toolbar="true"] .md-ink-toolbar-mini-color {
+    position: absolute; right: -2px; bottom: -2px; width: 13px; height: 13px;
+    border: 2px solid #fff; border-radius: 999px; box-shadow: 0 0 0 1px rgb(49 46 129 / 35%);
+  }
+}
