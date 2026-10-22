@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   icons: { icon: '/medicaldocs-mark.svg' },
   manifest: '/manifest.webmanifest',
   applicationName: 'MedicalDocs Pro',
+  other: { 'mobile-web-app-capable': 'yes' },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'MedicalDocs Pro' },
 }
 
