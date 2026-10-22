@@ -149,20 +149,13 @@ export function StudyChatPanel() {
 
   return (
     <div data-md-study-chat="true" className="md-study-chat min-w-0">
-      <div className="mb-3 rounded-2xl border border-teal-100 bg-gradient-to-br from-[#f0fdfa] via-white to-[#edf8fb] p-3.5">
-        <div className="flex items-start gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-cyan-700 text-white shadow-sm">
-            <Sparkles size={19} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-extrabold tracking-tight text-slate-900">Tutor di studio</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">Domande libere, senza bisogno di aprire o selezionare un documento.</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full border border-teal-100 bg-white px-2 py-1 text-[10px] font-bold text-teal-800">Biologia</span>
-              <span className="rounded-full border border-teal-100 bg-white px-2 py-1 text-[10px] font-bold text-teal-800">Chimica</span>
-              <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600">Metodo di studio</span>
-            </div>
-          </div>
+      <div data-md-study-chat-intro="true" className="mb-2 flex min-w-0 items-center gap-2.5 rounded-xl border border-teal-100 bg-gradient-to-r from-[#f0fdfa] via-white to-[#edf8fb] px-2.5 py-2">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-700 to-cyan-700 text-white shadow-sm">
+          <Sparkles size={17} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-extrabold tracking-tight text-slate-900">Tutor di studio</p>
+          <p className="truncate text-[11px] leading-4 text-slate-600">Domande libere su teoria e metodo di studio</p>
         </div>
       </div>
 
