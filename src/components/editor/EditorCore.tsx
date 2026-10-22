@@ -42,6 +42,15 @@ const FontSizeTextStyle = TextStyle.extend({
           return { style: 'font-size: ' + fontSize }
         },
       },
+      lineHeight: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.lineHeight || null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const lineHeight = typeof attributes.lineHeight === 'string' ? attributes.lineHeight : ''
+          if (!['1', '1.0', '1.15', '1.5', '2'].includes(lineHeight)) return {}
+          return { style: 'line-height: ' + lineHeight }
+        },
+      },
     }
   },
 })
@@ -180,6 +189,25 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     editorProps: {
       attributes: {
         class: 'editor-page prose prose-slate max-w-none focus:outline-none',
+      },
+      handleKeyDown: (view, event) => {
+        if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return false
+
+        const $from = view.state.selection.$from
+        let insideTable = false
+        let insideList = false
+        for (let depth = $from.depth; depth > 0; depth -= 1) {
+          const name = $from.node(depth).type.name
+          if (name === 'table' || name === 'tableCell' || name === 'tableHeader' || name === 'tableRow') insideTable = true
+          if (name === 'listItem' || name === 'taskItem' || name === 'bulletList' || name === 'orderedList' || name === 'taskList') insideList = true
+        }
+
+        // Keep native ProseMirror/Tiptap behaviours for table navigation and list indentation.
+        if (insideTable || insideList) return false
+
+        event.preventDefault()
+        view.dispatch(view.state.tr.insertText('\t'))
+        return true
       },
     },
   });

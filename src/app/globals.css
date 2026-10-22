@@ -1325,3 +1325,40 @@ table { border-collapse: separate; border-spacing: 0; }
     box-shadow: none !important;
   }
 }
+
+
+/* Tab in normal paragraphs behaves like a word processor; preserve tabs in saved/exported HTML. */
+.ProseMirror.editor-page :is(p, h1, h2, h3, h4, li, td, th) {
+  white-space: pre-wrap;
+  tab-size: 8;
+  -moz-tab-size: 8;
+}
+
+/* When tablet Home tools open in landscape, reserve a tools column and shift the sheet instead of covering it. */
+@media (min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape) {
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] {
+    grid-template-columns: calc(64px + clamp(260px, 32vw, 390px)) minmax(0, 1fr) !important;
+  }
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] > [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    max-width: calc(100vw - 150px);
+  }
+}
+@media (min-width: 768px) and (max-width: 900px) and (any-pointer: coarse) and (orientation: landscape) {
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] {
+    grid-template-columns: calc(58px + clamp(250px, 39vw, 330px)) minmax(0, 1fr) !important;
+  }
+}
+
+/* In tablet portrait the Home panel remains in document flow: scroll the tools, never overlay the page. */
+@media (min-width: 768px) and (max-width: 1023px) and (any-pointer: coarse) and (orientation: portrait) {
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    max-height: min(36dvh, 300px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    flex-wrap: wrap;
+  }
+  [data-md-ribbon="true"][data-md-active-tab="Home"] > [data-md-tool-panel="true"] {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+}

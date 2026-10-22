@@ -50,6 +50,16 @@ const CUSTOM_TEMPLATE_KEY = 'medicaldocs.customTemplates.v1';
 const PAGE_DIMENSIONS: Record<PageFormat, { width: number; height: number }> = { A4: { width: 210, height: 297 }, A5: { width: 148, height: 210 }, A3: { width: 297, height: 420 }, Letter: { width: 216, height: 279 } };
 const PAGE_MARGIN_MM: Record<Exclude<PageMargins, 'custom'>, number> = { normal: 12, narrow: 3, wide: 25.4 };
 const FONT_SIZE_OPTIONS = ['8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '24pt', '28pt', '36pt', '48pt'] as const;
+const FONT_FAMILY_OPTIONS = [
+  'Aptos', 'Calibri', 'Arial', 'Arial Narrow', 'Verdana', 'Tahoma', 'Trebuchet MS',
+  'Georgia', 'Cambria', 'Garamond', 'Times New Roman', 'Palatino Linotype', 'Courier New', 'Consolas', 'Inter',
+] as const;
+const LINE_SPACING_OPTIONS = [
+  { value: '1', label: 'Singola · 1,0' },
+  { value: '1.15', label: '1,15' },
+  { value: '1.5', label: '1,5' },
+  { value: '2', label: 'Doppia · 2,0' },
+] as const;
 const DEFAULT_CUSTOM_MARGINS: PageMarginValues = { top: 4, right: 4, bottom: 4, left: 4 };
 const clampMargin = (value: unknown, fallback = 4) => {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -122,6 +132,10 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [equationOpen, setEquationOpen] = useState(false);
   const [equationLatex, setEquationLatex] = useState('x^2 + y^2 = z^2');
   const [selectedFontSize, setSelectedFontSize] = useState('12pt');
+  const [selectedFontFamily, setSelectedFontFamily] = useState<string>('Calibri');
+  const [selectedLineHeight, setSelectedLineHeight] = useState<string>('1.55');
+  const lastTextSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const ribbonRootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
@@ -213,19 +227,49 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   useEffect(() => { if (!templatesLoaded) return; try { window.localStorage.setItem(CUSTOM_TEMPLATE_KEY, JSON.stringify(customTemplates)); } catch { toast.error('Spazio locale insufficiente per salvare il modello personale.'); } }, [customTemplates, templatesLoaded]);
   useEffect(() => {
     if (!editor) return
-    const syncSelectedFontSize = () => {
-      const size = editor.getAttributes('textStyle').fontSize
+    const syncSelectionAndTypography = () => {
+      const { selection } = editor.state
+      if (!selection.empty) {
+        lastTextSelectionRef.current = { from: selection.from, to: selection.to }
+      }
+      const attrs = editor.getAttributes('textStyle')
+      const size = attrs.fontSize
+      const family = attrs.fontFamily
+      const lineHeight = attrs.lineHeight
       const nextSize = typeof size === 'string' && size.trim() ? size : '12pt'
+      const nextFamily = typeof family === 'string' && family.trim() ? family : 'Calibri'
+      const nextLineHeight = typeof lineHeight === 'string' && lineHeight.trim() ? lineHeight : '1.55'
       setSelectedFontSize((current) => current === nextSize ? current : nextSize)
+      setSelectedFontFamily((current) => current === nextFamily ? current : nextFamily)
+      setSelectedLineHeight((current) => current === nextLineHeight ? current : nextLineHeight)
     }
-    syncSelectedFontSize()
-    editor.on('selectionUpdate', syncSelectedFontSize)
-    editor.on('transaction', syncSelectedFontSize)
+    const clearRememberedSelectionOnEditorPointerDown = () => {
+      lastTextSelectionRef.current = null
+    }
+    syncSelectionAndTypography()
+    editor.on('selectionUpdate', syncSelectionAndTypography)
+    editor.on('transaction', syncSelectionAndTypography)
+    editor.view.dom.addEventListener('pointerdown', clearRememberedSelectionOnEditorPointerDown, true)
     return () => {
-      editor.off('selectionUpdate', syncSelectedFontSize)
-      editor.off('transaction', syncSelectedFontSize)
+      editor.off('selectionUpdate', syncSelectionAndTypography)
+      editor.off('transaction', syncSelectionAndTypography)
+      editor.view.dom.removeEventListener('pointerdown', clearRememberedSelectionOnEditorPointerDown, true)
     }
   }, [editor])
+
+  useEffect(() => {
+    const ribbon = ribbonRootRef.current
+    const shell = ribbon?.closest<HTMLElement>('[data-md-editor-shell="true"]')
+    if (!shell) return
+    const tabletLandscape = typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape)').matches
+    if (tabletLandscape && tabletPanelOpen && !inkMode) {
+      shell.setAttribute('data-md-tools-panel-open', 'true')
+    } else {
+      shell.removeAttribute('data-md-tools-panel-open')
+    }
+    return () => shell.removeAttribute('data-md-tools-panel-open')
+  }, [tabletPanelOpen, inkMode])
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || !event.altKey) return; if (event.key.toLowerCase() === 'p') { event.preventDefault(); setActiveTab('Pagine'); } if (event.key.toLowerCase() === 'm') { event.preventDefault(); setActiveTab('Modelli'); } };
@@ -260,10 +304,50 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
 
   if (!editor) return null;
 
+  const getRememberedTextRange = () => {
+    const range = lastTextSelectionRef.current
+    if (!range || editor.isDestroyed) return null
+    const max = editor.state.doc.content.size
+    const from = Math.max(1, Math.min(range.from, max))
+    const to = Math.max(from, Math.min(range.to, max))
+    return to > from ? { from, to } : null
+  }
+
+  const rememberEditorSelection = () => {
+    if (editor.isDestroyed) return
+    const { selection } = editor.state
+    // Never overwrite a useful text range with an empty selection caused by opening a toolbar.
+    if (!selection.empty) lastTextSelectionRef.current = { from: selection.from, to: selection.to }
+  }
+
   const applyFontSize = (fontSize: string) => {
     if (editor.isDestroyed || !fontSize) return
     setSelectedFontSize(fontSize)
-    editor.chain().focus().setMark('textStyle', { fontSize }).run()
+    const chain = editor.chain()
+    const range = getRememberedTextRange()
+    if (range) chain.setTextSelection(range)
+    chain.setMark('textStyle', { fontSize }).run()
+    editor.commands.focus()
+  }
+
+  const applyFontFamily = (fontFamily: string) => {
+    if (editor.isDestroyed || !fontFamily) return
+    setSelectedFontFamily(fontFamily)
+    const chain = editor.chain()
+    const range = getRememberedTextRange()
+    if (range) chain.setTextSelection(range)
+    chain.setFontFamily(fontFamily).run()
+    editor.commands.focus()
+  }
+
+  const applyLineHeight = (lineHeight: string) => {
+    if (editor.isDestroyed || !lineHeight) return
+    setSelectedLineHeight(lineHeight)
+    const chain = editor.chain()
+    const range = getRememberedTextRange()
+    if (range) chain.setTextSelection(range)
+    chain.setMark('textStyle', { lineHeight }).run()
+    editor.commands.focus()
   }
 
 
@@ -425,7 +509,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   );
 
   return (
-    <div data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-mobile-tools-open={mobileToolsOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
+    <div ref={ribbonRootRef} onPointerDownCapture={rememberEditorSelection} data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-mobile-tools-open={mobileToolsOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
         <button type="button" data-md-mobile-ribbon-toggle="true" onClick={() => setMobileToolsOpen((open) => !open)} aria-expanded={mobileToolsOpen} aria-controls="medicaldocs-ribbon-tools" className="md-mobile-ribbon-toggle" aria-label={mobileToolsOpen ? 'Nascondi strumenti documento' : 'Mostra strumenti documento'}>
           {mobileToolsOpen ? <CloseTab className="h-4 w-4" aria-hidden="true" /> : <MobileMenuTab className="h-4 w-4" aria-hidden="true" />}
@@ -465,14 +549,14 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
             </div>
 
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
-              <select 
-                className="min-h-9 w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
+              <select
+                value={selectedFontFamily}
+                aria-label="Carattere"
+                title="Carattere"
+                className="min-h-9 w-32 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                onChange={(event) => applyFontFamily(event.target.value)}
               >
-                <option value="Calibri">Calibri</option>
-                <option value="Arial">Arial</option>
-                <option value="Inter">Inter</option>
-                <option value="Times New Roman">Times New Roman</option>
+                {FONT_FAMILY_OPTIONS.map((family) => <option key={family} value={family}>{family}</option>)}
               </select>
               <select
                 value={selectedFontSize}
@@ -487,6 +571,16 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                 {FONT_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>{size.replace('pt', ' pt')}</option>
                 ))}
+              </select>
+              <select
+                value={selectedLineHeight}
+                onChange={(event) => applyLineHeight(event.target.value)}
+                aria-label="Interlinea"
+                title="Interlinea"
+                className="min-h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-700 shadow-sm outline-none transition hover:border-teal-300 hover:bg-teal-50 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              >
+                {selectedLineHeight === '1.55' && <option value="1.55">Interlinea</option>}
+                {LINE_SPACING_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
               
               <div className="flex items-center ml-1 bg-white border border-slate-300 rounded p-0.5">
