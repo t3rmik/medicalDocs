@@ -1803,7 +1803,7 @@ select option:checked { color: #075e59 !important; background: #ccfbf1 !importan
   --md-carta-ink: #0f2229;
   --md-carta-muted: #46606a;
   --md-carta-border: #d3dfdf;
-  --md-carta-workspace: #e7eded;
+  --md-carta-workspace: #d6e9e9;
   --md-carta-surface: #f7fafa;
   --md-carta-mint: #dcefed;
   --md-carta-teal: #0b6e6b;
@@ -2014,4 +2014,429 @@ body {
   [data-md-sidebar-root="true"][data-md-sidebar-active="outline"] [data-md-sidebar-panel="true"] { background: var(--md-carta-surface) !important; }
   [data-md-ribbon="true"] > div:first-child { background: var(--md-carta-surface) !important; }
   [data-md-statusbar="true"] { padding: 6px 8px !important; min-height: 42px !important; font-size: 11px !important; }
+}
+
+
+/* Carta responsive repair: these rules come after the desktop skin on purpose.
+   Tablet controls must use the landscape dock / portrait ribbon geometry, not desktop sizing. */
+@media (min-width: 768px) and (max-width: 1440px) and (orientation: landscape) {
+  [data-md-header="true"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    height: auto !important;
+    min-height: 64px !important;
+    max-height: 82px !important;
+    padding: 6px 10px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: thin;
+  }
+  [data-md-header="true"] > div:first-child {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+  }
+  [data-md-header="true"] > div:first-child > div:last-child {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+  }
+  [data-md-header="true"] > div:first-child > div:last-child > div:first-child {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    min-width: 0 !important;
+  }
+  [data-md-header="true"] > div:first-child > div:last-child > div.mt-1 {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 2px !important;
+    margin-top: 0 !important;
+    min-width: 0 !important;
+  }
+  [data-md-header="true"] > div:first-child > div:last-child > div.mt-1 > span[role="status"] {
+    display: none !important;
+  }
+  [data-md-header="true"] [data-md-topbar-controls="true"] {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: thin;
+  }
+  [data-md-header="true"] [data-md-topbar-controls="true"] > button,
+  [data-md-header="true"] [data-md-topbar-controls="true"] > label {
+    flex: 0 0 auto !important;
+  }
+  [data-md-header="true"] [data-md-topbar-controls="true"] > label {
+    width: 150px !important;
+    min-width: 130px !important;
+    max-width: 170px !important;
+  }
+
+  /* Restore the vertical dock after the global Carta tab-bar sizing. */
+  [data-md-editor-shell="true"] {
+    display: grid !important;
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  [data-md-ribbon="true"] {
+    position: relative !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-self: stretch !important;
+    width: 64px !important;
+    min-width: 64px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border-right: 1px solid var(--md-carta-border) !important;
+    border-bottom: 0 !important;
+    border-radius: 0 !important;
+    background: var(--md-carta-surface) !important;
+    box-shadow: 2px 0 12px -10px rgb(15 34 41 / 20%) !important;
+  }
+  [data-md-ribbon="true"] > div:first-child {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 5px !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 10px 5px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    align-content: flex-start !important;
+    background: transparent !important;
+    border-bottom: 0 !important;
+  }
+  [data-md-ribbon="true"] > div:first-child button[data-md-mobile-ribbon-toggle="true"] {
+    display: none !important;
+  }
+  [data-md-ribbon="true"] > div:first-child button[data-md-ribbon-tab] {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 56px !important;
+    height: auto !important;
+    padding: 6px 2px !important;
+    border: 1px solid transparent !important;
+    border-bottom: 1px solid transparent !important;
+    border-radius: 11px !important;
+    background: transparent !important;
+    color: var(--md-carta-muted) !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    text-align: center !important;
+    box-shadow: none !important;
+    touch-action: manipulation;
+  }
+  [data-md-ribbon="true"] .md-ribbon-tab-icon {
+    display: block !important;
+    flex: 0 0 auto !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+  [data-md-ribbon="true"] .md-ribbon-tab-label {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    font-weight: 700 !important;
+    overflow-wrap: anywhere;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+  [data-md-ribbon="true"] > div:first-child button[data-md-ribbon-tab]:focus-visible {
+    outline: 2px solid var(--md-carta-teal) !important;
+    outline-offset: -2px;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    display: none !important;
+    position: absolute !important;
+    z-index: 85 !important;
+    top: 8px !important;
+    bottom: 8px !important;
+    left: calc(100% + 8px) !important;
+    width: clamp(250px, 32vw, 340px) !important;
+    max-width: calc(100vw - 130px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    flex: 0 1 auto !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    align-content: flex-start !important;
+    gap: 8px !important;
+    padding: 12px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    border: 1px solid var(--md-carta-border) !important;
+    border-radius: 14px !important;
+    background: rgb(255 255 255 / 98%) !important;
+    box-shadow: 0 20px 48px -30px rgb(15 34 41 / 45%) !important;
+    backdrop-filter: blur(12px);
+  }
+  [data-md-ribbon="true"][data-md-tools-open="true"]:not([data-md-ink-active="true"]) > [data-md-tool-panel="true"] {
+    display: flex !important;
+  }
+  [data-md-ribbon="true"] [data-md-tablet-tools-header="true"] {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 0 9px !important;
+    border-bottom: 1px solid #e7eeee !important;
+  }
+  [data-md-ribbon="true"] [data-md-tablet-tools-header="true"] button {
+    min-width: 76px !important;
+    min-height: 44px !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] > *:not([data-md-tablet-tools-header="true"]) {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    align-content: flex-start !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 0 8px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid #edf2f2 !important;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] > *:not([data-md-tablet-tools-header="true"]) [role="group"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    gap: 3px !important;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] button {
+    flex: 0 0 auto;
+    min-width: 40px !important;
+    min-height: 44px !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    touch-action: manipulation;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] select,
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] [data-md-studio-cards="true"],
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] [data-md-model-cards="true"],
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] [data-md-page-cards="true"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+  [data-md-editor-shell="true"] > [data-md-editor-viewport="true"] {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 8px 8px 14px !important;
+    overflow: auto !important;
+    overscroll-behavior: contain;
+  }
+  [data-md-editor-shell="true"] > [data-md-statusbar="true"] {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    min-width: 0 !important;
+  }
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] {
+    grid-template-columns: calc(64px + clamp(250px, 32vw, 340px)) minmax(0, 1fr) !important;
+  }
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] > [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    max-width: calc(100vw - 130px) !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 900px) and (orientation: landscape) {
+  [data-md-editor-shell="true"] { grid-template-columns: 58px minmax(0, 1fr) !important; }
+  [data-md-ribbon="true"] { width: 58px !important; min-width: 58px !important; }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    width: clamp(230px, 34vw, 285px) !important;
+    max-width: calc(100vw - 112px) !important;
+  }
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] {
+    grid-template-columns: calc(58px + clamp(230px, 34vw, 285px)) minmax(0, 1fr) !important;
+  }
+  [data-md-editor-shell="true"][data-md-tools-panel-open="true"] > [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    max-width: calc(100vw - 112px) !important;
+  }
+  [data-md-header="true"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    max-height: 116px !important;
+    gap: 4px !important;
+    padding: 4px 10px !important;
+  }
+  [data-md-header="true"] > div:first-child {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    min-height: 36px;
+  }
+  [data-md-header="true"] [data-md-topbar-controls="true"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  [data-md-header="true"] [data-md-topbar-controls="true"] > label { width: 140px !important; }
+}
+@media (min-width: 768px) and (max-width: 1440px) and (orientation: portrait) {
+  [data-md-editor-shell="true"] {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  [data-md-ribbon="true"] {
+    position: relative !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--md-carta-border) !important;
+    border-radius: 0 !important;
+  }
+  [data-md-ribbon="true"] > div:first-child {
+    display: flex !important;
+    flex: 0 0 48px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+    width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+    padding: 3px 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    background: var(--md-carta-surface) !important;
+  }
+  [data-md-ribbon="true"] > div:first-child button[data-md-ribbon-tab] {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    width: auto !important;
+    min-width: max-content !important;
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 7px 12px !important;
+    border-radius: 10px 10px 0 0 !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+  }
+  [data-md-ribbon="true"] .md-ribbon-tab-icon { display: none !important; }
+  [data-md-ribbon="true"] .md-ribbon-tab-label { display: inline !important; font-size: 12px !important; white-space: nowrap !important; }
+  [data-md-ribbon="true"] [data-md-tablet-tools-header="true"] { display: none !important; }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    flex: 0 1 auto !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    max-height: min(32dvh, 300px) !important;
+    min-height: 0 !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] > *:not([data-md-tablet-tools-header="true"]) {
+    display: flex !important;
+    flex: 0 1 auto !important;
+    flex-wrap: wrap !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-right: 0 !important;
+    padding-right: 0 !important;
+  }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] button {
+    min-width: 40px !important;
+    min-height: 44px !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+    white-space: normal !important;
+    touch-action: manipulation;
+  }
+  [data-md-editor-shell="true"] > [data-md-editor-viewport="true"] {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 6px 8px 12px !important;
+    overflow: auto !important;
+  }
+  [data-md-editor-shell="true"] > [data-md-statusbar="true"] {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-md-ribbon="true"] > div:first-child button[data-md-ribbon-tab] { transition: none !important; }
 }
