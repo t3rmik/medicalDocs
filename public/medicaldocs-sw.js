@@ -35,7 +35,9 @@ async function receiveSharedFile(request) {
     try {
       await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, 'readwrite');
-        tx.objectStore(STORE).add({ name: file.name, type: file.type || 'application/octet-stream', createdAt: Date.now(), lastModified: file.lastModified || Date.now(), file });
+        const store = tx.objectStore(STORE);
+        store.clear();
+        store.add({ name: file.name, type: file.type || 'application/octet-stream', createdAt: Date.now(), lastModified: file.lastModified || Date.now(), file });
         tx.oncomplete = () => resolve(undefined);
         tx.onerror = () => reject(tx.error || new Error('Salvataggio file non riuscito'));
         tx.onabort = () => reject(tx.error || new Error('Salvataggio file interrotto'));

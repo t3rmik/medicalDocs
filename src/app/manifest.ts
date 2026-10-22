@@ -13,6 +13,7 @@ export default function manifest() {
     theme_color: '#082d3a',
     lang: 'it',
     categories: ['education', 'productivity', 'utilities'],
+    launch_handler: { client_mode: 'navigate-existing' },
     icons: [
       { src: '/icons/medicaldocs-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/medicaldocs-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
@@ -35,6 +36,7 @@ export default function manifest() {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
         'text/plain': ['.txt'], 'text/html': ['.html', '.htm'],
       },
+      icons: [{ src: '/icons/medicaldocs-192.png', sizes: '192x192', type: 'image/png' }],
     }],
   }
 }

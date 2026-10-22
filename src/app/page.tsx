@@ -52,10 +52,12 @@ export default function Home() {
     const shared = url.searchParams.get('shared');
     const failed = url.searchParams.get('shareFailed');
     const openFile = url.searchParams.get('openFile');
-    if (!shared && !failed && openFile !== '1') return;
+    const multipleFiles = url.searchParams.get('multipleFiles') === '1';
+    if (!shared && !failed && openFile !== '1' && !multipleFiles) return;
     url.searchParams.delete('shared');
     url.searchParams.delete('shareFailed');
     url.searchParams.delete('openFile');
+    url.searchParams.delete('multipleFiles');
     window.history.replaceState({}, '', url.pathname + url.search + url.hash);
     if (openFile === '1') setIsFileOpenerOpen(true);
     if (failed) {
@@ -71,6 +73,7 @@ export default function Home() {
         if (cancelled) return;
         if (!file) { toast.error('MedicalDocs è stato aperto, ma il browser non ha trasferito il file. Usa “Apri / Importa” come alternativa.', { duration: 10000 }); return; }
         if (file.size > 25 * 1024 * 1024) { toast.error('Il file supera il limite di 25 MB.'); return; }
+        if (multipleFiles) toast('MedicalDocs apre un documento alla volta: è stato aperto il primo file selezionato.', { duration: 8000 });
         setSharedFile(file);
         setIsFileOpenerOpen(true);
       }).catch(() => { if (!cancelled) toast.error('Non è stato possibile leggere il file condiviso. Usa “Apri / Importa”.'); });

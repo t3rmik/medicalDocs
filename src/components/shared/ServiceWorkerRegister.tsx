@@ -19,8 +19,12 @@ export function ServiceWorkerRegister() {
       const handles = params.files || []
       if (!handles.length) return
       try {
-        for (const handle of handles) await storeSharedFile(await handle.getFile())
-        window.location.assign('/?shared=1')
+        // The existing import dialog handles one document at a time. Prefer the first
+        // file, and pass a flag so the UI can explain this when multiple files were selected.
+        const file = await handles[0].getFile()
+        await storeSharedFile(file)
+        const multipleFiles = handles.length > 1 ? '&multipleFiles=1' : ''
+        window.location.assign('/?shared=1' + multipleFiles)
       } catch { window.location.assign('/?shareFailed=handoff') }
     })
   }, [])

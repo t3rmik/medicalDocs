@@ -18,7 +18,10 @@ export async function storeSharedFile(file: File): Promise<void> {
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite')
-      tx.objectStore(STORE_NAME).add({ name: file.name, type: file.type || 'application/octet-stream', createdAt: Date.now(), lastModified: file.lastModified, file } satisfies InboxRecord)
+      const store = tx.objectStore(STORE_NAME)
+      // A fresh OS launch replaces any stale file left by a previous interrupted import.
+      store.clear()
+      store.add({ name: file.name, type: file.type || 'application/octet-stream', createdAt: Date.now(), lastModified: file.lastModified, file } satisfies InboxRecord)
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(tx.error || new Error('Impossibile salvare il file condiviso'))
       tx.onabort = () => reject(tx.error || new Error('Salvataggio del file interrotto'))
@@ -36,8 +39,12 @@ export async function consumeSharedFile(): Promise<File | null> {
       request.onsuccess = () => {
         const records = (request.result as InboxRecord[]).sort((a, b) => a.createdAt - b.createdAt)
         const first = records[0]
-        if (!first || typeof first.id !== 'number') return
-        store.delete(first.id)
+        if (!first) return
+        // Consume and clear the entire queue so interrupted/multi-file launches cannot leak
+        // an older pending document into a later import.
+        for (const record of records) {
+          if (typeof record.id === 'number') store.delete(record.id)
+        }
         file = new File([first.file], first.name, { type: first.type || first.file.type || 'application/octet-stream', lastModified: first.lastModified || first.createdAt })
       }
       tx.oncomplete = () => resolve(file)
