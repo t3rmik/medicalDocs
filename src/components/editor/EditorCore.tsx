@@ -38,7 +38,7 @@ const FontSizeTextStyle = TextStyle.extend({
         parseHTML: (element: HTMLElement) => element.style.fontSize || null,
         renderHTML: (attributes: Record<string, unknown>) => {
           const fontSize = typeof attributes.fontSize === 'string' ? attributes.fontSize : ''
-          if (!fontSize || !/^\\d+(?:\\.\\d+)?(?:px|pt|em|rem|%)$/.test(fontSize)) return {}
+          if (!fontSize || !/^\d+(?:\.\d+)?(?:px|pt|em|rem|%)$/.test(fontSize)) return {}
           return { style: 'font-size: ' + fontSize }
         },
       },
