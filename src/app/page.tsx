@@ -382,7 +382,7 @@ export default function Home() {
       }
       if (format === 'pdf') {
         const signature = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
-        if (String.fromCharCode(...signature) !== '%PDF-') throw new Error('Il server non ha restituito un PDF valido. Riprova.');
+        if (String.fromCharCode(signature[0], signature[1], signature[2], signature[3], signature[4]) !== '%PDF-') throw new Error('Il server non ha restituito un PDF valido. Riprova.');
       }
 
       const extension = format === 'word' ? 'docx' : format;
