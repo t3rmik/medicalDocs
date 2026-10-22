@@ -47,6 +47,18 @@ export function Header({
   const commandInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (!activeMenu) return
+    const closeMenuOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-md-header-menu="true"]')) return
+      setActiveMenu(null)
+    }
+    document.addEventListener('pointerdown', closeMenuOnOutsidePointerDown)
+    return () => document.removeEventListener('pointerdown', closeMenuOnOutsidePointerDown)
+  }, [activeMenu])
+
+  useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -138,7 +150,7 @@ export function Header({
               </span>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1">
-              <div className="relative">
+              <div className="relative" data-md-header-menu="true">
                 <button
                   type="button"
                   onClick={() => setActiveMenu(activeMenu === 'file' ? null : 'file')}
@@ -163,7 +175,7 @@ export function Header({
                   </div>
                 )}
               </div>
-              <div className="relative">
+              <div className="relative" data-md-header-menu="true">
                 <button
                   type="button"
                   onClick={() => setActiveMenu(activeMenu === 'export' ? null : 'export')}
