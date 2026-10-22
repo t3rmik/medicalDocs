@@ -1,19 +1,38 @@
 ﻿'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { MedicalDocsAlertCircle as AlertCircle, MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PdfModeChoice } from '@/types'
+import { getFileSizeError, getMaxImportBytes, isTouchConstrainedDevice } from '@/lib/fileLimits'
 
 interface FileOpenerProps {
   isOpen: boolean;
   onClose: () => void;
   onFileSelect: (file: File, pdfMode?: PdfModeChoice) => void;
+  initialFile?: File | null;
 }
 
-export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
+export function FileOpener({ isOpen, onClose, onFileSelect, initialFile = null }: FileOpenerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const handledInitialFileRef = useRef<File | null>(null);
+
+  useEffect(() => {
+    if (!initialFile) { handledInitialFileRef.current = null; return; }
+    if (!isOpen || handledInitialFileRef.current === initialFile) return;
+    handledInitialFileRef.current = initialFile;
+    setSelectedFile(null);
+    setError(null);
+    const ext = initialFile.name.split('.').pop()?.toLowerCase();
+    const validExtensions = ['docx', 'pdf', 'txt', 'html', 'htm'];
+    if (!ext || !validExtensions.includes(ext)) { setError('Formato non supportato. Caricare un file .docx, PDF, TXT o HTML.'); return; }
+    const maxBytes = getMaxImportBytes(initialFile.name, isTouchConstrainedDevice());
+    if (!maxBytes || initialFile.size > maxBytes) { setError(getFileSizeError(initialFile.name, maxBytes)); return; }
+    if (ext === 'pdf') { setSelectedFile(initialFile); return; }
+    onFileSelect(initialFile);
+    onClose();
+  }, [isOpen, initialFile, onFileSelect, onClose]);
 
   if (!isOpen) return null;
 
@@ -35,8 +54,9 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
       return;
     }
 
-    if (file.size > 25 * 1024 * 1024) {
-      setError('Dimensione massima superata. Il file non può eccedere i 25 MB.');
+    const maxBytes = getMaxImportBytes(file.name, isTouchConstrainedDevice());
+    if (!maxBytes || file.size > maxBytes) {
+      setError(getFileSizeError(file.name, maxBytes));
       return;
     }
 
@@ -77,7 +97,7 @@ export function FileOpener({ isOpen, onClose, onFileSelect }: FileOpenerProps) {
           >
             <MedicalDocsIcon name="upload" size={42} className="mb-3 text-teal-700" />
             <p className="text-sm font-semibold text-slate-700">Trascina qui il file o clicca per sfogliare</p>
-            <p className="text-xs text-slate-400 mt-1">Supportati: Word (.docx), PDF, TXT, HTML (Max 25MB)</p>
+            <p className="text-xs text-slate-400 mt-1">PDF fino a 50 MB su PC (25 MB su tablet/telefono); Word fino a 25 MB, TXT 10 MB, HTML 5 MB.</p>
             <input 
               ref={fileInputRef} 
               type="file" 

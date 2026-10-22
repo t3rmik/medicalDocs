@@ -1,6 +1,8 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Maximize2, Minimize2 } from 'lucide-react'
+import { StudyChatPanel } from '@/components/ai/StudyChatPanel'
 import {
   MedicalDocsIcon,
   MedicalDocsMark,
@@ -27,7 +29,11 @@ interface SidebarProps {
 
 const DEFAULT_FOLDERS = ['Generale', 'Biologia', 'Chimica', 'Personale'] as const
 const CUSTOM_FOLDERS_KEY = 'medicaldocs-custom-folders-v1'
-type SidebarTab = 'docs' | 'favorites' | 'outline' | null
+type SidebarTab = 'docs' | 'favorites' | 'outline' | 'chat' | null
+
+function searchableDocumentText(value: string): string {
+  return value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLocaleLowerCase('it')
+}
 
 function normaliseFolder(value?: string): string {
   const folder = (value || 'Generale').trim()
@@ -38,6 +44,7 @@ function normaliseFolder(value?: string): string {
 
 export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentMetadata, activeDocId, currentHtml }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>(null)
+  const [chatExpanded, setChatExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [folderFilter, setFolderFilter] = useState<string>('Tutte le cartelle')
   const [customFolders, setCustomFolders] = useState<string[]>([])
@@ -85,15 +92,14 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
       // The new folder can still be used for this session.
     }
   }
-  const query = searchTerm.trim().toLocaleLowerCase('it')
-  const searchableText = (value: string) =>
-    value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLocaleLowerCase('it')
-  const filteredDocs = allDocs?.filter((doc) => {
-    const matchesQuery = !query || doc.title.toLocaleLowerCase('it').includes(query) || searchableText(doc.content).includes(query)
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const query = deferredSearchTerm.trim().toLocaleLowerCase('it')
+  const filteredDocs = useMemo(() => allDocs?.filter((doc) => {
+    const matchesQuery = !query || doc.title.toLocaleLowerCase('it').includes(query) || searchableDocumentText(doc.content).includes(query)
     const matchesTab = activeTab !== 'favorites' || Boolean(doc.favorite)
     const matchesFolder = folderFilter === 'Tutte le cartelle' || normaliseFolder(doc.folder) === folderFilter
     return matchesQuery && matchesTab && matchesFolder
-  })
+  }), [allDocs, query, activeTab, folderFilter])
   const favoriteCount = allDocs?.filter((doc) => doc.favorite).length || 0
 
   const handleDelete = async (event: React.MouseEvent, id: number) => {
@@ -119,13 +125,39 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
       }))
     } catch { return [] }
   }, [activeTab, deferredHtml])
-  const openTab = (tab: Exclude<SidebarTab, null>) => setActiveTab(activeTab === tab ? null : tab)
+  const openTab = (tab: Exclude<SidebarTab, null>) => {
+    const nextTab = activeTab === tab ? null : tab
+    setActiveTab(nextTab)
+    if (nextTab !== 'chat') setChatExpanded(false)
+  }
+  useEffect(() => {
+    if (!chatExpanded) return
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setChatExpanded(false)
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [chatExpanded])
+
+  useEffect(() => {
+    if (!activeTab) return
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const root = document.querySelector('[data-md-sidebar-root="true"]')
+      if (event.target instanceof Node && root?.contains(event.target)) return
+      setActiveTab(null)
+      setChatExpanded(false)
+    }
+    // Bubble phase: let the editor receive the pointer event before its side panel unmounts.
+    document.addEventListener('pointerdown', closeOnOutsidePointerDown)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointerDown)
+  }, [activeTab])
+
   const railButtonClass = (selected: boolean) =>
     'relative flex items-center justify-center rounded-xl p-2.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-400 ' +
     (selected ? 'bg-white/15 text-teal-200 shadow-inner ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/10 hover:text-white')
 
   return (
-    <div data-md-sidebar-root="true" data-md-panel-open={activeTab ? 'true' : 'false'} className="flex min-h-0 shrink-0 print:hidden">
+    <div data-md-sidebar-root="true" data-md-panel-open={activeTab ? 'true' : 'false'} data-md-sidebar-active={activeTab || 'none'} className="flex min-h-0 shrink-0 print:hidden">
       <aside data-md-sidebar-rail="true" className="z-40 flex w-14 shrink-0 flex-col items-center gap-3 border-r border-[#0d4654] bg-gradient-to-b from-[#092d39] via-[#0b3545] to-[#071f2e] py-4 shadow-xl sm:w-16">
         <div className="md-sidebar-brand mb-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
           <MedicalDocsMark size={34} className="h-9 w-9" />
@@ -144,30 +176,55 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
           <MedicalDocsIcon name="outline" size={22} />
           <span data-md-sidebar-mobile-label="true">Indice</span>
         </button>
+        <button type="button" data-md-nav-button="true" data-md-study-chat-launcher="true" onClick={() => openTab('chat')} className={railButtonClass(activeTab === 'chat')} title="Tutor IA: domande libere di studio" aria-label="Apri Tutor IA per domande libere di studio" aria-pressed={activeTab === 'chat'}>
+          <MedicalDocsIcon name="spark" size={22} />
+          <span data-md-sidebar-mobile-label="true">Tutor IA</span>
+          <span className="sr-only">Chat separata dall’IA che analizza il documento</span>
+        </button>
         <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-teal-200" title="MedicalDocs Pro">
           <span className="text-[10px] font-black tracking-tight">MD</span>
         </div>
       </aside>
 
       {activeTab && (
-        <section data-md-sidebar-panel="true" className="flex min-h-0 w-[min(21rem,calc(100vw-4rem))] flex-col border-r border-slate-200 bg-[#fbfdfd] p-3.5 shadow-xl shadow-slate-900/5 sm:p-4">
+        <section
+          data-md-sidebar-panel="true"
+          data-md-chat-expanded={activeTab === 'chat' && chatExpanded ? 'true' : 'false'}
+          className="flex min-h-0 w-[min(21rem,calc(100vw-4rem))] flex-col border-r border-slate-200 bg-[#fbfdfd] p-3.5 shadow-xl shadow-slate-900/5 sm:p-4"
+          role={activeTab === 'chat' && chatExpanded ? 'dialog' : undefined}
+          aria-label={activeTab === 'chat' ? 'Tutor di studio' : undefined}
+        >
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold tracking-tight text-slate-900">
-                {activeTab === 'docs' ? 'La tua libreria' : activeTab === 'favorites' ? 'Documenti preferiti' : 'Struttura documento'}
+                {activeTab === 'docs' ? 'La tua libreria' : activeTab === 'favorites' ? 'Documenti preferiti' : activeTab === 'chat' ? 'Tutor di studio' : 'Struttura documento'}
               </h2>
-              {activeTab !== 'outline' && (
+              {activeTab !== 'outline' && activeTab !== 'chat' && (
                 <p className="mt-1 text-xs text-slate-500">
                   {activeTab === 'favorites' ? String(favoriteCount) + ' documenti nei preferiti' : String(allDocs?.length || 0) + ' documenti salvati su questo dispositivo'}
                 </p>
               )}
             </div>
-            <button type="button" onClick={() => setActiveTab(null)} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Chiudi pannello" title="Chiudi pannello">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              {activeTab === 'chat' && (
+                <button
+                  type="button"
+                  onClick={() => setChatExpanded((expanded) => !expanded)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
+                  aria-label={chatExpanded ? 'Riduci il tutor di studio' : 'Espandi il tutor di studio'}
+                  title={chatExpanded ? 'Riduci pannello' : 'Apri il tutor in grande'}
+                  aria-pressed={chatExpanded}
+                >
+                  {chatExpanded ? <Minimize2 className="h-4 w-4" aria-hidden="true" /> : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+                </button>
+              )}
+              <button type="button" onClick={() => { setActiveTab(null); setChatExpanded(false) }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600" aria-label="Chiudi pannello" title="Chiudi pannello">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          {activeTab !== 'outline' && (
+          {(activeTab === 'docs' || activeTab === 'favorites') && (
             <div className="flex min-h-0 flex-1 flex-col">
               <label className="relative mb-2.5 block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -259,6 +316,8 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
               </div>
             </div>
           )}
+
+          {activeTab === 'chat' && <StudyChatPanel />}
 
           {activeTab === 'outline' && (
             <div className="flex-1 space-y-1 overflow-y-auto">

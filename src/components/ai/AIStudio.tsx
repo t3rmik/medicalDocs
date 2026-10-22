@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { markdownToHtml, markdownToPlainText } from '@/lib/markdown'
+import { copyMarkdownToClipboard, markdownToHtml, normalizeAIOutput } from '@/lib/markdown'
 import {
   MedicalDocsClose as X,
   MedicalDocsSpark as Sparkles,
@@ -128,19 +128,6 @@ function detectTopicSections(markup: string): DocumentPageSection[] {
     sections.forEach((section, index) => { section.number = index + 1 })
   }
   return sections.length > 1 ? sections : []
-}
-
-function normalizeAIOutput(markdown: string): string {
-  return markdown
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .join('\n')
-    // Preserve paragraph separation when the model puts a single newline after a sentence.
-    .replace(/([.!?;:])\n(?=[A-ZÀ-ÖØ-Þ0-9“"'(])/g, '$1\n\n')
-    .replace(/([^\n])\n(?=#{1,6}\s)/g, '$1\n\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
 }
 
 function extractPlainText(markup: string): string {
@@ -322,18 +309,13 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert, ge
   }
 
   const copyResult = async () => {
-    const plain = markdownToPlainText(result);
     try {
-      if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({
-            'text/html': new Blob([markdownToHtml(result)], { type: 'text/html' }),
-            'text/plain': new Blob([plain], { type: 'text/plain' }),
-          })]);
-        } catch { await navigator.clipboard.writeText(plain); }
-      } else { await navigator.clipboard.writeText(plain); }
-      setCopied(true); window.setTimeout(() => setCopied(false), 1600);
-    } catch { setError('Il browser non ha consentito di copiare. Seleziona il testo del risultato e copialo manualmente.'); }
+      await copyMarkdownToClipboard(result)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Non è stato possibile copiare il risultato.')
+    }
   }
 
   const actionIsSelected = (action: AIAction) => selectedAction === action
@@ -586,7 +568,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert, ge
                     <p className="text-xs text-slate-500">{retryMessage || 'I documenti lunghi possono richiedere fino a un minuto. Lascia aperta questa finestra.'}</p>
                   </div>
                 ) : result ? (
-                  <div className="prose prose-sm max-w-none break-words text-sm leading-6 text-slate-700" dangerouslySetInnerHTML={{ __html: markdownToHtml(result) }} />
+                  <div className="md-ai-response prose prose-sm max-w-none break-words text-sm leading-6 text-slate-700" dangerouslySetInnerHTML={{ __html: markdownToHtml(result) }} />
                 ) : (
                   <div className="flex min-h-[120px] flex-col items-center justify-center gap-2 text-center">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-300"><Sparkles className="h-5 w-5" /></div>
@@ -641,7 +623,7 @@ export function AIStudio({ isOpen, onClose, documentTitle, content, onInsert, ge
               </div>
             )}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-7">
-              <article className="prose prose-slate prose-base mx-auto w-full max-w-4xl break-words text-[15px] leading-7 sm:text-[17px] sm:leading-8" dangerouslySetInnerHTML={{ __html: markdownToHtml(result) }} />
+              <article className="md-ai-response prose prose-slate prose-base mx-auto w-full max-w-4xl break-words text-[15px] leading-7 sm:text-[17px] sm:leading-8" dangerouslySetInnerHTML={{ __html: markdownToHtml(result) }} />
             </div>
             <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2 text-[10px] text-slate-500 sm:px-6">
               <span>Controlla sempre il contenuto prima di inserirlo negli appunti.</span>

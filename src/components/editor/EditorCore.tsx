@@ -29,6 +29,33 @@ import { MedicalDocsIcon } from '@/components/icons/MedicalDocsIcons'
 import { PaginationPlus, PAGE_SIZES } from 'tiptap-pagination-plus'
 import type { DocumentPageSection } from '@/types/documentPages'
 
+const FontSizeTextStyle = TextStyle.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fontSize: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.fontSize || null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const fontSize = typeof attributes.fontSize === 'string' ? attributes.fontSize : ''
+          if (!fontSize || !/^\d+(?:\.\d+)?(?:px|pt|em|rem|%)$/.test(fontSize)) return {}
+          return { style: 'font-size: ' + fontSize }
+        },
+      },
+      lineHeight: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.style.lineHeight || null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const lineHeight = typeof attributes.lineHeight === 'string' ? attributes.lineHeight : ''
+          if (!['1', '1.0', '1.15', '1.5', '2'].includes(lineHeight)) return {}
+          return { style: 'line-height: ' + lineHeight }
+        },
+      },
+    }
+  },
+})
+
+
 
 const PageBreak = Node.create({
   name: 'pageBreak',
@@ -58,10 +85,13 @@ const StudyTable = Table.extend({
       ...this.parent?.(),
       mdWidth: {
         default: 100,
-        parseHTML: (element: HTMLElement) => Number(element.getAttribute('data-md-width') || 100),
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-md-width') || 100)
+          return Number.isFinite(value) ? Math.max(35, Math.min(180, value)) : 100
+        },
         renderHTML: (attributes: Record<string, unknown>) => {
           const rawWidth = Number(attributes.mdWidth)
-          const width = Number.isFinite(rawWidth) ? Math.max(35, Math.min(100, rawWidth)) : 100
+          const width = Number.isFinite(rawWidth) ? Math.max(35, Math.min(180, rawWidth)) : 100
           return { 'data-md-width': String(width), style: 'width: ' + width + '%; min-width: ' + width + '%;' }
         },
       },
@@ -81,6 +111,32 @@ const StudyTable = Table.extend({
         },
         renderHTML: (attributes: Record<string, unknown>) => ({ 'data-md-density': String(attributes.mdDensity || 'normal') }),
       },
+      mdCellPaddingX: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-md-cell-padding-x'))
+          return Number.isFinite(value) && value >= 2 && value <= 32 ? value : null
+        },
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const raw = attributes.mdCellPaddingX
+          if (typeof raw !== 'number' || !Number.isFinite(raw)) return {}
+          const value = Math.max(2, Math.min(32, raw))
+          return { 'data-md-cell-padding-x': String(value), style: '--md-table-padding-x: ' + value + 'px' }
+        },
+      },
+      mdCellPaddingY: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const value = Number(element.getAttribute('data-md-cell-padding-y'))
+          return Number.isFinite(value) && value >= 2 && value <= 32 ? value : null
+        },
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const raw = attributes.mdCellPaddingY
+          if (typeof raw !== 'number' || !Number.isFinite(raw)) return {}
+          const value = Math.max(2, Math.min(32, raw))
+          return { 'data-md-cell-padding-y': String(value), style: '--md-table-padding-y: ' + value + 'px' }
+        },
+      },
     }
   },
 })
@@ -99,16 +155,34 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const initialContentRef = useRef(initialContent)
   initialContentRef.current = initialContent
   const [zoom, setZoom] = useState(100)
+  const [fitScale, setFitScale] = useState(1)
+  const editorViewportRef = useRef<HTMLDivElement | null>(null)
   const [inkMode, setInkMode] = useState(false)
   const [inkColor, setInkColor] = useState('#154e73')
   const [inkBrushSize, setInkBrushSize] = useState(2.4)
   const [inkInputMode, setInkInputMode] = useState<'pen' | 'finger'>('pen')
   const [inkTool, setInkTool] = useState<'pen' | 'highlighter' | 'eraser' | 'select'>('pen')
+  const [eraserMode, setEraserMode] = useState<'stroke' | 'precision'>('stroke')
+  const [eraserSize, setEraserSize] = useState(24)
+  const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false)
+
+
+
+  useEffect(() => {
+    if (!inkMode) return
+    const collapseToolbarForWriting = () => {
+      const isTouchTablet = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse)').matches
+      if (isTouchTablet) setInkToolbarCollapsed(true)
+    }
+    window.addEventListener('medicaldocs:ink-gesture-start', collapseToolbarForWriting)
+    return () => window.removeEventListener('medicaldocs:ink-gesture-start', collapseToolbarForWriting)
+  }, [inkMode])
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      TextStyle, Color, FontFamily, Underline, Subscript, Superscript,
+      FontSizeTextStyle, Color, FontFamily, Underline, Subscript, Superscript,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       StudyTable.configure({ resizable: true }), TableRow, TableHeader, TableCell,
@@ -145,8 +219,69 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
       attributes: {
         class: 'editor-page prose prose-slate max-w-none focus:outline-none',
       },
+      handleKeyDown: (view, event) => {
+        if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return false
+
+        const $from = view.state.selection.$from
+        let insideTable = false
+        let insideList = false
+        for (let depth = $from.depth; depth > 0; depth -= 1) {
+          const name = $from.node(depth).type.name
+          if (name === 'table' || name === 'tableCell' || name === 'tableHeader' || name === 'tableRow') insideTable = true
+          if (name === 'listItem' || name === 'taskItem' || name === 'bulletList' || name === 'orderedList' || name === 'taskList') insideList = true
+        }
+
+        // Keep native ProseMirror/Tiptap behaviours for table navigation and list indentation.
+        if (insideTable || insideList) return false
+
+        event.preventDefault()
+        view.dispatch(view.state.tr.insertText('\t'))
+        return true
+      },
     },
   });
+
+  useEffect(() => {
+    if (!editor) return
+    const viewport = editorViewportRef.current
+    if (!viewport) return
+
+    const updateFitScale = () => {
+      const computedStyle = window.getComputedStyle(editor.view.dom)
+      const rawWidth = computedStyle.getPropertyValue('--md-page-width').trim() || '210mm'
+      const match = rawWidth.match(/^([0-9]+(?:\.[0-9]+)?)(mm|cm|in|px)?$/)
+      if (!match) {
+        setFitScale(1)
+        return
+      }
+      const amount = Number(match[1])
+      const unit = match[2] || 'px'
+      const pageWidthPx = unit === 'mm' ? amount * 96 / 25.4
+        : unit === 'cm' ? amount * 96 / 2.54
+        : unit === 'in' ? amount * 96
+        : amount
+      // Phones already use a fluid page width in CSS; fitting again would double-scale them.
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        setFitScale((current) => current === 1 ? current : 1)
+        return
+      }
+      const usableWidth = Math.max(260, viewport.clientWidth - 20)
+      const next = Math.max(0.35, Math.min(1, usableWidth / Math.max(1, pageWidthPx)))
+      setFitScale((current) => Math.abs(current - next) < 0.005 ? current : next)
+    }
+
+    updateFitScale()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateFitScale) : null
+    observer?.observe(viewport)
+    observer?.observe(editor.view.dom)
+    window.addEventListener('resize', updateFitScale)
+    window.addEventListener('orientationchange', updateFitScale)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateFitScale)
+      window.removeEventListener('orientationchange', updateFitScale)
+    }
+  }, [editor])
 
   const getActualPageSections = useCallback((): DocumentPageSection[] => {
     if (!editor || typeof window === 'undefined') return []
@@ -249,6 +384,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     editor.commands.setContent(initialContentRef.current, false)
     setZoom(100)
     setInkMode(false)
+    setInkToolbarCollapsed(false)
     setInkTool('pen')
     setInkInputMode('pen')
   }, [editor, documentVersion])
@@ -277,28 +413,31 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           paths: [], width: Math.max(1, root.clientWidth || 800),
           height: Math.max(root.scrollHeight, root.clientHeight, 1122),
           enabled: Boolean(patch.enabled), color: inkColor,
-          brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, undoStack: [], redoStack: [], selectedId: null, ...patch,
+          brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, eraserMode, eraserSize, undoStack: [], redoStack: [], selectedId: null, ...patch,
         },
       }).run();
       return;
     }
     editor.view.dispatch(editor.state.tr.setNodeMarkup(existing.pos, undefined, { ...existing.node.attrs, ...patch }));
-  }, [editor, findInkLayer, inkColor, inkBrushSize, inkInputMode]);
+  }, [editor, findInkLayer, inkColor, inkBrushSize, inkInputMode, eraserMode, eraserSize]);
 
   const toggleInkMode = useCallback(() => {
     const next = !inkMode;
-    updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool });
+    updateInkLayer({ enabled: next, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, tool: inkTool, eraserMode, eraserSize });
     setInkMode(next);
-  }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode, inkTool]);
+    setInkToolbarCollapsed(false);
+  }, [inkMode, updateInkLayer, inkColor, inkBrushSize, inkInputMode, inkTool, eraserMode, eraserSize]);
 
   const chooseInkTool = (tool: 'pen' | 'highlighter' | 'eraser' | 'select') => {
     setInkTool(tool);
     setInkMode(true);
-    updateInkLayer({ enabled: true, tool, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode });
+    updateInkLayer({ enabled: true, tool, color: inkColor, brushSize: inkBrushSize, inputMode: inkInputMode, eraserMode, eraserSize });
   };
 
   const changeInkColor = (value: string) => { setInkColor(value); updateInkLayer({ color: value }); };
   const changeInkBrushSize = (value: number) => { setInkBrushSize(value); updateInkLayer({ brushSize: value }); };
+  const changeEraserMode = (value: 'stroke' | 'precision') => { setEraserMode(value); updateInkLayer({ eraserMode: value }); };
+  const changeEraserSize = (value: number) => { setEraserSize(value); updateInkLayer({ eraserSize: value }); };
   const changeInkInputMode = (value: 'pen' | 'finger') => { setInkInputMode(value); updateInkLayer({ inputMode: value }); };
   const undoInkStroke = () => {
     const existing = findInkLayer();
@@ -342,14 +481,35 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     <div data-md-editor-shell="true" className="flex h-full w-full flex-col bg-gradient-to-br from-slate-100 via-teal-50 to-[#e5eff2]">
       <Ribbon editor={editor} onToggleInk={toggleInkMode} inkMode={inkMode} />
       {inkMode && (
-        <div data-md-ink-toolbar="true" className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+        <div data-md-ink-toolbar="true" data-md-ink-collapsed={inkToolbarCollapsed ? 'true' : 'false'} className="z-40 flex flex-wrap items-center gap-2 border-b border-indigo-200 bg-white px-3 py-2 shadow-sm sm:px-4">
+          {inkToolbarCollapsed ? (
+            <button type="button" className="md-ink-toolbar-mini" onClick={() => setInkToolbarCollapsed(false)} aria-label="Riapri gli strumenti della penna" title="Riapri gli strumenti della penna">
+              {inkTool === 'highlighter' ? <MedicalDocsIcon name="highlighter" size={20} /> : inkTool === 'eraser' ? <MedicalDocsIcon name="eraser" size={20} /> : inkTool === 'select' ? <MedicalDocsIcon name="select" size={20} /> : <MedicalDocsIcon name="pen" size={20} />}
+              <span className="md-ink-toolbar-mini-color" style={{ backgroundColor: inkColor }} aria-hidden="true" />
+            </button>
+          ) : (
+            <>
           <span className="mr-1 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />Penna attiva</span>
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Strumento di scrittura">
+          <button type="button" className="md-ink-toolbar-collapse" onClick={() => setInkToolbarCollapsed(true)} aria-label="Riduci gli strumenti della penna" title="Riduci gli strumenti della penna"><span aria-hidden="true">−</span><span className="sr-only">Riduci gli strumenti</span></button>
+          <div className="md-ink-tool-selector flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" data-md-ink-tools="true" role="group" aria-label="Strumento di scrittura">
             <button type="button" onClick={() => chooseInkTool('pen')} aria-pressed={inkTool === 'pen'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'pen' ? 'bg-indigo-700 text-white shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="pen" size={16} /> <span>Penna</span></button>
             <button type="button" onClick={() => chooseInkTool('highlighter')} aria-pressed={inkTool === 'highlighter'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'highlighter' ? 'bg-amber-200 text-amber-950 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="highlighter" size={16} /> <span>Evidenzia</span></button>
             <button type="button" onClick={() => chooseInkTool('eraser')} aria-pressed={inkTool === 'eraser'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'eraser' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="eraser" size={16} /> <span>Gomma</span></button>
             <button type="button" onClick={() => chooseInkTool('select')} aria-pressed={inkTool === 'select'} className={"flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (inkTool === 'select' ? 'bg-indigo-100 text-indigo-900 shadow-sm' : 'text-slate-700 hover:bg-white')}><MedicalDocsIcon name="select" size={16} /> <span>Seleziona</span></button>
           </div>
+          {inkTool === 'eraser' ? (
+            <>
+              <div data-md-eraser-modes="true" role="group" aria-label="Modalità gomma" className="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 p-1">
+                <button type="button" onClick={() => changeEraserMode('stroke')} aria-pressed={eraserMode === 'stroke'} title="Rimuove tutto il tratto continuo toccato" className={"min-h-10 rounded-lg px-2.5 py-2 text-xs font-semibold " + (eraserMode === 'stroke' ? 'bg-rose-700 text-white shadow-sm' : 'text-rose-900 hover:bg-white')}>Tratto intero</button>
+                <button type="button" onClick={() => changeEraserMode('precision')} aria-pressed={eraserMode === 'precision'} title="Rimuove solo la zona sotto la punta della gomma" className={"min-h-10 rounded-lg px-2.5 py-2 text-xs font-semibold " + (eraserMode === 'precision' ? 'bg-rose-700 text-white shadow-sm' : 'text-rose-900 hover:bg-white')}>Precisione</button>
+              </div>
+              <label className="flex min-h-10 min-w-40 flex-1 items-center gap-2 rounded-xl border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 sm:max-w-64">Spessore gomma
+                <input type="range" min="8" max="48" step="2" value={eraserSize} onChange={(event) => changeEraserSize(Number(event.target.value))} className="min-w-0 flex-1 accent-rose-600" aria-label="Spessore della gomma" />
+                <span className="w-7 text-right tabular-nums">{eraserSize}</span>
+              </label>
+            </>
+          ) : (
+            <>
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-1.5" role="group" aria-label="Colori rapidi">
             {[
               { color: '#154e73', label: 'Blu petrolio' }, { color: '#1d4ed8', label: 'Blu' },
@@ -367,6 +527,8 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
             <input type="range" min="1" max="8" step="0.2" value={inkBrushSize} onChange={(event) => changeInkBrushSize(Number(event.target.value))} className="min-w-0 flex-1 accent-indigo-600" aria-label="Spessore della penna" />
             <span className="w-7 text-right tabular-nums">{inkBrushSize.toFixed(1)}</span>
           </label>
+            </>
+          )}
           <label className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700">
             <input type="checkbox" checked={inkInputMode === 'finger'} onChange={(event) => changeInkInputMode(event.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-indigo-600" /> Disegna col dito
           </label>
@@ -375,10 +537,22 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           <button type="button" onClick={redoInkStroke} disabled={!canRedoInk} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" title="Ripeti azione">↷</button>
           <button type="button" onClick={clearInkStrokes} className="min-h-10 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">Cancella tutto</button>
           <button type="button" onClick={toggleInkMode} className="min-h-10 rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-800">Fine</button>
+            </>
+          )}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">
-        <div style={{ zoom: zoom / 100 }}>
+      {inkMode && inkToolbarCollapsed && (
+        <div data-md-ink-quick-history="true" role="group" aria-label="Cronologia dei tratti" className="md-ink-quick-history">
+          <button type="button" onClick={undoInkStroke} disabled={!canUndoInk} aria-label="Annulla ultimo tratto" title="Annulla ultimo tratto" className="md-ink-history-button">
+            <MedicalDocsIcon name="undo" size={20} />
+          </button>
+          <button type="button" onClick={redoInkStroke} disabled={!canRedoInk} aria-label="Ripeti tratto annullato" title="Ripeti tratto annullato" className="md-ink-history-button">
+            <MedicalDocsIcon name="redo" size={20} />
+          </button>
+        </div>
+      )}
+      <div ref={editorViewportRef} data-md-editor-viewport="true" className="min-h-0 flex-1 overflow-auto">
+        <div data-md-editor-zoom-wrapper="true" style={{ zoom: (zoom / 100) * fitScale }}>
           <EditorContent editor={editor} />
         </div>
       </div>

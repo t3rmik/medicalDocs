@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { createWorker } from 'tesseract.js';
 import toast from 'react-hot-toast';
 import {
   MedicalDocsIcon,
@@ -36,6 +35,7 @@ interface PdfAnnotatorProps {
 }
 
 type ToolMode = 'none' | 'text' | 'editText' | 'redact' | 'stamp' | 'sign' | 'draw' | 'highlight';
+type PdfPoint = { x: number; y: number; pressure?: number };
 type AnnotationType = ToolMode | 'textEdit';
 
 interface PdfTextTarget {
@@ -53,42 +53,43 @@ interface PdfTextTarget {
 
 
 function groupTextItemsIntoLines(items: PdfTextTarget[]): PdfTextTarget[] {
-  const ordered = [...items].sort((a, b) => {
-    const dy = (a.y + a.height / 2) - (b.y + b.height / 2);
-    return Math.abs(dy) > 4 ? dy : a.x - b.x;
-  });
-  const rows: PdfTextTarget[][] = [];
+  // Previous code scanned every existing row per item (quadratic on dense PDFs).
+  const ordered = [...items].sort((a, b) =>
+    (a.y + a.height / 2) - (b.y + b.height / 2) || a.x - b.x
+  );
+  const rows: Array<{ items: PdfTextTarget[]; centerTotal: number; heightTotal: number }> = [];
   for (const item of ordered) {
     const center = item.y + item.height / 2;
-    let matched: PdfTextTarget[] | null = null;
-    let closest = Number.POSITIVE_INFINITY;
-    for (const row of rows) {
-      const rowCenter = row.reduce((sum, current) => sum + current.y + current.height / 2, 0) / row.length;
-      const rowHeight = row.reduce((sum, current) => sum + current.height, 0) / row.length;
-      const distance = Math.abs(center - rowCenter);
-      if (distance <= Math.max(4, Math.min(12, Math.max(item.height, rowHeight) * 0.7)) && distance < closest) {
-        matched = row;
-        closest = distance;
+    const current = rows[rows.length - 1];
+    if (current) {
+      const rowCenter = current.centerTotal / current.items.length;
+      const rowHeight = current.heightTotal / current.items.length;
+      const tolerance = Math.max(4, Math.min(12, Math.max(item.height, rowHeight) * 0.7));
+      if (Math.abs(center - rowCenter) <= tolerance) {
+        current.items.push(item);
+        current.centerTotal += center;
+        current.heightTotal += item.height;
+        continue;
       }
     }
-    if (matched) matched.push(item); else rows.push([item]);
+    rows.push({ items: [item], centerTotal: center, heightTotal: item.height });
   }
   const lines: PdfTextTarget[] = [];
-  for (const row of rows) {
-    const horizontal = [...row].sort((a, b) => a.x - b.x);
+  for (const rowInfo of rows) {
+    const horizontal = [...rowInfo.items].sort((a, b) => a.x - b.x);
     let segment: PdfTextTarget[] = [];
     const flush = () => {
       if (!segment.length) return;
-      const left = Math.min(...segment.map((item) => item.x));
-      const top = Math.min(...segment.map((item) => item.y));
-      const right = Math.max(...segment.map((item) => item.x + item.width));
-      const bottom = Math.max(...segment.map((item) => item.y + item.height));
+      const bounds = segment.reduce((acc, item) => ({
+        left: Math.min(acc.left, item.x), top: Math.min(acc.top, item.y),
+        right: Math.max(acc.right, item.x + item.width), bottom: Math.max(acc.bottom, item.y + item.height),
+      }), { left: Number.POSITIVE_INFINITY, top: Number.POSITIVE_INFINITY, right: Number.NEGATIVE_INFINITY, bottom: Number.NEGATIVE_INFINITY });
       const sourceTextIds = segment.flatMap((item) => item.sourceTextIds?.length ? item.sourceTextIds : [item.id]);
       const text = segment.map((item) => item.text.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').trim();
       if (text) lines.push({
         id: segment.length === 1 ? segment[0].id : 'line-' + sourceTextIds.join('-'),
-        page: segment[0].page, text, x: left, y: top,
-        width: Math.max(3, right - left), height: Math.max(5, bottom - top),
+        page: segment[0].page, text, x: bounds.left, y: bounds.top,
+        width: Math.max(3, bounds.right - bounds.left), height: Math.max(5, bounds.bottom - bounds.top),
         fontSize: segment.reduce((sum, item) => sum + item.fontSize, 0) / segment.length,
         source: segment[0].source, sourceTextIds,
       });
@@ -114,7 +115,7 @@ interface Annotation {
   y: number;
   text?: string;
   color?: string;
-  points?: Array<{ x: number; y: number }>;
+  points?: PdfPoint[];
   strokeWidth?: number;
   width?: number;
   height?: number;
@@ -133,9 +134,12 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
+  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [redactColor, setRedactColor] = useState('#0f172a');
   const [inkColor, setInkColor] = useState('#2563eb');
+  const [pdfInputMode, setPdfInputMode] = useState<'pen' | 'finger'>('pen');
   const [pageTextItems, setPageTextItems] = useState<PdfTextTarget[]>([]);
   const [ocrTargetsByPage, setOcrTargetsByPage] = useState<Record<number, PdfTextTarget[]>>({});
   const [textSource, setTextSource] = useState<'pdf' | 'ocr'>('pdf');
@@ -156,8 +160,15 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [pageAiModel, setPageAiModel] = useState('');
   const [isPageAiLoading, setIsPageAiLoading] = useState(false);
   const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
-  const [drawingPoints, setDrawingPoints] = useState<Array<{ x: number; y: number }>>([]);
-  const drawingPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const dragStartAnnotationsRef = useRef<Annotation[] | null>(null);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const dragStartClientRef = useRef<{ x: number; y: number } | null>(null);
+  const dragDidMoveRef = useRef(false);
+  const selectionPointerIdRef = useRef<number | null>(null);
+  const drawingPointerIdRef = useRef<number | null>(null);
+  const drawingFrameRef = useRef<number | null>(null);
+  const [drawingPoints, setDrawingPoints] = useState<PdfPoint[]>([]);
+  const drawingPointsRef = useRef<PdfPoint[]>([]);
   const isDrawingRef = useRef(false);
   
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -199,49 +210,92 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
+    let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null
     const loadPdf = async () => {
       try {
-        setLoading(true);
-        const arrayBuffer = await file.arrayBuffer();
-        const loadedPdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        setLoading(true)
+        setPdfLoadError(null)
+        setPdfDoc(null)
+        setNumPages(0)
+        setPageNum(1)
+        const arrayBuffer = await file.arrayBuffer()
+        if (!isMounted) return
+        // Cap decoded images and destroy the task when the viewer closes or switches files.
+        loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(arrayBuffer),
+          maxImageSize: 16_000_000,
+          isEvalSupported: false,
+        })
+        const loadedPdf = await loadingTask.promise
+        if (!isMounted) {
+          await loadingTask.destroy().catch(() => undefined)
+          return
+        }
+
+        let fittedScale = 1.2
+        try {
+          const firstPage = await loadedPdf.getPage(1)
+          const pageWidth = firstPage.getViewport({ scale: 1 }).width
+          const viewer = document.querySelector<HTMLElement>('[data-md-pdf-viewer="true"]')
+          const availableWidth = (viewer?.clientWidth || window.innerWidth - 48) - 48
+          if (pageWidth > 0 && availableWidth > 0) fittedScale = Math.max(0.5, Math.min(3, availableWidth / pageWidth))
+        } catch {
+          // Keep the normal zoom if the viewer cannot be measured.
+        }
+
         if (isMounted) {
-          setPdfDoc(loadedPdf);
-          setNumPages(loadedPdf.numPages);
-          setLoading(false);
+          setScale(fittedScale)
+          setPdfDoc(loadedPdf)
+          setNumPages(loadedPdf.numPages)
+          setLoading(false)
         }
       } catch (err: any) {
         if (isMounted) {
-          console.error("Errore caricamento PDF Viewer:", err);
-          toast.error("Impossibile caricare il visualizzatore PDF.");
-          setLoading(false);
+          console.error('Errore caricamento PDF Viewer:', err)
+          const message = 'Impossibile caricare il PDF. Se è molto grande o contiene scansioni pesanti, prova a ridurlo o dividerlo.'
+          setPdfLoadError(message)
+          toast.error(message, { duration: 9000 })
+          setLoading(false)
         }
       }
-    };
-    loadPdf();
-    return () => { isMounted = false; };
+    }
+    void loadPdf()
+    return () => {
+      isMounted = false
+      if (loadingTask) void loadingTask.destroy().catch(() => undefined)
+    }
   }, [file]);
 
   useEffect(() => {
     if (!pdfDoc) return;
     let isMounted = true;
+    let renderTask: { cancel: () => void; promise: Promise<void> } | null = null;
     const renderPage = async () => {
       try {
         const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale });
+        const displayViewport = page.getViewport({ scale });
+        // A very large page at high zoom can otherwise allocate hundreds of MB in a single RGBA canvas.
+        const pixelCount = displayViewport.width * displayViewport.height;
+        const maxCanvasPixels = 12_000_000;
+        const renderFactor = pixelCount > maxCanvasPixels ? Math.sqrt(maxCanvasPixels / pixelCount) : 1;
+        const renderViewport = renderFactor < 1 ? page.getViewport({ scale: scale * renderFactor }) : displayViewport;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', { alpha: false });
         if (!context) return;
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        await page.render({ canvasContext: context, viewport }).promise;
+        canvas.width = Math.max(1, Math.ceil(renderViewport.width));
+        canvas.height = Math.max(1, Math.ceil(renderViewport.height));
+        canvas.style.width = Math.ceil(displayViewport.width) + 'px';
+        canvas.style.height = Math.ceil(displayViewport.height) + 'px';
+        const currentRenderTask = page.render({ canvasContext: context, viewport: renderViewport });
+        renderTask = currentRenderTask;
+        await currentRenderTask.promise;
         if (!isMounted) return;
 
-        // Read the actual PDF text objects; no character-count page simulation.
         const textContent = await page.getTextContent();
-        const transform = viewport.transform;
+        const transform = displayViewport.transform;
         const targets: PdfTextTarget[] = [];
         textContent.items.forEach((rawItem: any, index: number) => {
           if (typeof rawItem.str !== 'string' || !rawItem.str.trim() || !Array.isArray(rawItem.transform)) return;
@@ -272,11 +326,15 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         setSelectedTextItem(null);
         setReplacementText('');
       } catch (err) {
-        console.error("Errore render pagina PDF:", err);
+        const errorName = err && typeof err === 'object' && 'name' in err ? String((err as { name?: unknown }).name) : ''
+        if (errorName !== 'RenderingCancelledException') console.error("Errore render pagina PDF:", err);
       }
     };
     void renderPage();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+      renderTask?.cancel();
+    };
   }, [pdfDoc, pageNum, scale, ocrTargetsByPage]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -419,9 +477,10 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       return;
     }
     setIsOcrLoading(true);
-    let worker: Awaited<ReturnType<typeof createWorker>> | null = null;
+    let worker: any = null;
     try {
-      worker = await createWorker('ita+eng');
+      const tesseract = await import('tesseract.js');
+      worker = await tesseract.createWorker('ita+eng');
       const result = await worker.recognize(canvasRef.current);
       const words = (result.data.words || []).filter((word: any) => String(word.text || '').trim() && (word.confidence == null || word.confidence >= 25));
       const detected: PdfTextTarget[] = words.map((word: any, index: number) => {
@@ -526,6 +585,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (selectionStartRef.current && selectionPointerIdRef.current !== event.pointerId) return
+    if (isDrawingRef.current && drawingPointerIdRef.current !== event.pointerId) return
     if (activeTool === 'editText') {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -534,6 +595,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       selectionStartRef.current = start;
       selectionDidMoveRef.current = false;
       selectionPointerTypeRef.current = event.pointerType;
+      selectionPointerIdRef.current = event.pointerId;
       setSelectionBox({ x: start.x, y: start.y, width: 0, height: 0 });
       if (event.pointerType !== 'touch') {
         event.preventDefault();
@@ -542,12 +604,14 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       return;
     }
     if (activeTool !== 'draw') return;
+    if (event.pointerType === 'touch' && pdfInputMode !== 'finger') return;
     event.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const point: PdfPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top, ...(event.pointerType === 'pen' && event.pressure > 0 ? { pressure: event.pressure } : {}) };
     isDrawingRef.current = true;
+    drawingPointerIdRef.current = event.pointerId;
     drawingPointsRef.current = [point];
     setDrawingPoints([point]);
     try {
@@ -559,6 +623,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (selectionStartRef.current) {
+      if (selectionPointerIdRef.current !== null && event.pointerId !== selectionPointerIdRef.current) return
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
@@ -568,8 +633,11 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       const dy = current.y - start.y;
       if (selectionPointerTypeRef.current === 'touch') {
         if (Math.abs(dx) + Math.abs(dy) > 9) {
-          selectionStartRef.current = null;
-          setSelectionBox(null);
+          selectionStartRef.current = null
+          selectionPointerIdRef.current = null
+          selectionDidMoveRef.current = false
+          selectionPointerTypeRef.current = 'mouse'
+          setSelectionBox(null)
         }
         return;
       }
@@ -578,6 +646,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       return;
     }
     if (draggingId) {
+      if (dragPointerIdRef.current !== null && event.pointerId !== dragPointerIdRef.current) return
+      if (dragStartClientRef.current && Math.hypot(event.clientX - dragStartClientRef.current.x, event.clientY - dragStartClientRef.current.y) > 3) dragDidMoveRef.current = true
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
@@ -589,62 +659,94 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           if (ann.id !== draggingId) return ann;
           const dx = px + offset.x - ann.x;
           const dy = py + offset.y - ann.y;
-          return { ...ann, x: px + offset.x, y: py + offset.y, points: ann.type === 'draw' && ann.points ? ann.points.map((point) => ({ x: point.x + dx, y: point.y + dy })) : ann.points };
+          return { ...ann, x: px + offset.x, y: py + offset.y, points: ann.type === 'draw' && ann.points ? ann.points.map((point) => ({ ...point, x: point.x + dx, y: point.y + dy })) : ann.points };
         });
         draggedAnnotationsRef.current = next;
         return next;
       });
       return;
     }
-    if (!isDrawingRef.current) return;
+    if (!isDrawingRef.current || (drawingPointerIdRef.current !== null && event.pointerId !== drawingPointerIdRef.current)) return;
     event.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const point = {
+    const point: PdfPoint = {
       x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
       y: Math.max(0, Math.min(rect.height, event.clientY - rect.top)),
+      ...(event.pointerType === 'pen' && event.pressure > 0 ? { pressure: event.pressure } : {}),
     };
-    const nextPoints = [...drawingPointsRef.current, point];
-    drawingPointsRef.current = nextPoints;
-    setDrawingPoints(nextPoints);
+    drawingPointsRef.current.push(point)
+    if (drawingFrameRef.current === null) {
+      drawingFrameRef.current = window.requestAnimationFrame(() => {
+        drawingFrameRef.current = null
+        if (isDrawingRef.current) setDrawingPoints([...drawingPointsRef.current])
+      })
+    }
   };
+
+  const resetDrawingPreview = () => {
+    if (drawingFrameRef.current !== null) {
+      window.cancelAnimationFrame(drawingFrameRef.current)
+      drawingFrameRef.current = null
+    }
+    isDrawingRef.current = false
+    drawingPointerIdRef.current = null
+    drawingPointsRef.current = []
+    setDrawingPoints([])
+  }
+
+  const clearSelectionGesture = () => {
+    selectionStartRef.current = null
+    selectionPointerIdRef.current = null
+    selectionDidMoveRef.current = false
+    selectionPointerTypeRef.current = 'mouse'
+    setSelectionBox(null)
+  }
+
+  const clearAnnotationDrag = () => {
+    draggedAnnotationsRef.current = null
+    dragStartAnnotationsRef.current = null
+    dragOffsetRef.current = null
+    dragStartClientRef.current = null
+    dragPointerIdRef.current = null
+    dragDidMoveRef.current = false
+    setDraggingId(null)
+  }
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     if (selectionStartRef.current) {
-      const canvas = canvasRef.current;
+      if (selectionPointerIdRef.current !== null && event.pointerId !== selectionPointerIdRef.current) return
+      const canvas = canvasRef.current
       if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        finishTextSelection(selectionStartRef.current, { x: event.clientX - rect.left, y: event.clientY - rect.top }, selectionDidMoveRef.current);
+        const rect = canvas.getBoundingClientRect()
+        finishTextSelection(selectionStartRef.current, { x: event.clientX - rect.left, y: event.clientY - rect.top }, selectionDidMoveRef.current)
       }
-      selectionStartRef.current = null;
-      selectionDidMoveRef.current = false;
-      selectionPointerTypeRef.current = 'mouse';
-      return;
+      clearSelectionGesture()
+      return
     }
     if (draggingId) {
-      if (draggedAnnotationsRef.current) pushHistory(draggedAnnotationsRef.current);
-      draggedAnnotationsRef.current = null;
-      dragOffsetRef.current = null;
-      setDraggingId(null);
-      return;
+      if (dragPointerIdRef.current !== null && event.pointerId !== dragPointerIdRef.current) return
+      if (dragDidMoveRef.current && draggedAnnotationsRef.current) pushHistory(draggedAnnotationsRef.current)
+      else if (dragStartAnnotationsRef.current) setAnnotations(dragStartAnnotationsRef.current)
+      clearAnnotationDrag()
+      return
     }
-    if (!isDrawingRef.current) return;
-    event.preventDefault();
-    const canvas = canvasRef.current;
-    let points = drawingPointsRef.current;
+    if (!isDrawingRef.current || (drawingPointerIdRef.current !== null && event.pointerId !== drawingPointerIdRef.current)) return
+    event.preventDefault()
+    const canvas = canvasRef.current
+    const points = [...drawingPointsRef.current]
     if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      points = [...points, {
+      const rect = canvas.getBoundingClientRect()
+      points.push({
         x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
         y: Math.max(0, Math.min(rect.height, event.clientY - rect.top)),
-      }];
+        ...(event.pointerType === 'pen' && event.pressure > 0 ? { pressure: event.pressure } : {}),
+      })
     }
-    isDrawingRef.current = false;
-    drawingPointsRef.current = [];
-    setDrawingPoints([]);
+    resetDrawingPreview()
 
-    if (points.length < 2) return;
+    if (points.length < 2) return
     const drawing: Annotation = {
       id: Math.random().toString(36).slice(2, 10),
       page: pageNum,
@@ -654,8 +756,23 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       points: points.map((point) => ({ x: point.x / scale, y: point.y / scale })),
       color: inkColor,
       strokeWidth: 2.5,
-    };
-    pushHistory([...annotations, drawing]);
+    }
+    pushHistory([...annotations, drawing])
+  }
+
+  const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (selectionStartRef.current && (selectionPointerIdRef.current === null || event.pointerId === selectionPointerIdRef.current)) {
+      clearSelectionGesture()
+      return
+    }
+    if (draggingId && (dragPointerIdRef.current === null || event.pointerId === dragPointerIdRef.current)) {
+      if (dragStartAnnotationsRef.current) setAnnotations(dragStartAnnotationsRef.current)
+      clearAnnotationDrag()
+      return
+    }
+    if (isDrawingRef.current && (drawingPointerIdRef.current === null || event.pointerId === drawingPointerIdRef.current)) {
+      resetDrawingPreview()
+    }
   };
 
 
@@ -721,7 +838,9 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           const hex = (ann.color || '#2563eb').replace('#', '');
           const strokeColor = rgb(parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255);
           for (let i = 1; i < ann.points.length; i++) {
-            targetPage.drawLine({ start: pdfPoint(viewport, ann.points[i - 1].x, ann.points[i - 1].y), end: pdfPoint(viewport, ann.points[i].x, ann.points[i].y), thickness: Math.max(0.5, (ann.strokeWidth || 2.5) / scale), color: strokeColor });
+            const currentPoint = ann.points[i]
+            const pressureFactor = typeof currentPoint.pressure === 'number' && currentPoint.pressure > 0 ? 0.55 + currentPoint.pressure * 0.9 : 1
+            targetPage.drawLine({ start: pdfPoint(viewport, ann.points[i - 1].x, ann.points[i - 1].y), end: pdfPoint(viewport, currentPoint.x, currentPoint.y), thickness: Math.max(0.5, ((ann.strokeWidth || 2.5) * pressureFactor) / scale), color: strokeColor });
           }
         } else if (ann.type === 'stamp' || ann.type === 'sign') {
           const baseline = pdfPoint(viewport, ann.x, ann.y + 12);
@@ -738,7 +857,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      // Keep Blob URLs alive while large downloads initialise.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast.success('PDF modificato esportato.');
     } catch (err) {
       console.error('Export PDF non riuscito:', err);
@@ -749,11 +869,15 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   return (
-    <div data-md-pdf-annotator="true" className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
+    <div data-md-pdf-annotator="true" data-md-pdf-tools-open={mobileToolsOpen ? 'true' : 'false'} className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
       <div data-md-pdf-toolbar="true" className="flex max-h-[42dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-b border-slate-700 bg-slate-800 px-3 py-2.5 shadow-md sm:max-h-none sm:overflow-visible">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
+          <button type="button" data-md-pdf-mobile-toggle="true" onClick={() => setMobileToolsOpen((open) => !open)} aria-expanded={mobileToolsOpen} aria-label={mobileToolsOpen ? 'Nascondi strumenti PDF' : 'Mostra strumenti PDF'} className="md-pdf-mobile-toggle">
+            <MedicalDocsIcon name={mobileToolsOpen ? 'close' : 'outline'} size={17} />
+            <span>{mobileToolsOpen ? 'Chiudi' : 'Strumenti PDF'}</span>
+          </button>
         </div>
 
         <div data-md-pdf-tools="true" className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain bg-slate-900/90 px-2 py-1.5 rounded-xl border border-slate-700 shadow-inner sm:w-auto xl:flex-wrap [&>button]:shrink-0 [&>label]:shrink-0">
@@ -766,26 +890,26 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
 
           <div className="h-4 w-[1px] bg-slate-700 mx-1" />
 
-          <button onClick={() => setActiveTool('none')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'none' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
+          <button type="button" aria-pressed={activeTool === 'none'} onClick={() => setActiveTool('none')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'none' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
             <Move className="w-3.5 h-3.5" /><span>Naviga</span>
           </button>
-          <button onClick={() => { setActiveTool('text'); setSelectedTextItem(null); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${activeTool === 'text' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
+          <button type="button" aria-pressed={activeTool === 'text'} onClick={() => { setActiveTool('text'); setSelectedTextItem(null); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${activeTool === 'text' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
             <Edit3 className="w-3.5 h-3.5" /><span>Nota testo</span>
           </button>
-          <button onClick={() => { setActiveTool('editText'); setSelectedTextItem(null); setPageAiAnswer(''); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${activeTool === 'editText' ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Seleziona testo PDF, correggilo o spostalo">
+          <button type="button" aria-pressed={activeTool === 'editText'} onClick={() => { setActiveTool('editText'); setSelectedTextItem(null); setPageAiAnswer(''); }} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${activeTool === 'editText' ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Seleziona testo PDF, correggilo o spostalo">
             <Type className="w-3.5 h-3.5" /><span>Modifica testo</span>
           </button>
-          <button type="button" onClick={() => { setMultiSelectMode((current) => !current); selectedSourceIdsRef.current = []; setSelectedTextItem(null); setReplacementText(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${multiSelectMode ? 'bg-amber-500 text-slate-950' : 'hover:bg-slate-800 text-slate-300'}`} title="Su telefono attivalo e tocca più righe una dopo l’altra">Multi-riga {multiSelectMode ? 'ON' : 'OFF'}</button>
-          <button onClick={() => { setIsPageAiOpen((open) => !open); setPageAiAnswer(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${isPageAiOpen ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Fai una domanda sul testo della pagina corrente">
+          <button type="button" aria-pressed={multiSelectMode} onClick={() => { setMultiSelectMode((current) => !current); selectedSourceIdsRef.current = []; setSelectedTextItem(null); setReplacementText(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${multiSelectMode ? 'bg-amber-500 text-slate-950' : 'hover:bg-slate-800 text-slate-300'}`} title="Su telefono attivalo e tocca più righe una dopo l’altra">Multi-riga {multiSelectMode ? 'ON' : 'OFF'}</button>
+          <button aria-pressed={isPageAiOpen} onClick={() => { setIsPageAiOpen((open) => !open); setPageAiAnswer(''); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${isPageAiOpen ? 'bg-violet-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Fai una domanda sul testo della pagina corrente">
             <MedicalDocsIcon name="spark" size={15} /><span>AI pagina</span>
           </button>
           <button onClick={runPageOcr} disabled={isOcrLoading} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition hover:bg-slate-800 text-slate-300 disabled:opacity-50" title="Riconosce le parole di una pagina scansionata">
             <MedicalDocsIcon name="scan" size={15} /><span>{isOcrLoading ? 'OCR in corso…' : 'OCR pagina'}</span>
           </button>
-          <button onClick={() => setActiveTool('draw')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Disegna con penna, stilo o dito">
+          <button type="button" aria-pressed={activeTool === 'draw'} onClick={() => setActiveTool('draw')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'draw' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`} title="Disegna con penna, stilo o dito">
             <MedicalDocsIcon name="pen" size={15} /><span>Penna</span>
           </button>
-          <button onClick={() => setActiveTool('highlight')} title="Evidenzia una zona della pagina" className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition hover:bg-amber-500/20 text-amber-200"><Highlighter className="w-3.5 h-3.5" /><span>Evidenzia</span></button>
+          <button type="button" aria-pressed={activeTool === 'highlight'} onClick={() => setActiveTool('highlight')} title="Evidenzia una zona della pagina" className="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition hover:bg-amber-500/20 text-amber-200"><Highlighter className="w-3.5 h-3.5" /><span>Evidenzia</span></button>
           {activeTool === 'text' && (
             <label className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-300">
               Testo
@@ -794,14 +918,21 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             </label>
           )}
           {activeTool === 'draw' && (
-            <label className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-300">
-              Colore
-              <input type="color" value={inkColor} onChange={(e) => setInkColor(e.target.value)} className="h-5 w-6 cursor-pointer bg-transparent" aria-label="Colore della penna PDF" />
-            </label>
+            <div data-md-pdf-input-mode="true" className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs text-slate-200">
+              <label className="flex min-h-10 items-center gap-2">
+                Colore
+                <input type="color" value={inkColor} onChange={(e) => setInkColor(e.target.value)} className="h-8 w-9 cursor-pointer rounded bg-transparent" aria-label="Colore della penna PDF" />
+              </label>
+              <label className="flex min-h-10 items-center gap-2 rounded-lg px-1.5 py-1">
+                <input type="checkbox" checked={pdfInputMode === 'finger'} onChange={(e) => setPdfInputMode(e.target.checked ? 'finger' : 'pen')} className="h-4 w-4 accent-teal-400" aria-label="Consenti il disegno con il dito" />
+                Disegna col dito
+              </label>
+              <span className="text-[10px] text-slate-400">{pdfInputMode === 'pen' ? 'Stilo scrive · dito scorre' : 'Dito e stilo scrivono'}</span>
+            </div>
           )}
           
           <div className="flex flex-wrap items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700">
-            <button title="Copertura visiva: non rimuove i dati originali dal PDF" onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
+            <button type="button" aria-pressed={activeTool === 'redact'} title="Copertura visiva: non rimuove i dati originali dal PDF" onClick={() => setActiveTool('redact')} className={`px-2 py-1 rounded text-xs font-medium flex items-center space-x-1 transition ${activeTool === 'redact' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-700 text-slate-300'}`}>
               <ShieldAlert className="w-3.5 h-3.5" /><span>Copri (visivo)</span>
             </button>
             <select value={redactColor} onChange={(e) => setRedactColor(e.target.value)} className="bg-slate-900 text-xs text-slate-200 border border-slate-600 rounded px-1 py-0.5 outline-none cursor-pointer">
@@ -813,15 +944,15 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             </select>
           </div>
 
-          <button onClick={() => setActiveTool('stamp')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'stamp' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
+          <button type="button" aria-pressed={activeTool === 'stamp'} onClick={() => setActiveTool('stamp')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'stamp' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
             <Stamp className="w-3.5 h-3.5" /><span>+ Timbro</span>
           </button>
-          <button onClick={() => setActiveTool('sign')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'sign' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
+          <button type="button" aria-pressed={activeTool === 'sign'} onClick={() => setActiveTool('sign')} className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition ${activeTool === 'sign' ? 'bg-blue-600 text-white shadow' : 'hover:bg-slate-800 text-slate-300'}`}>
             <CheckCircle className="w-3.5 h-3.5" /><span>+ Firma</span>
           </button>
         </div>
         
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div data-md-pdf-navigation-controls="true" className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} aria-label="Riduci ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
           <button onClick={() => setScale(s => Math.min(3, s + 0.2))} aria-label="Aumenta ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition" title="Ingrandisci"><ZoomIn className="w-4 h-4" /></button>
@@ -874,44 +1005,44 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
         <PageThumbnails pdfDoc={pdfDoc} totalPages={numPages} currentPage={pageNum} onPageSelect={setPageNum} />
         <div data-md-pdf-viewer="true" className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-slate-950 px-2 py-4 sm:px-8 sm:py-8">
         {loading ? (
-          <div className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
+          <div role="status" className="text-sm text-slate-400 animate-pulse font-medium">Caricamento anteprima PDF in corso...</div>
+        ) : pdfLoadError ? (
+          <div role="alert" className="m-4 max-w-xl rounded-xl border border-amber-700/60 bg-amber-950/40 p-4 text-sm leading-6 text-amber-100">{pdfLoadError}</div>
         ) : (
           <div
             ref={containerRef}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
+            onLostPointerCapture={handlePointerCancel}
             onClick={handleCanvasClick}
-            className={'shadow-2xl border border-slate-700 bg-white relative cursor-crosshair rounded-lg overflow-hidden ' + (activeTool === 'draw' ? 'touch-none' : 'touch-pan-y')}
+            className={'shadow-2xl border border-slate-700 bg-white relative cursor-crosshair rounded-lg overflow-hidden ' + (activeTool === 'draw' && pdfInputMode === 'finger' ? 'touch-none' : 'touch-pan-y')}
           >
             <canvas ref={canvasRef} className="block pointer-events-none" />
             <svg
               aria-hidden="true"
               className="absolute left-0 top-0 pointer-events-none z-20"
-              width={canvasRef.current?.width || 0}
-              height={canvasRef.current?.height || 0}
+              width={canvasRef.current?.clientWidth || canvasRef.current?.width || 0}
+              height={canvasRef.current?.clientHeight || canvasRef.current?.height || 0}
             >
               {annotations.filter((ann) => ann.page === pageNum && ann.type === 'draw' && ann.points && ann.points.length > 1).map((ann) => (
-                <polyline
-                  key={ann.id}
-                  points={ann.points!.map((point) => `${point.x * scale},${point.y * scale}`).join(' ')}
-                  fill="none"
-                  stroke={ann.color || '#2563eb'}
-                  strokeWidth={ann.strokeWidth || 2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <g key={ann.id}>
+                  {ann.points!.slice(1).map((point, index) => {
+                    const previous = ann.points![index]
+                    const pressureFactor = typeof point.pressure === 'number' && point.pressure > 0 ? 0.55 + point.pressure * 0.9 : 1
+                    return <line key={index} x1={previous.x * scale} y1={previous.y * scale} x2={point.x * scale} y2={point.y * scale} fill="none" stroke={ann.color || '#2563eb'} strokeWidth={(ann.strokeWidth || 2.5) * pressureFactor} strokeLinecap="round" strokeLinejoin="round" />
+                  })}
+                </g>
               ))}
               {activeTool === 'draw' && drawingPoints.length > 1 && (
-                <polyline
-                  points={drawingPoints.map((point) => `${point.x},${point.y}`).join(' ')}
-                  fill="none"
-                  stroke={inkColor}
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <g>
+                  {drawingPoints.slice(1).map((point, index) => {
+                    const previous = drawingPoints[index]
+                    const pressureFactor = typeof point.pressure === 'number' && point.pressure > 0 ? 0.55 + point.pressure * 0.9 : 1
+                    return <line key={index} x1={previous.x} y1={previous.y} x2={point.x} y2={point.y} fill="none" stroke={inkColor} strokeWidth={2.5 * pressureFactor} strokeLinecap="round" strokeLinejoin="round" />
+                  })}
+                </g>
               )}
             </svg>
 
@@ -928,12 +1059,16 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
             {selectionBox && <div aria-hidden="true" className="pointer-events-none absolute z-50 border-2 border-violet-400 bg-violet-400/20" style={{ left: selectionBox.x + 'px', top: selectionBox.y + 'px', width: Math.max(2, selectionBox.width) + 'px', height: Math.max(2, selectionBox.height) + 'px' }} />}
 
             {annotations.filter(a => a.page === pageNum).map(ann => (
-              <div key={ann.id} onClick={(event) => event.stopPropagation()} onPointerDown={(event) => {
+              <div key={ann.id} data-md-annotation="true" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => {
                 event.stopPropagation();
                 const rect = canvasRef.current?.getBoundingClientRect();
                 if (!rect) return;
                 dragOffsetRef.current = { x: ann.x - (event.clientX - rect.left) / scale, y: ann.y - (event.clientY - rect.top) / scale };
+                dragStartAnnotationsRef.current = annotations;
                 draggedAnnotationsRef.current = annotations;
+                dragPointerIdRef.current = event.pointerId;
+                dragStartClientRef.current = { x: event.clientX, y: event.clientY };
+                dragDidMoveRef.current = false;
                 setDraggingId(ann.id);
                 try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* optional */ }
               }}
@@ -948,8 +1083,8 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
                 {ann.type === 'redact' && <span className="sr-only">Copertura visiva</span>}
                 {ann.type === 'stamp' && <span className="text-red-600 font-bold border border-red-500 px-1.5 py-0.5 rounded bg-red-50">APPROVATO</span>}
                 {ann.type === 'sign' && <span className="text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-300">✓ FIRMATO</span>}
-                {ann.type !== 'highlight' && ann.type !== 'redact' && <button onClick={(event) => handleDeleteAnnotation(ann.id, event)} onPointerDown={(event) => event.stopPropagation()} title="Elimina" className="absolute -right-2 -top-2 z-50 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-red-600 transition shadow">×</button>}
-                {(ann.type === 'highlight' || ann.type === 'redact') && <button onClick={(event) => handleDeleteAnnotation(ann.id, event)} title="Elimina annotazione" className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-red-600 transition shadow">×</button>}
+                {ann.type !== 'highlight' && ann.type !== 'redact' && <button onClick={(event) => handleDeleteAnnotation(ann.id, event)} onPointerDown={(event) => event.stopPropagation()} data-md-annotation-delete="true" title="Elimina" aria-label="Elimina annotazione" className="absolute -right-2 -top-2 z-50 h-7 w-7 rounded-full bg-red-500 text-white flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 hover:bg-red-600 transition shadow">×</button>}
+                {(ann.type === 'highlight' || ann.type === 'redact') && <button onClick={(event) => handleDeleteAnnotation(ann.id, event)} onPointerDown={(event) => event.stopPropagation()} data-md-annotation-delete="true" title="Elimina annotazione" aria-label="Elimina annotazione" className="absolute -right-2 -top-2 h-7 w-7 rounded-full bg-red-500 text-white flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 hover:bg-red-600 transition shadow">×</button>}
               </div>
             ))}
           </div>

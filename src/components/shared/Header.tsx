@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { PwaInstallControl } from '@/components/shared/PwaInstallControl'
 import {
   MedicalDocsIcon,
   MedicalDocsMark,
@@ -44,6 +45,18 @@ export function Header({
   const [commandQuery, setCommandQuery] = useState('')
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const commandInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!activeMenu) return
+    const closeMenuOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-md-header-menu="true"]')) return
+      setActiveMenu(null)
+    }
+    document.addEventListener('pointerdown', closeMenuOnOutsidePointerDown)
+    return () => document.removeEventListener('pointerdown', closeMenuOnOutsidePointerDown)
+  }, [activeMenu])
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -137,7 +150,7 @@ export function Header({
               </span>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1">
-              <div className="relative">
+              <div className="relative" data-md-header-menu="true">
                 <button
                   type="button"
                   onClick={() => setActiveMenu(activeMenu === 'file' ? null : 'file')}
@@ -162,7 +175,7 @@ export function Header({
                   </div>
                 )}
               </div>
-              <div className="relative">
+              <div className="relative" data-md-header-menu="true">
                 <button
                   type="button"
                   onClick={() => setActiveMenu(activeMenu === 'export' ? null : 'export')}
@@ -211,6 +224,7 @@ export function Header({
         </div>
 
         <div data-md-topbar-controls="true" className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <PwaInstallControl />
           <button
             type="button"
             onClick={openCommandPalette}

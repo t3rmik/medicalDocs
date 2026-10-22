@@ -66,6 +66,14 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
     const width=Math.round(Math.max(80,Math.min(gesture.maxWidth,gesture.startWidth+delta)))
     previewRef.current=width; setPreviewWidth(width)
   }
+  const cancelResize = (event?:ReactPointerEvent<HTMLButtonElement>) => {
+    const gesture = resizeRef.current
+    if (!gesture || (event && gesture.pointerId !== event.pointerId)) return
+    resizeRef.current = null
+    previewRef.current = null
+    setPreviewWidth(null)
+  }
+
   const finishResize = (event?:React.PointerEvent<HTMLButtonElement>) => {
     const gesture=resizeRef.current
     if (!gesture||(event&&gesture.pointerId!==event.pointerId)) return
@@ -104,7 +112,7 @@ function ResizableImageView({node, editor, updateAttributes, selected, getPos}: 
         outline:selected?'2px solid #0f9488':'1px solid transparent',outlineOffset:selected?2:0,cursor:'grab',userSelect:'none',WebkitUserSelect:'none'}}/>
     {selected&&<button type="button" className="medicaldocs-image-resize-handle" title="Trascina per ridimensionare"
       aria-label="Ridimensiona immagine trascinando" onPointerDown={startResize} onPointerMove={resizeMove}
-      onPointerUp={finishResize} onPointerCancel={finishResize} onLostPointerCapture={(event: ReactPointerEvent<HTMLButtonElement>)=>finishResize(event)}
+      onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={(event: ReactPointerEvent<HTMLButtonElement>)=>cancelResize(event)}
       onClick={(event: ReactMouseEvent<HTMLButtonElement>)=>{event.preventDefault();event.stopPropagation()}}><span/></button>}
   </NodeViewWrapper>
 }

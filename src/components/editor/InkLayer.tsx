@@ -15,8 +15,11 @@ export interface InkStroke {
   ty: number
   sx: number
   sy: number
+  segments?: Array<{ d: string; width: number }>
 }
 type Point = { x: number; y: number }
+type EraserMode = 'stroke' | 'precision'
+type EraserSegment = { a: Point; b: Point; width: number }
 type Bounds = { left: number; top: number; right: number; bottom: number }
 type LiveTransform = { id: string; tx: number; ty: number; sx: number; sy: number }
 type Gesture = {
@@ -28,6 +31,7 @@ type Gesture = {
   originalBounds?: Bounds
   startTransform?: LiveTransform
   livePaths?: InkStroke[]
+  lastPoint?: Point
 }
 
 function normaliseStroke(value: unknown, index: number): InkStroke | null {
@@ -44,6 +48,15 @@ function normaliseStroke(value: unknown, index: number): InkStroke | null {
     ty: Number.isFinite(item.ty) ? Number(item.ty) : 0,
     sx: Number.isFinite(item.sx) ? Math.max(0.2, Number(item.sx)) : 1,
     sy: Number.isFinite(item.sy) ? Math.max(0.2, Number(item.sy)) : 1,
+    segments: Array.isArray(item.segments)
+      ? item.segments.flatMap((segment) => {
+          if (!segment || typeof segment !== 'object') return []
+          const value = segment as { d?: unknown; width?: unknown }
+          return typeof value.d === 'string' && Number.isFinite(value.width)
+            ? [{ d: value.d, width: Math.max(0.5, Math.min(48, Number(value.width))) }]
+            : []
+        })
+      : undefined,
   }
 }
 function readStrokes(value: unknown): InkStroke[] {
@@ -102,6 +115,97 @@ function distanceToStroke(point: Point, stroke: InkStroke): number {
 }
 function clampScale(value: number) { return Math.max(0.2, Math.min(5, value)) }
 
+function segmentD(a: Point, b: Point): string {
+  return 'M ' + a.x.toFixed(2) + ' ' + a.y.toFixed(2) + ' L ' + b.x.toFixed(2) + ' ' + b.y.toFixed(2)
+}
+function interpolatePoint(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+}
+function strokeSegments(stroke: InkStroke): EraserSegment[] {
+  if (stroke.segments?.length) {
+    return stroke.segments.flatMap((segment) => {
+      const points = pointsFor({ ...stroke, d: segment.d })
+      return points.length >= 2 ? [{ a: points[0], b: points[points.length - 1], width: segment.width }]
+        : points.length === 1 ? [{ a: points[0], b: points[0], width: segment.width }] : []
+    })
+  }
+  const points = pointsFor(stroke)
+  if (points.length === 1) return [{ a: points[0], b: points[0], width: stroke.width }]
+  return points.slice(1).map((point, index) => ({ a: points[index], b: point, width: stroke.width }))
+}
+function outsideRanges(a: Point, b: Point, center: Point, radius: number): Array<[number, number]> {
+  if (distanceToSegment(center, a, b) > radius) return [[0, 1]]
+  const dx = b.x - a.x, dy = b.y - a.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared < 0.25) return []
+  const length = Math.sqrt(lengthSquared)
+  const projected = ((center.x - a.x) * dx + (center.y - a.y) * dy) / lengthSquared
+  const perpendicular = Math.abs(dx * (a.y - center.y) - (a.x - center.x) * dy) / length
+  const halfChord = Math.sqrt(Math.max(0, radius * radius - perpendicular * perpendicular)) / length
+  const start = Math.max(0, Math.min(1, projected - halfChord))
+  const end = Math.max(0, Math.min(1, projected + halfChord))
+  const minVisibleLength = 1.1
+  const result: Array<[number, number]> = []
+  if (start * length >= minVisibleLength) result.push([0, start])
+  if ((1 - end) * length >= minVisibleLength) result.push([end, 1])
+  return result
+}
+function erasePartialStroke(point: Point, stroke: InkStroke, eraserSize: number): { strokes: InkStroke[]; erased: boolean } {
+  const rawSegments = strokeSegments(stroke)
+  if (!rawSegments.length) return { strokes: [stroke], erased: false }
+  const cutSegments: EraserSegment[] = []
+  let erased = false
+  const scaleFactor = Math.max(stroke.sx || 1, stroke.sy || 1)
+  for (const segment of rawSegments) {
+    const aOnScreen = transformPoint(segment.a, stroke)
+    const bOnScreen = transformPoint(segment.b, stroke)
+    const radius = Math.max(2, eraserSize / 2) + Math.max(0.5, segment.width * scaleFactor / 2)
+    const ranges = outsideRanges(aOnScreen, bOnScreen, point, radius)
+    const removed = ranges.length !== 1 || ranges[0][0] > 0.0001 || ranges[0][1] < 0.9999
+    if (removed) erased = true
+    for (const [start, end] of ranges) {
+      const a = interpolatePoint(segment.a, segment.b, start)
+      const b = interpolatePoint(segment.a, segment.b, end)
+      if (Math.hypot(b.x - a.x, b.y - a.y) >= 0.7) cutSegments.push({ a, b, width: segment.width })
+    }
+  }
+  if (!erased) return { strokes: [stroke], erased: false }
+  if (!cutSegments.length) return { strokes: [], erased: true }
+
+  const runs: EraserSegment[][] = []
+  for (const segment of cutSegments) {
+    const lastRun = runs[runs.length - 1]
+    const previous = lastRun?.[lastRun.length - 1]
+    if (previous && Math.hypot(previous.b.x - segment.a.x, previous.b.y - segment.a.y) <= 1.25) lastRun.push(segment)
+    else runs.push([segment])
+  }
+  const originalPoints = pointsFor(stroke)
+  const originalCenter = originalPoints.length
+    ? { x: (Math.min(...originalPoints.map(p => p.x)) + Math.max(...originalPoints.map(p => p.x))) / 2,
+        y: (Math.min(...originalPoints.map(p => p.y)) + Math.max(...originalPoints.map(p => p.y))) / 2 }
+    : { x: 0, y: 0 }
+  const createdAt = Date.now().toString(36)
+  const strokes = runs.map((run, index) => {
+    const d = 'M ' + run[0].a.x.toFixed(2) + ' ' + run[0].a.y.toFixed(2) + ' ' +
+      run.map(segment => 'L ' + segment.b.x.toFixed(2) + ' ' + segment.b.y.toFixed(2)).join(' ')
+    const piecePoints = pointsFor({ ...stroke, d })
+    const pieceCenter = piecePoints.length
+      ? { x: (Math.min(...piecePoints.map(p => p.x)) + Math.max(...piecePoints.map(p => p.x))) / 2,
+          y: (Math.min(...piecePoints.map(p => p.y)) + Math.max(...piecePoints.map(p => p.y))) / 2 }
+      : originalCenter
+    const tx = (stroke.tx || 0) + (originalCenter.x - pieceCenter.x) * (1 - (stroke.sx || 1))
+    const ty = (stroke.ty || 0) + (originalCenter.y - pieceCenter.y) * (1 - (stroke.sy || 1))
+    return {
+      ...stroke,
+      id: index === 0 ? stroke.id : stroke.id + '-piece-' + createdAt + '-' + index,
+      d, width: run[run.length - 1].width,
+      segments: run.map(segment => ({ d: segmentD(segment.a, segment.b), width: segment.width })),
+      tx, ty,
+    }
+  })
+  return { strokes, erased: true }
+}
+
 function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
   const root = editor.view.dom as HTMLElement
   const enabled = Boolean(node.attrs.enabled)
@@ -114,11 +218,14 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
   const brushSize = Math.max(0.8, Math.min(16, Number(node.attrs.brushSize) || 2.4))
   const tool: InkTool = ['pen', 'highlighter', 'eraser', 'select'].includes(node.attrs.tool) ? node.attrs.tool : 'pen'
   const inputMode = node.attrs.inputMode === 'finger' ? 'finger' : 'pen'
+  const eraserMode: EraserMode = node.attrs.eraserMode === 'precision' ? 'precision' : 'stroke'
+  const eraserSize = Math.max(8, Math.min(48, Number(node.attrs.eraserSize) || 24))
   const selectedId = typeof node.attrs.selectedId === 'string' ? node.attrs.selectedId : null
   const [liveStroke, setLiveStroke] = useState<InkStroke | null>(null)
   const [liveTransform, setLiveTransform] = useState<LiveTransform | null>(null)
   const [previewPaths, setPreviewPaths] = useState<InkStroke[] | null>(null)
   const gestureRef = useRef<Gesture | null>(null)
+  const liveTransformRef = useRef<LiveTransform | null>(null)
 
   useEffect(() => {
     const syncDimensions = () => {
@@ -171,8 +278,25 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
     return nearest && nearestDistance <= Math.max(14, nearest.width * 2.5) ? nearest : null
   }
   const eraseAt = (point: Point, source: InkStroke[]) => {
-    const nearest = findNearestStroke(point, source)
-    return nearest ? source.filter((stroke) => stroke.id !== nearest.id) : source
+    if (eraserMode === 'precision') {
+      let changed = false
+      const result = source.flatMap((stroke) => {
+        const erased = erasePartialStroke(point, stroke, eraserSize)
+        if (erased.erased) changed = true
+        return erased.strokes
+      })
+      return changed ? result : source
+    }
+    let nearest: InkStroke | null = null
+    let nearestDistance = Infinity
+    for (let index = source.length - 1; index >= 0; index -= 1) {
+      const stroke = source[index]
+      const distance = distanceToStroke(point, stroke)
+      if (distance < nearestDistance) { nearest = stroke; nearestDistance = distance }
+    }
+    if (!nearest) return source
+    const tolerance = eraserSize / 2 + nearest.width * Math.max(nearest.sx || 1, nearest.sy || 1) / 2
+    return nearestDistance <= tolerance ? source.filter((stroke) => stroke.id !== nearest!.id) : source
   }
 
   const startGesture = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -188,6 +312,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
         point.x <= selectedBounds.right + 14 && point.y <= selectedBounds.bottom + 14
       if (selected && selectedBounds && handleHit) {
         event.preventDefault()
+        liveTransformRef.current = null
         gestureRef.current = {
           pointerId: event.pointerId, kind: 'resize', start: point, stroke: selected, originalPaths: paths,
           originalBounds: selectedBounds, startTransform: { id: selected.id, tx: selected.tx, ty: selected.ty, sx: selected.sx, sy: selected.sy },
@@ -199,6 +324,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
       updateAttributes({ selectedId: hit?.id ?? null })
       if (!hit) return
       event.preventDefault()
+      liveTransformRef.current = null
       gestureRef.current = {
         pointerId: event.pointerId, kind: 'move', start: point, stroke: hit, originalPaths: paths,
         originalBounds: boundsFor(hit) ?? undefined,
@@ -211,8 +337,10 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     if (tool === 'eraser') {
-      gestureRef.current = { pointerId: event.pointerId, kind: 'erase', start: point, originalPaths: paths, livePaths: eraseAt(point, paths) }
-      setPreviewPaths(eraseAt(point, paths))
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('medicaldocs:ink-gesture-start'))
+      const initialPaths = eraseAt(point, paths)
+      gestureRef.current = { pointerId: event.pointerId, kind: 'erase', start: point, originalPaths: paths, livePaths: initialPaths, lastPoint: point }
+      if (initialPaths !== paths) setPreviewPaths(initialPaths)
       return
     }
 
@@ -224,8 +352,10 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
       width: highlighter ? brushSize * 3.3 : brushSize,
       opacity: highlighter ? 0.3 : 1,
       tx: 0, ty: 0, sx: 1, sy: 1,
+      segments: [],
     }
-    gestureRef.current = { pointerId: event.pointerId, kind: 'draw', start: point, stroke, originalPaths: paths }
+    gestureRef.current = { pointerId: event.pointerId, kind: 'draw', start: point, stroke, originalPaths: paths, lastPoint: point }
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('medicaldocs:ink-gesture-start'))
     setLiveStroke(stroke)
   }
 
@@ -235,20 +365,41 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
     if (gesture.kind !== 'move' && gesture.kind !== 'resize') event.preventDefault()
     const point = getPoint(event)
     if (gesture.kind === 'draw' && gesture.stroke) {
+      const baseWidth = brushSize * (gesture.stroke.opacity < 1 ? 3.3 : 1)
       const pressureWidth = event.pointerType === 'pen' && event.pressure > 0
-        ? brushSize * (gesture.stroke.opacity < 1 ? 3.3 : 1) * (0.55 + event.pressure * 0.9)
-        : gesture.stroke.width
-      const nextStroke = { ...gesture.stroke, d: gesture.stroke.d + ' L ' + point.x.toFixed(1) + ' ' + point.y.toFixed(1), width: pressureWidth }
+        ? Math.max(0.8, baseWidth * (0.55 + event.pressure * 0.9))
+        : (gesture.stroke.opacity < 1 ? gesture.stroke.width : brushSize)
+      const previous = gesture.lastPoint || gesture.start
+      const segment = {
+        d: 'M ' + previous.x.toFixed(1) + ' ' + previous.y.toFixed(1) + ' L ' + point.x.toFixed(1) + ' ' + point.y.toFixed(1),
+        width: pressureWidth,
+      }
+      const nextStroke = {
+        ...gesture.stroke,
+        d: gesture.stroke.d + ' L ' + point.x.toFixed(1) + ' ' + point.y.toFixed(1),
+        width: pressureWidth,
+        segments: [...(gesture.stroke.segments || []), segment],
+      }
       gesture.stroke = nextStroke
+      gesture.lastPoint = point
       setLiveStroke(nextStroke)
       return
     }
     if (gesture.kind === 'erase') {
-      const currentPaths = gesture.livePaths ?? gesture.originalPaths
-      const nextPaths = eraseAt(point, currentPaths)
-      if (nextPaths.length !== currentPaths.length) {
-        gesture.livePaths = nextPaths
-        setPreviewPaths(nextPaths)
+      let currentPaths = gesture.livePaths ?? gesture.originalPaths
+      const previousPoint = gesture.lastPoint || gesture.start
+      const distance = Math.hypot(point.x - previousPoint.x, point.y - previousPoint.y)
+      const steps = Math.max(1, Math.min(80, Math.ceil(distance / Math.max(2, eraserSize * 0.28))))
+      let changed = false
+      for (let step = 1; step <= steps; step += 1) {
+        const sample = interpolatePoint(previousPoint, point, step / steps)
+        const nextPaths = eraseAt(sample, currentPaths)
+        if (nextPaths !== currentPaths) { changed = true; currentPaths = nextPaths }
+      }
+      gesture.lastPoint = point
+      if (changed) {
+        gesture.livePaths = currentPaths
+        setPreviewPaths(currentPaths)
       }
       return
     }
@@ -268,6 +419,7 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
         sy: clampScale(start.sy * ((point.y - bounds.top) / initialHeight)),
       }
     }
+    liveTransformRef.current = transform
     setLiveTransform(transform)
   }
 
@@ -279,20 +431,33 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
       updateAttributes({ paths: [...currentPaths, gesture.stroke], undoStack: [...undoStack, currentPaths].slice(-60), redoStack: [] })
     } else if (gesture.kind === 'erase') {
       const nextPaths = gesture.livePaths ?? gesture.originalPaths
-      if (nextPaths.length !== gesture.originalPaths.length) {
+      if (nextPaths !== gesture.originalPaths) {
         updateAttributes({
           paths: nextPaths, undoStack: [...undoStack, gesture.originalPaths].slice(-60),
           redoStack: [], selectedId: null,
         })
       }
       setPreviewPaths(null)
-    } else if ((gesture.kind === 'move' || gesture.kind === 'resize') && gesture.stroke && liveTransform) {
-      const nextPaths = gesture.originalPaths.map((stroke) => stroke.id === liveTransform.id ? { ...stroke, ...liveTransform } : stroke)
+    } else if ((gesture.kind === 'move' || gesture.kind === 'resize') && gesture.stroke && liveTransformRef.current) {
+      const finalTransform = liveTransformRef.current
+      const nextPaths = gesture.originalPaths.map((stroke) => stroke.id === finalTransform.id ? { ...stroke, ...finalTransform } : stroke)
       updateAttributes({ paths: nextPaths, undoStack: [...undoStack, gesture.originalPaths].slice(-60), redoStack: [] })
     }
     gestureRef.current = null
+    liveTransformRef.current = null
     setLiveStroke(null)
     setLiveTransform(null)
+  }
+
+  // Cancelled browser gestures must not be committed as completed strokes or moves.
+  const cancelGesture = (event?: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = gestureRef.current
+    if (!gesture || (event && gesture.pointerId !== event.pointerId)) return
+    gestureRef.current = null
+    liveTransformRef.current = null
+    setLiveStroke(null)
+    setLiveTransform(null)
+    setPreviewPaths(null)
   }
 
   const visiblePaths = previewPaths ?? paths
@@ -304,10 +469,10 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
         position: 'absolute', inset: '0 auto auto 0', width: '100%',
         height: String(height) + 'px', minHeight: String(height) + 'px',
         zIndex: enabled ? 30 : 5, pointerEvents: enabled ? 'auto' : 'none',
-        touchAction: enabled ? (inputMode === 'pen' ? 'pan-x pan-y pinch-zoom' : 'pinch-zoom') : 'auto', cursor: !enabled ? 'default' : tool === 'select' ? 'move' : tool === 'eraser' ? 'cell' : 'crosshair',
+        touchAction: enabled ? (tool === 'select' ? 'none' : inputMode === 'pen' ? 'pan-x pan-y pinch-zoom' : 'pinch-zoom') : 'auto', cursor: !enabled ? 'default' : tool === 'select' ? 'move' : tool === 'eraser' ? 'cell' : 'crosshair',
       }}
       onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={finishGesture}
-      onPointerCancel={finishGesture} onLostPointerCapture={() => finishGesture()}
+      onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}
       aria-label={enabled ? 'Strumenti penna attivi sul foglio' : 'Livello di scrittura a mano'}
     >
       <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" viewBox={'0 0 ' + width + ' ' + height}
@@ -319,7 +484,11 @@ function InkLayerView({ node, editor, updateAttributes }: NodeViewProps) {
           const cy = points.length ? (Math.min(...points.map((item) => item.y)) + Math.max(...points.map((item) => item.y))) / 2 : 0
           const transform = 'translate(' + stroke.tx + ' ' + stroke.ty + ') translate(' + cx + ' ' + cy + ') scale(' + stroke.sx + ' ' + stroke.sy + ') translate(' + (-cx) + ' ' + (-cy) + ')'
           return <g key={stroke.id} transform={transform}>
-            <path d={stroke.d} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeOpacity={stroke.opacity} strokeLinecap="round" strokeLinejoin="round" />
+            {stroke.segments && stroke.segments.length > 0
+              ? stroke.segments.map((segment, index) => (
+                  <path key={index} d={segment.d} fill="none" stroke={stroke.color} strokeWidth={segment.width} strokeOpacity={stroke.opacity} strokeLinecap="round" strokeLinejoin="round" />
+                ))
+              : <path d={stroke.d} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeOpacity={stroke.opacity} strokeLinecap="round" strokeLinejoin="round" />}
           </g>
         })}
         {liveStroke && <path d={liveStroke.d} fill="none" stroke={liveStroke.color} strokeWidth={liveStroke.width} strokeOpacity={liveStroke.opacity} strokeLinecap="round" strokeLinejoin="round" />}
@@ -356,6 +525,7 @@ export const InkLayer = Node.create({
       color: { default: '#154e73', rendered: true }, brushSize: { default: 2.4, rendered: true },
       enabled: { default: false, rendered: false }, tool: { default: 'pen', rendered: false },
       selectedId: { default: null, rendered: false }, inputMode: { default: 'pen', rendered: false },
+      eraserMode: { default: 'stroke', rendered: false }, eraserSize: { default: 24, rendered: false },
       undoStack: { default: [], rendered: false }, redoStack: { default: [], rendered: false },
     }
   },
@@ -368,7 +538,7 @@ export const InkLayer = Node.create({
           paths: parseStoredStrokes(element.getAttribute('data-ink-paths')),
           width: Math.max(1, Number(element.getAttribute('data-ink-width')) || 800),
           height: Math.max(1, Number(element.getAttribute('data-ink-height')) || 1122),
-          enabled: false, tool: 'pen', selectedId: null, inputMode: 'pen', undoStack: [], redoStack: [],
+          enabled: false, tool: 'pen', selectedId: null, inputMode: 'pen', eraserMode: 'stroke', eraserSize: 24, undoStack: [], redoStack: [],
           color: element.getAttribute('data-ink-color') || '#154e73',
           brushSize: Math.max(0.8, Number(element.getAttribute('data-ink-brush-size')) || 2.4),
         }
