@@ -119,6 +119,9 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio' | 'Pagine' | 'Modelli'>('Home');
   const [tabletPanelOpen, setTabletPanelOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [tableWidth, setTableWidth] = useState(100);
+  const [tablePaddingX, setTablePaddingX] = useState(8);
+  const [tablePaddingY, setTablePaddingY] = useState(6);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
   const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
@@ -258,6 +261,47 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   }, [editor])
 
   useEffect(() => {
+    if (!editor) return
+    const syncTableControls = () => {
+      const { selection } = editor.state
+      let tableNode: any = null
+      if (selection instanceof NodeSelection && selection.node.type.name === 'table') {
+        tableNode = selection.node
+      } else {
+        const $from = selection.$from
+        for (let depth = $from.depth; depth > 0; depth -= 1) {
+          const node = $from.node(depth)
+          if (node.type.name === 'table') { tableNode = node; break }
+        }
+      }
+      if (!tableNode) {
+        if (activeTab === 'Tabella') setActiveTab('Home')
+        return
+      }
+      const parsedWidth = Number(tableNode.attrs.mdWidth)
+      const nextWidth = Number.isFinite(parsedWidth) ? Math.max(35, Math.min(180, parsedWidth)) : 100
+      const density = tableNode.attrs.mdDensity
+      const defaults = density === 'compact' ? { x: 5, y: 3 }
+        : density === 'comfortable' ? { x: 14, y: 12 }
+        : { x: 8, y: 6 }
+      const rawX = tableNode.attrs.mdCellPaddingX
+      const rawY = tableNode.attrs.mdCellPaddingY
+      const nextX = typeof rawX === 'number' && Number.isFinite(rawX) ? Math.max(2, Math.min(32, rawX)) : defaults.x
+      const nextY = typeof rawY === 'number' && Number.isFinite(rawY) ? Math.max(2, Math.min(32, rawY)) : defaults.y
+      setTableWidth((current) => current === nextWidth ? current : nextWidth)
+      setTablePaddingX((current) => current === nextX ? current : nextX)
+      setTablePaddingY((current) => current === nextY ? current : nextY)
+    }
+    editor.on('selectionUpdate', syncTableControls)
+    editor.on('transaction', syncTableControls)
+    syncTableControls()
+    return () => {
+      editor.off('selectionUpdate', syncTableControls)
+      editor.off('transaction', syncTableControls)
+    }
+  }, [editor, activeTab])
+
+  useEffect(() => {
     const ribbon = ribbonRootRef.current
     const shell = ribbon?.closest<HTMLElement>('[data-md-editor-shell="true"]')
     if (!shell) return
@@ -394,7 +438,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       return
     }
     const current = Number(table.node.attrs.mdWidth) || 100
-    const next = Math.max(35, Math.min(100, current + delta))
+    const next = Math.max(35, Math.min(180, current + delta))
     editor.chain().focus().updateAttributes('table', { mdWidth: next }).run()
   }
 
@@ -403,7 +447,10 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       toast.error('Posiziona il cursore dentro una tabella.')
       return
     }
-    editor.chain().focus().updateAttributes('table', { mdWidth: width }).run()
+    const next = Math.max(35, Math.min(180, width))
+    setTableWidth(next)
+    // Do not refocus the editor while a range slider is being dragged.
+    editor.chain().updateAttributes('table', { mdWidth: next }).run()
   }
 
   const setSelectedTableAlignment = (mdAlign: 'left' | 'center' | 'right') => {
@@ -419,7 +466,25 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
       toast.error('Posiziona il cursore dentro una tabella.')
       return
     }
-    editor.chain().focus().updateAttributes('table', { mdDensity }).run()
+    const defaults = mdDensity === 'compact' ? { x: 5, y: 3 }
+      : mdDensity === 'comfortable' ? { x: 14, y: 12 }
+      : { x: 8, y: 6 }
+    setTablePaddingX(defaults.x)
+    setTablePaddingY(defaults.y)
+    editor.chain().focus().updateAttributes('table', { mdDensity, mdCellPaddingX: null, mdCellPaddingY: null }).run()
+  }
+
+  const setSelectedTablePadding = (axis: 'x' | 'y', value: number) => {
+    if (!findSelectedTable()) {
+      toast.error('Posiziona il cursore dentro una tabella.')
+      return
+    }
+    const next = Math.max(2, Math.min(32, value))
+    const attribute = axis === 'x' ? 'mdCellPaddingX' : 'mdCellPaddingY'
+    if (axis === 'x') setTablePaddingX(next)
+    else setTablePaddingY(next)
+    // Keep focus on the range input while it is dragged; the editor selection remains in this table.
+    editor.chain().updateAttributes('table', { [attribute]: next }).run()
   }
 
   const moveCurrentBlock = (direction: 'up' | 'down') => {
@@ -814,8 +879,11 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <button type="button" onClick={() => moveSelectedTable('up')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50" title="Sposta la tabella prima del blocco precedente"><ArrowUp className="mr-1 inline h-3.5 w-3.5" />Sposta su</button>
               <button type="button" onClick={() => moveSelectedTable('down')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50" title="Sposta la tabella dopo il blocco successivo"><ArrowDown className="mr-1 inline h-3.5 w-3.5" />Sposta giù</button>
             </div>
-            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Ridimensiona tabella">
-              <span className="px-1 text-[11px] font-semibold text-slate-500">Larghezza</span>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2" role="group" aria-label="Ridimensiona tabella">
+              <label className="flex min-w-[10rem] flex-1 flex-col gap-1 px-1 text-[11px] font-semibold text-slate-600">
+                <span className="flex items-center justify-between gap-2">Larghezza tabella <strong className="text-teal-800">{tableWidth}%</strong></span>
+                <input type="range" min={35} max={180} step={1} value={tableWidth} onChange={(event) => setSelectedTableWidth(Number(event.target.value))} className="h-4 w-full cursor-ew-resize accent-teal-700" aria-label="Larghezza tabella in percentuale" />
+              </label>
               <button type="button" onClick={() => resizeSelectedTable(-10)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:bg-teal-50" title="Riduci larghezza del 10%">− 10%</button>
               <button type="button" onClick={() => resizeSelectedTable(10)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:bg-teal-50" title="Aumenta larghezza del 10%">+ 10%</button>
               <button type="button" onClick={() => setSelectedTableWidth(100)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Adatta alla pagina</button>
@@ -825,22 +893,33 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <button type="button" onClick={() => setSelectedTableAlignment('center')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Centro</button>
               <button type="button" onClick={() => setSelectedTableAlignment('right')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Destra</button>
             </div>
-            <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Spaziatura celle">
-              <button type="button" onClick={() => setSelectedTableDensity('compact')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Compatta</button>
-              <button type="button" onClick={() => setSelectedTableDensity('normal')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Normale</button>
-              <button type="button" onClick={() => setSelectedTableDensity('comfortable')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Ampia</button>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2" role="group" aria-label="Spaziatura interna delle celle">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="px-1 text-[11px] font-semibold text-slate-500">Preset</span>
+                <button type="button" onClick={() => setSelectedTableDensity('compact')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Compatta</button>
+                <button type="button" onClick={() => setSelectedTableDensity('normal')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Normale</button>
+                <button type="button" onClick={() => setSelectedTableDensity('comfortable')} className="min-h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-teal-50">Ampia</button>
+              </div>
+              <label className="flex min-w-[8.5rem] flex-1 flex-col gap-1 px-1 text-[11px] font-semibold text-slate-600">
+                <span className="flex items-center justify-between gap-2">Margine orizzontale <strong className="text-teal-800">{tablePaddingX}px</strong></span>
+                <input type="range" min={2} max={32} step={1} value={tablePaddingX} onChange={(event) => setSelectedTablePadding('x', Number(event.target.value))} className="h-4 w-full cursor-ew-resize accent-teal-700" aria-label="Spazio interno orizzontale della cella" />
+              </label>
+              <label className="flex min-w-[8.5rem] flex-1 flex-col gap-1 px-1 text-[11px] font-semibold text-slate-600">
+                <span className="flex items-center justify-between gap-2">Margine verticale <strong className="text-teal-800">{tablePaddingY}px</strong></span>
+                <input type="range" min={2} max={32} step={1} value={tablePaddingY} onChange={(event) => setSelectedTablePadding('y', Number(event.target.value))} className="h-4 w-full cursor-ns-resize accent-teal-700" aria-label="Spazio interno verticale della cella" />
+              </label>
             </div>
             <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="Modifica struttura tabella">
-              <button type="button" onClick={() => editor.chain().focus().addRowBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Riga sopra</button>
-              <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Rows className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Riga sotto</button>
-              <button type="button" onClick={() => editor.chain().focus().addColumnBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Colonna prima</button>
-              <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Columns className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Colonna dopo</button>
-              <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Intestazione</button>
+              <button type="button" disabled={!editor.can().addRowBefore()} onClick={() => editor.chain().focus().addRowBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Riga sopra</button>
+              <button type="button" disabled={!editor.can().addRowAfter()} onClick={() => editor.chain().focus().addRowAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Rows className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Riga sotto</button>
+              <button type="button" disabled={!editor.can().addColumnBefore()} onClick={() => editor.chain().focus().addColumnBefore().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Colonna prima</button>
+              <button type="button" disabled={!editor.can().addColumnAfter()} onClick={() => editor.chain().focus().addColumnAfter().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Columns className="mr-1 inline h-3.5 w-3.5 text-teal-600" />+ Colonna dopo</button>
+              <button type="button" disabled={!editor.can().toggleHeaderRow()} onClick={() => editor.chain().focus().toggleHeaderRow().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Intestazione</button>
               <button type="button" disabled={!editor.can().mergeCells()} onClick={() => editor.chain().focus().mergeCells().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Merge className="mr-1 inline h-3.5 w-3.5" />Unisci celle</button>
               <button type="button" disabled={!editor.can().splitCell()} onClick={() => editor.chain().focus().splitCell().run()} className="min-h-10 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><SplitSquareHorizontal className="mr-1 inline h-3.5 w-3.5" />Dividi cella</button>
-              <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina riga</button>
-              <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina colonna</button>
-              <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Elimina tabella</button>
+              <button type="button" disabled={!editor.can().deleteRow()} onClick={() => editor.chain().focus().deleteRow().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina riga</button>
+              <button type="button" disabled={!editor.can().deleteColumn()} onClick={() => editor.chain().focus().deleteColumn().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100">Elimina colonna</button>
+              <button type="button" disabled={!editor.can().deleteTable()} onClick={() => editor.chain().focus().deleteTable().run()} className="min-h-10 rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs font-semibold text-red-700 hover:bg-red-100"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Elimina tabella</button>
             </div>
           </div>
         )}
