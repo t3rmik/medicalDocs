@@ -340,12 +340,12 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   }, [])
 
   useEffect(() => {
-    const tabletPortrait = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait)').matches
-    if (!tabletPanelOpen && !mobileToolsOpen && !tabletPortrait) return
     const closeOnOutsidePointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
       if (ribbonRootRef.current?.contains(target)) return
+      const tabletPortrait = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: portrait)').matches
+      if (!tabletPanelOpen && !mobileToolsOpen && !tabletPortrait) return
       setTabletPanelOpen(false)
       setMobileToolsOpen(false)
       setToolsDismissed(true)
