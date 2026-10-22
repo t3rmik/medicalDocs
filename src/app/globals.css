@@ -1033,7 +1033,7 @@ table { border-collapse: separate; border-spacing: 0; }
 
 
 /* Tablet workspace: reclaim vertical canvas space with a left contextual tools dock. */
-@media (min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) {
+@media (min-width: 768px) and (max-width: 1440px) and (any-pointer: coarse) and (orientation: landscape) {
   [data-md-editor-shell="true"] { display:grid!important; position:relative; grid-template-columns:64px minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto; overflow:hidden; min-width:0; }
   [data-md-ribbon="true"] { position:relative; grid-column:1; grid-row:1; align-self:stretch; width:64px!important; min-width:64px; height:100%; min-height:0; overflow:visible; border-right:1px solid #cddfe5!important; border-bottom:0!important; border-radius:0; background:linear-gradient(180deg,#f7fbfc,#eaf3f6)!important; box-shadow:4px 0 20px -18px rgb(8 35 49 / 34%)!important; backdrop-filter:none!important; }
   [data-md-ribbon="true"] > div:first-child { display:flex; flex:1 1 auto; flex-direction:column; align-items:stretch; gap:6px; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:10px 6px; border-bottom:0!important; background:transparent!important; }
@@ -1052,7 +1052,7 @@ table { border-collapse: separate; border-spacing: 0; }
   [data-md-ink-toolbar="true"] { position:absolute; z-index:90; left:72px; right:auto; top:auto; bottom:50px; display:flex; flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:8px; width:min(340px,calc(100vw - 150px)); max-width:calc(100vw - 150px); max-height:min(40dvh,360px); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:12px; border:1px solid #cad8f7; border-radius:16px; background:rgb(255 255 255 / 98%); box-shadow:0 20px 48px -28px rgb(15 23 42 / 45%); }
   [data-md-ink-toolbar="true"] > div, [data-md-ink-toolbar="true"] > label { max-width:100%; flex-wrap:wrap; }
 }
-@media (min-width:768px) and (max-width:900px) and (any-pointer:coarse) {
+@media (min-width:768px) and (max-width:900px) and (any-pointer:coarse) and (orientation:landscape) {
   [data-md-ribbon="true"] { width:58px!important; min-width:58px; }
   [data-md-editor-shell="true"] { grid-template-columns:58px minmax(0,1fr); }
   [data-md-ink-toolbar="true"] { left:64px; width:min(300px,calc(100vw - 130px)); max-width:calc(100vw - 130px); }
@@ -1171,4 +1171,88 @@ table { border-collapse: separate; border-spacing: 0; }
 }
 @media (min-width: 768px) and (max-width: 900px) and (any-pointer: coarse) {
   [data-md-ink-quick-history="true"] { left: 120px; }
+}
+
+
+/* Responsive command surfaces: dock for landscape tablets, top toolbar for portrait, hidden-on-demand on phones. */
+.md-mobile-ribbon-toggle,.md-pdf-mobile-toggle { display:none; }
+@media (min-width:768px) and (max-width:1440px) and (any-pointer:coarse) and (orientation:portrait) {
+  [data-md-editor-shell="true"] { display:flex!important; flex-direction:column!important; grid-template-columns:none!important; overflow:hidden; }
+  [data-md-ribbon="true"] { position:relative!important; order:0; width:100%!important; min-width:0!important; height:auto!important; min-height:0!important; grid-column:auto!important; grid-row:auto!important; overflow:visible!important; border-right:0!important; border-bottom:1px solid #cddfe5!important; }
+  [data-md-ribbon="true"] > div:first-child { flex-direction:row!important; align-items:center; width:100%; overflow-x:auto; overflow-y:hidden; padding:4px 8px!important; }
+  [data-md-ribbon="true"] > div:first-child button { width:auto!important; min-width:max-content; min-height:46px!important; flex-direction:row!important; gap:6px; padding:8px 11px!important; white-space:nowrap; }
+  [data-md-ribbon="true"] .md-ribbon-tab-label { display:inline!important; font-size:11px; }
+  [data-md-ribbon="true"] .md-ribbon-tab-icon { display:none!important; }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] { position:relative!important; inset:auto!important; width:100%!important; max-width:100%!important; max-height:min(26dvh,260px); overflow-y:auto; border-radius:0; box-shadow:none; }
+  [data-md-editor-shell="true"] > div.min-h-0.flex-1.overflow-auto { grid-column:auto!important; grid-row:auto!important; padding:6px 8px 12px!important; }
+  [data-md-ribbon="true"] [data-md-tablet-tools-header="true"] { display:none!important; }
+  [data-md-ink-toolbar="true"] { position:relative!important; inset:auto!important; width:100%!important; max-width:100%!important; max-height:min(24dvh,240px); border-left:0; border-right:0; border-radius:0; }
+  [data-md-ink-quick-history="true"] { position:fixed; left:auto!important; right:12px; bottom:calc(76px + env(safe-area-inset-bottom)); }
+  [data-md-pdf-annotator="true"] { display:flex!important; flex-direction:column!important; padding-left:0!important; }
+  [data-md-pdf-toolbar="true"] { position:relative!important; inset:auto!important; width:100%!important; max-height:34dvh; flex-direction:row!important; overflow-x:hidden; overflow-y:auto; border-right:0!important; }
+  [data-md-pdf-toolbar="true"] > div:first-child { width:100%; }
+  [data-md-pdf-tools="true"] { flex-direction:row!important; flex-wrap:nowrap!important; overflow-x:auto!important; }
+  [data-md-pdf-navigation-controls="true"] { flex-wrap:wrap; }
+  [data-md-pdf-annotator="true"] > :not([data-md-pdf-toolbar="true"]) { margin-left:0!important; width:100%!important; }
+  [data-md-pdf-work-area="true"] { flex:1 1 0; min-height:0; }
+  [data-md-pdf-work-area="true"] > [data-md-pdf-thumbnails="true"] { flex-direction:row; align-items:center; width:100%; max-height:76px; overflow-x:auto; overflow-y:hidden; border-right:0; border-bottom:1px solid #334155; padding:4px 6px; }
+  [data-md-pdf-thumbnails="true"] > p { display:none; }
+  [data-md-pdf-thumbnails="true"] > button { flex:0 0 56px; min-width:56px; padding:3px!important; }
+  [data-md-pdf-thumbnails="true"] > button > div { min-height:40px!important; max-height:42px; padding:2px; }
+  [data-md-pdf-thumbnails="true"] canvas { max-height:38px; width:auto; }
+}
+/* Phone: prioritize the document; expose the full ribbon on demand. */
+@media (max-width:767px) {
+  .md-mobile-ribbon-toggle { display:inline-flex!important; align-items:center; justify-content:center; gap:7px; flex:0 0 auto; min-width:112px; min-height:42px!important; padding:7px 12px!important; border:1px solid #c9e3e7!important; border-radius:11px!important; background:#e7f7f5!important; color:#075e59!important; font-size:12px!important; font-weight:750!important; }
+  [data-md-ribbon="true"] > div:first-child { min-height:50px!important; padding:4px 8px!important; overflow-x:auto; overflow-y:hidden; }
+  [data-md-ribbon="true"][data-md-mobile-tools-open="false"] > div:first-child [data-md-ribbon-tab] { display:none!important; }
+  [data-md-ribbon="true"][data-md-mobile-tools-open="false"] > [data-md-tool-panel="true"] { display:none!important; }
+  [data-md-ribbon="true"][data-md-mobile-tools-open="true"] > div:first-child [data-md-ribbon-tab] { display:inline-flex!important; flex-direction:row!important; min-width:max-content; min-height:42px!important; padding:7px 10px!important; white-space:nowrap; }
+  [data-md-ribbon="true"][data-md-mobile-tools-open="true"] > [data-md-tool-panel="true"] { display:flex!important; max-height:min(38dvh,330px); min-height:0; overflow-x:hidden; overflow-y:auto; padding:8px!important; gap:8px!important; }
+  [data-md-ribbon="true"] > [data-md-tool-panel="true"] > *:not([data-md-tablet-tools-header="true"]) { max-width:100%; min-width:0; flex-wrap:wrap; }
+  [data-md-ribbon="true"] [data-md-tablet-tools-header="true"] { display:none!important; }
+  [data-md-editor-shell="true"] > div.min-h-0.flex-1.overflow-auto { min-height:0; padding:4px 2px 10px!important; }
+  .ProseMirror.editor-page { width:min(var(--md-page-width,210mm),calc(100vw - 12px))!important; min-height:max(58dvh,480px)!important; margin:4px auto!important; padding:14px!important; border-radius:7px!important; }
+  [data-md-statusbar="true"] { min-height:38px; max-height:42px; flex-wrap:nowrap; overflow:hidden; gap:6px; padding:4px 8px!important; font-size:10px; }
+  [data-md-statusbar="true"] > * { flex:0 0 auto; }
+  [data-md-statusbar="true"] button { min-width:32px; min-height:32px; }
+  [data-md-pdf-toolbar="true"] { align-items:stretch!important; gap:7px!important; max-height:none!important; overflow:visible!important; padding:7px!important; }
+  [data-md-pdf-toolbar="true"] > div:first-child { display:grid!important; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:6px!important; width:100%; min-width:0; }
+  [data-md-pdf-toolbar="true"] > div:first-child > button:first-child { min-height:40px!important; padding:6px 8px!important; font-size:11px!important; white-space:nowrap; }
+  [data-md-pdf-toolbar="true"] > div:first-child > span { min-width:0; max-width:100%; font-size:11px; }
+  .md-pdf-mobile-toggle { display:inline-flex!important; align-items:center; justify-content:center; gap:5px; min-width:40px; min-height:40px!important; padding:6px 9px!important; border:1px solid #355b68; border-radius:10px; background:#153a47; color:#e6f6f8; font-size:11px; font-weight:700; white-space:nowrap; }
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="false"] [data-md-pdf-tools="true"],
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="false"] [data-md-pdf-navigation-controls="true"] { display:none!important; }
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="true"] [data-md-pdf-tools="true"],
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="true"] [data-md-pdf-navigation-controls="true"] { display:flex!important; width:100%!important; max-width:100%; flex-wrap:wrap!important; }
+  [data-md-pdf-work-area="true"] { flex-direction:column!important; min-height:0; }
+  [data-md-pdf-work-area="true"] > [data-md-pdf-thumbnails="true"] { flex-direction:row; align-items:center; width:100%; max-height:70px; overflow-x:auto; overflow-y:hidden; border-right:0; border-bottom:1px solid #334155; padding:4px 6px; }
+  [data-md-pdf-thumbnails="true"] > p { display:none; }
+  [data-md-pdf-thumbnails="true"] > button { flex:0 0 54px; min-width:54px; padding:3px!important; }
+  [data-md-pdf-thumbnails="true"] > button > div { min-height:36px!important; max-height:38px; padding:2px; }
+  [data-md-pdf-thumbnails="true"] canvas { max-height:34px; width:auto; }
+  [data-md-pdf-viewer="true"] { min-height:0; flex:1 1 0; padding:6px 4px 12px!important; }
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="false"] [data-md-pdf-toolbar="true"] { max-height:58px!important; overflow:hidden!important; }
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="true"] [data-md-pdf-toolbar="true"] { max-height:min(46dvh,420px)!important; overflow-x:hidden!important; overflow-y:auto!important; }
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="true"] [data-md-pdf-tools="true"],
+  [data-md-pdf-annotator="true"][data-md-pdf-tools-open="true"] [data-md-pdf-navigation-controls="true"] { max-height:none!important; overflow:visible!important; }
+}
+/* Landscape tablet: PDF workbench becomes a scrollable left command dock. */
+@media (min-width:768px) and (max-width:1440px) and (any-pointer:coarse) and (orientation:landscape) {
+  [data-md-pdf-annotator="true"] { display:flex!important; flex-direction:column; position:relative; padding-left:clamp(264px,30vw,320px); overflow:hidden; }
+  [data-md-pdf-toolbar="true"] { position:absolute; inset:0 auto 0 0; display:flex!important; flex-direction:column!important; align-items:stretch!important; justify-content:flex-start!important; width:clamp(260px,30vw,320px); max-height:none!important; overflow-x:hidden!important; overflow-y:auto!important; border-right:1px solid #355763; border-bottom:0!important; padding:8px!important; }
+  [data-md-pdf-toolbar="true"] > div:first-child { flex-direction:column; align-items:stretch; width:100%; }
+  [data-md-pdf-toolbar="true"] > div:first-child > span { max-width:100%; }
+  [data-md-pdf-tools="true"] { width:100%!important; flex-wrap:wrap!important; overflow:visible!important; padding:6px!important; gap:5px!important; }
+  [data-md-pdf-tools="true"] button { white-space:normal; min-width:0; padding-inline:7px; }
+  [data-md-pdf-navigation-controls="true"] { width:100%; flex-direction:row; flex-wrap:wrap; gap:4px!important; }
+  [data-md-pdf-annotator="true"] > :not([data-md-pdf-toolbar="true"]) { margin-left:0; min-width:0; width:100%; }
+  [data-md-pdf-work-area="true"] { min-height:0; flex:1 1 0; }
+  [data-md-pdf-work-area="true"] > [data-md-pdf-thumbnails="true"] { flex-direction:row; align-items:center; width:100%; max-height:70px; overflow-x:auto; overflow-y:hidden; border-right:0; border-bottom:1px solid #334155; padding:4px 6px; }
+  [data-md-pdf-thumbnails="true"] > p { display:none; }
+  [data-md-pdf-thumbnails="true"] > button { flex:0 0 58px; min-width:58px; padding:3px!important; }
+  [data-md-pdf-thumbnails="true"] > button > div { min-height:40px!important; max-height:42px; padding:2px; }
+  [data-md-pdf-thumbnails="true"] canvas { max-height:38px; width:auto; }
+  [data-md-pdf-annotator="true"] aside { display:none!important; }
+  .md-pdf-mobile-toggle { display:none!important; }
 }

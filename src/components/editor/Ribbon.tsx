@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen as BookOpenTab, Files as PagesTab, Home as HomeTab, Layout as LayoutTab, Sparkles as StudyTab, Table2 as TableTab, FilePlus as InsertTab, X as CloseTab } from 'lucide-react'
+import { BookOpen as BookOpenTab, Files as PagesTab, Home as HomeTab, Layout as LayoutTab, Sparkles as StudyTab, Table2 as TableTab, FilePlus as InsertTab, X as CloseTab, Menu as MobileMenuTab, ChevronDown as MobileChevronTab } from 'lucide-react'
 import { Editor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import toast from 'react-hot-toast'
@@ -107,6 +107,7 @@ interface RibbonProps {
 export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   const [activeTab, setActiveTab] = useState<'Home' | 'Inserisci' | 'Tabella' | 'Layout' | 'Studio' | 'Pagine' | 'Modelli'>('Home');
   const [tabletPanelOpen, setTabletPanelOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [pageFormat, setPageFormat] = useState<PageFormat>('A4');
   const [pageOrientation, setPageOrientation] = useState<PageOrientation>('portrait');
@@ -299,6 +300,7 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
         data-md-ribbon-tab={name}
         onClick={() => {
           setTabletPanelOpen(selected ? !tabletPanelOpen : true);
+          setMobileToolsOpen(true);
           setActiveTab(name);
         }}
         aria-expanded={selected && tabletPanelOpen}
@@ -333,8 +335,13 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   );
 
   return (
-    <div data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
+    <div data-md-ribbon="true" data-md-active-tab={activeTab} data-md-tools-open={tabletPanelOpen ? 'true' : 'false'} data-md-mobile-tools-open={mobileToolsOpen ? 'true' : 'false'} data-md-ink-active={inkMode ? 'true' : 'false'} className="z-40 flex flex-col border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-xl print:hidden">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-2 pt-1">
+        <button type="button" data-md-mobile-ribbon-toggle="true" onClick={() => setMobileToolsOpen((open) => !open)} aria-expanded={mobileToolsOpen} aria-controls="medicaldocs-ribbon-tools" className="md-mobile-ribbon-toggle" aria-label={mobileToolsOpen ? 'Nascondi strumenti documento' : 'Mostra strumenti documento'}>
+          {mobileToolsOpen ? <CloseTab className="h-4 w-4" aria-hidden="true" /> : <MobileMenuTab className="h-4 w-4" aria-hidden="true" />}
+          <span>{mobileToolsOpen ? 'Chiudi strumenti' : 'Strumenti'}</span>
+          {!mobileToolsOpen && <MobileChevronTab className="h-4 w-4" aria-hidden="true" />}
+        </button>
         <TabButton name="Home" />
         <TabButton name="Inserisci" />
         {editor.isActive('table') && <TabButton name="Tabella" />}

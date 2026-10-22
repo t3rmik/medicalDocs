@@ -135,6 +135,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [scale, setScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [redactColor, setRedactColor] = useState('#0f172a');
   const [inkColor, setInkColor] = useState('#2563eb');
   const [pdfInputMode, setPdfInputMode] = useState<'pen' | 'finger'>('pen');
@@ -843,11 +844,15 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   return (
-    <div data-md-pdf-annotator="true" className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
+    <div data-md-pdf-annotator="true" data-md-pdf-tools-open={mobileToolsOpen ? 'true' : 'false'} className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
       <div data-md-pdf-toolbar="true" className="flex max-h-[42dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-b border-slate-700 bg-slate-800 px-3 py-2.5 shadow-md sm:max-h-none sm:overflow-visible">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
           <span className="text-xs text-slate-300 font-medium truncate max-w-xs">{file.name}</span>
+          <button type="button" data-md-pdf-mobile-toggle="true" onClick={() => setMobileToolsOpen((open) => !open)} aria-expanded={mobileToolsOpen} aria-label={mobileToolsOpen ? 'Nascondi strumenti PDF' : 'Mostra strumenti PDF'} className="md-pdf-mobile-toggle">
+            <MedicalDocsIcon name={mobileToolsOpen ? 'close' : 'outline'} size={17} />
+            <span>{mobileToolsOpen ? 'Chiudi' : 'Strumenti PDF'}</span>
+          </button>
         </div>
 
         <div data-md-pdf-tools="true" className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain bg-slate-900/90 px-2 py-1.5 rounded-xl border border-slate-700 shadow-inner sm:w-auto xl:flex-wrap [&>button]:shrink-0 [&>label]:shrink-0">
@@ -922,7 +927,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           </button>
         </div>
         
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div data-md-pdf-navigation-controls="true" className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} aria-label="Riduci ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition"><ZoomOut className="w-4 h-4" /></button>
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
           <button onClick={() => setScale(s => Math.min(3, s + 0.2))} aria-label="Aumenta ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition" title="Ingrandisci"><ZoomIn className="w-4 h-4" /></button>
