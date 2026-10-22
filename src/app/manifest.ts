@@ -1,7 +1,6 @@
-import type { MetadataRoute } from 'next'
 
 /** Installable study workspace; Android uses share_target, desktop may use file_handlers. */
-export default function manifest(): MetadataRoute.Manifest {
+export default function manifest() {
   return {
     id: '/',
     name: 'MedicalDocs Pro — Studio di studio',
@@ -37,5 +36,5 @@ export default function manifest(): MetadataRoute.Manifest {
         'text/plain': ['.txt'], 'text/html': ['.html', '.htm'],
       },
     }],
-  } as MetadataRoute.Manifest
+  }
 }
