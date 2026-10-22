@@ -231,8 +231,13 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
         : unit === 'cm' ? amount * 96 / 2.54
         : unit === 'in' ? amount * 96
         : amount
+      // Phones already use a fluid page width in CSS; fitting again would double-scale them.
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        setFitScale((current) => current === 1 ? current : 1)
+        return
+      }
       const usableWidth = Math.max(260, viewport.clientWidth - 20)
-      const next = Math.max(0.72, Math.min(1, usableWidth / Math.max(1, pageWidthPx)))
+      const next = Math.max(0.35, Math.min(1, usableWidth / Math.max(1, pageWidthPx)))
       setFitScale((current) => Math.abs(current - next) < 0.005 ? current : next)
     }
 

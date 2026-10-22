@@ -1330,7 +1330,7 @@ table { border-collapse: separate; border-spacing: 0; }
 /* Tab in normal paragraphs behaves like a word processor; preserve tabs in saved/exported HTML. */
 .ProseMirror.editor-page :is(p, h1, h2, h3, h4, li, td, th) {
   white-space: pre-wrap;
-  tab-size: 8;
+  tab-size: 1.27cm;
   -moz-tab-size: 8;
 }
 
@@ -1360,5 +1360,18 @@ table { border-collapse: separate; border-spacing: 0; }
   [data-md-ribbon="true"][data-md-active-tab="Home"] > [data-md-tool-panel="true"] {
     flex-wrap: wrap;
     white-space: normal;
+  }
+}
+
+
+/* A tablet keeps physical page width; the editor zoom fits that fixed-width sheet into the available viewport. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .ProseMirror.editor-page {
+    box-sizing: border-box !important;
+    width: var(--md-page-width, 210mm) !important;
+    max-width: none !important;
+    min-height: var(--md-page-height, 297mm) !important;
+    padding: var(--md-page-padding-top, 4mm) var(--md-page-padding-right, 4mm)
+             var(--md-page-padding-bottom, 4mm) var(--md-page-padding-left, 4mm) !important;
   }
 }
