@@ -52,6 +52,11 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
   const allDocs = useLiveQuery(() => db.documents.orderBy('updatedAt').reverse().toArray())
 
   useEffect(() => {
+    const wideWorkspace = window.matchMedia('(min-width: 1180px)')
+    if (wideWorkspace.matches) setActiveTab((current) => current ?? 'outline')
+  }, [])
+
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(CUSTOM_FOLDERS_KEY)
       const parsed: unknown = raw ? JSON.parse(raw) : []
