@@ -3473,3 +3473,110 @@ body {
  [data-md-header="true"] [data-md-theme-toggle="true"] span {display:none!important;}
  [data-md-ribbon="true"] > [data-md-tool-panel="true"] > div.border-r {gap:3px!important;padding:4px!important;}
 }
+
+
+/* Dark-mode contrast repair: controls with hard-coded light utility classes. */
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] [data-md-theme-toggle="true"] {
+  background: #182c34 !important;
+  border-color: #35505a !important;
+  color: #86e0d9 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button.bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button.bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button.bg-slate-100 {
+  background: #182c34 !important;
+  border-color: #35505a !important;
+  color: #d8e8eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button.bg-teal-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button.bg-teal-50\/70 {
+  background: #12393c !important;
+  border-color: #2b5a5b !important;
+  color: #86e0d9 !important;
+}
+
+/* Ribbon tools, table controls, page options and insert popovers. */
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-slate-100,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button:not([class*="bg-teal-"]):not([class*="bg-indigo-"]):not([class*="bg-rose-"]):not([class*="bg-red-"]):not([class*="bg-blue-"])[class*="border-slate-"] {
+  background-color: #182c34 !important;
+  border-color: #35505a !important;
+  color: #d8e8eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-teal-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-teal-50\/80,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-indigo-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-blue-50 {
+  background-color: #12393c !important;
+  border-color: #2b5a5b !important;
+  color: #86e0d9 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-white:hover,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-slate-50:hover,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button.bg-slate-100:hover {
+  background-color: #223b44 !important;
+  color: #ffffff !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] button:disabled {
+  color: #718b94 !important;
+  border-color: #29404a !important;
+  opacity: .62 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] select,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] option,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] input:not([type="color"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] textarea {
+  background-color: #0b1519 !important;
+  color: #e7f1f1 !important;
+  border-color: #35505a !important;
+  color-scheme: dark;
+}
+
+/* Sidebar actions and document cards: ensure every light button/surface has visible contrast. */
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] button.bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] button.bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] button.bg-slate-100 {
+  background: #182c34 !important;
+  border-color: #35505a !important;
+  color: #d8e8eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] button.bg-teal-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] button.bg-teal-50\/80 {
+  background: #12393c !important;
+  border-color: #2b5a5b !important;
+  color: #86e0d9 !important;
+}
+
+/* Dialog surfaces (command palette, equations and other modal tools) use a matched dark pair. */
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] {
+  background: #13252c !important;
+  border-color: #35505a !important;
+  color: #e7f1f1 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button.bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button.bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button.bg-slate-100,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] kbd {
+  background: #0b1519 !important;
+  border-color: #35505a !important;
+  color: #d8e8eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button.bg-teal-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button.bg-indigo-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button.bg-blue-50 {
+  background: #12393c !important;
+  border-color: #2b5a5b !important;
+  color: #86e0d9 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] button:not(:disabled):hover {
+  filter: brightness(1.14);
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] .bg-white {
+  background-color: #182c34 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] .text-teal-800,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] .text-indigo-800,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] .text-rose-700 {
+  color: #86e0d9 !important;
+}
