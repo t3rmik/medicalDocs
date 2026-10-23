@@ -3264,3 +3264,69 @@ body {
   }
   [data-md-pdf-annotator="true"] [data-md-pdf-viewer="true"] { padding: 8px 4px 12px !important; }
 }
+
+
+/* Final PDF polish: keep form fields and guidance cards readable in both themes. */
+[data-md-pdf-annotator="true"] [data-md-pdf-text-editor="true"] .bg-slate-900,
+[data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] .bg-slate-900,
+[data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] .bg-slate-800 {
+  background: var(--pdf-muted-surface) !important;
+  color: var(--pdf-ink) !important;
+  border-color: var(--pdf-border) !important;
+}
+[data-md-pdf-annotator="true"] [data-md-pdf-text-editor="true"] .text-slate-300,
+[data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] .text-slate-300,
+[data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] .text-slate-100,
+[data-md-pdf-annotator="true"] [data-md-pdf-ai-form="true"] .text-slate-400 {
+  color: var(--pdf-muted) !important;
+}
+[data-md-pdf-annotator="true"] [data-md-pdf-work-area="true"] > aside[aria-label="Pannello PDF"] > div:last-child {
+  background: var(--pdf-warning-bg) !important;
+  border-color: var(--pdf-warning-border) !important;
+  color: var(--pdf-warning-ink) !important;
+}
+[data-md-pdf-annotator="true"] [data-md-pdf-work-area="true"] > aside[aria-label="Pannello PDF"] > div:last-child p,
+[data-md-pdf-annotator="true"] [data-md-pdf-work-area="true"] > aside[aria-label="Pannello PDF"] > div:last-child .text-amber-100 {
+  color: var(--pdf-warning-ink) !important;
+}
+[data-md-pdf-annotator="true"] [data-md-pdf-toolbar] .bg-blue-600,
+[data-md-pdf-annotator="true"] [data-md-pdf-toolbar] .bg-violet-600 {
+  background: var(--pdf-primary) !important;
+}
+[data-md-pdf-annotator="true"][data-md-pdf-theme="dark"] [data-md-pdf-toolbar] .bg-blue-600,
+[data-md-pdf-annotator="true"][data-md-pdf-theme="dark"] [data-md-pdf-toolbar] .bg-violet-600 {
+  color: #04282a !important;
+}
+
+/* On a landscape tablet, use a compact page strip and canvas rather than the desktop detail rail. */
+[data-md-app-shell="true"][data-md-tablet-layout="landscape"] [data-md-pdf-annotator="true"] [data-md-pdf-work-area="true"] {
+  display: flex !important;
+  flex: 1 1 0 !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+[data-md-app-shell="true"][data-md-tablet-layout="landscape"] [data-md-pdf-annotator="true"] [data-md-pdf-work-area="true"] > nav[data-md-pdf-thumbnails="true"] {
+  flex: 0 0 70px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 70px !important;
+  max-height: 70px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-right: 0 !important;
+  border-bottom: 1px solid var(--pdf-border) !important;
+}
+[data-md-app-shell="true"][data-md-tablet-layout="landscape"] [data-md-pdf-annotator="true"] [data-md-pdf-work-area="true"] > aside[aria-label="Pannello PDF"] {
+  display: none !important;
+}
+[data-md-app-shell="true"][data-md-tablet-layout="landscape"] [data-md-pdf-annotator="true"] [data-md-pdf-viewer="true"] {
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
