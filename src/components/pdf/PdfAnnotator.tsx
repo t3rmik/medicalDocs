@@ -35,6 +35,7 @@ interface PdfAnnotatorProps {
 }
 
 type ToolMode = 'none' | 'text' | 'editText' | 'redact' | 'stamp' | 'sign' | 'draw' | 'highlight';
+const PDF_THEME_STORAGE_KEY = 'medicaldocs.pdfTheme.v1';
 type PdfPoint = { x: number; y: number; pressure?: number };
 type AnnotationType = ToolMode | 'textEdit';
 
@@ -137,6 +138,28 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<ToolMode>('none');
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [pdfTheme, setPdfTheme] = useState<'light' | 'dark'>('light');
+  const [pdfThemeReady, setPdfThemeReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedTheme = window.localStorage.getItem(PDF_THEME_STORAGE_KEY);
+      if (savedTheme === 'light' || savedTheme === 'dark') setPdfTheme(savedTheme);
+    } catch {
+      // PDF editing remains available if browser storage is disabled.
+    } finally {
+      setPdfThemeReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pdfThemeReady) return;
+    try {
+      window.localStorage.setItem(PDF_THEME_STORAGE_KEY, pdfTheme);
+    } catch {
+      // The theme toggle must never block editing or exporting.
+    }
+  }, [pdfTheme, pdfThemeReady]);
   const [redactColor, setRedactColor] = useState('#0f172a');
   const [inkColor, setInkColor] = useState('#2563eb');
   const [pdfInputMode, setPdfInputMode] = useState<'pen' | 'finger'>('pen');
@@ -869,7 +892,7 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
   };
 
   return (
-    <div data-md-pdf-annotator="true" data-md-pdf-tools-open={mobileToolsOpen ? 'true' : 'false'} className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
+    <div data-md-pdf-annotator="true" data-md-pdf-theme={pdfTheme} data-md-pdf-tools-open={mobileToolsOpen ? 'true' : 'false'} className="md-pdf-workbench flex flex-col h-full bg-slate-900 text-white relative select-none">
       <div data-md-pdf-toolbar="true" className="flex max-h-[42dvh] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto border-b border-slate-700 bg-slate-800 px-3 py-2.5 shadow-md sm:max-h-none sm:overflow-visible">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition">Torna all'Editor</button>
@@ -957,6 +980,10 @@ export function PdfAnnotator({ file, onClose }: PdfAnnotatorProps) {
           <span className="text-xs font-mono">{Math.round(scale * 100)}%</span>
           <button onClick={() => setScale(s => Math.min(3, s + 0.2))} aria-label="Aumenta ingrandimento PDF" className="min-h-11 min-w-11 p-1.5 hover:bg-slate-700 rounded-lg transition" title="Ingrandisci"><ZoomIn className="w-4 h-4" /></button>
           <button onClick={async () => { try { const page = await pdfDoc.getPage(pageNum); const width = page.getViewport({ scale: 1 }).width; const viewer = document.querySelector<HTMLElement>('[data-md-pdf-viewer="true"]'); if (viewer && width > 0) setScale(Math.max(0.5, Math.min(3, (viewer.clientWidth - 48) / width))); } catch { toast.error('Impossibile adattare la pagina alla larghezza.'); } }} className="rounded-md border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-300 hover:bg-slate-700" title="Adatta alla larghezza disponibile">Adatta</button>
+          <button type="button" data-md-pdf-theme-toggle="true" onClick={() => setPdfTheme((theme) => theme === 'light' ? 'dark' : 'light')} aria-pressed={pdfTheme === 'dark'} aria-label={pdfTheme === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'} title={pdfTheme === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-2.5 py-2 text-xs font-semibold transition">
+            <span aria-hidden="true">{pdfTheme === 'dark' ? '☾' : '☼'}</span>
+            <span>{pdfTheme === 'dark' ? 'Scuro' : 'Chiaro'}</span>
+          </button>
           
           <div className="h-4 w-[1px] bg-slate-700 mx-1" />
           

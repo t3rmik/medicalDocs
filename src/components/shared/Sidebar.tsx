@@ -51,12 +51,6 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
   const [newFolderName, setNewFolderName] = useState('')
   const allDocs = useLiveQuery(() => db.documents.orderBy('updatedAt').reverse().toArray())
 
-  useEffect(() => {
-    const wideWorkspace = window.matchMedia('(min-width: 1180px)')
-    const touchDevice = navigator.maxTouchPoints > 0 || window.matchMedia('(any-pointer: coarse)').matches || window.matchMedia('(hover: none)').matches
-    // Only open the outline automatically on a true wide desktop; keep tablet canvas space available.
-    if (wideWorkspace.matches && !touchDevice) setActiveTab((current) => current ?? 'outline')
-  }, [])
 
   useEffect(() => {
     try {
