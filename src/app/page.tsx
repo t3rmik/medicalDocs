@@ -82,6 +82,66 @@ export default function Home() {
       return () => { cancelled = true; };
     }
   }, []);
+  useEffect(() => {
+    const appShell = document.querySelector<HTMLElement>('[data-md-app-shell="true"]')
+    if (!appShell) return
+
+    // Keep layout detection at app level: the editor (and its Ribbon) unmounts when opening PDF tools.
+    const coarsePointer = window.matchMedia('(any-pointer: coarse)')
+    const noHover = window.matchMedia('(hover: none)')
+    const landscapeQuery = window.matchMedia('(orientation: landscape)')
+    const portraitQuery = window.matchMedia('(orientation: portrait)')
+
+    const syncTabletLayout = () => {
+      const width = window.innerWidth || document.documentElement.clientWidth
+      const height = window.innerHeight || document.documentElement.clientHeight
+      const hasTouch = navigator.maxTouchPoints > 0 || coarsePointer.matches || noHover.matches
+      const tabletSizedViewport = width >= 768 && width <= 2400 && height >= 400 && height <= 2400
+      const orientation = landscapeQuery.matches ? 'landscape' : portraitQuery.matches ? 'portrait' : null
+      const mode = hasTouch && tabletSizedViewport ? orientation : null
+
+      if (mode) appShell.setAttribute('data-md-tablet-layout', mode)
+      else appShell.removeAttribute('data-md-tablet-layout')
+
+      const editorShell = appShell.querySelector<HTMLElement>('[data-md-editor-shell="true"]')
+      if (editorShell) {
+        if (mode) editorShell.setAttribute('data-md-tablet-layout', mode)
+        else editorShell.removeAttribute('data-md-tablet-layout')
+
+        const ribbon = editorShell.querySelector<HTMLElement>('[data-md-ribbon="true"]')
+        if (mode === 'landscape' && ribbon?.getAttribute('data-md-tools-open') === 'true' && ribbon.getAttribute('data-md-ink-active') !== 'true') {
+          editorShell.setAttribute('data-md-tools-panel-open', 'true')
+        } else {
+          editorShell.removeAttribute('data-md-tools-panel-open')
+        }
+      }
+    }
+
+    syncTabletLayout()
+    window.addEventListener('resize', syncTabletLayout)
+    window.addEventListener('orientationchange', syncTabletLayout)
+    window.screen.orientation?.addEventListener('change', syncTabletLayout)
+    window.visualViewport?.addEventListener('resize', syncTabletLayout)
+    coarsePointer.addEventListener('change', syncTabletLayout)
+    noHover.addEventListener('change', syncTabletLayout)
+    landscapeQuery.addEventListener('change', syncTabletLayout)
+    portraitQuery.addEventListener('change', syncTabletLayout)
+
+    return () => {
+      window.removeEventListener('resize', syncTabletLayout)
+      window.removeEventListener('orientationchange', syncTabletLayout)
+      window.screen.orientation?.removeEventListener('change', syncTabletLayout)
+      window.visualViewport?.removeEventListener('resize', syncTabletLayout)
+      coarsePointer.removeEventListener('change', syncTabletLayout)
+      noHover.removeEventListener('change', syncTabletLayout)
+      landscapeQuery.removeEventListener('change', syncTabletLayout)
+      portraitQuery.removeEventListener('change', syncTabletLayout)
+      appShell.removeAttribute('data-md-tablet-layout')
+      appShell.querySelector('[data-md-editor-shell="true"]')?.removeAttribute('data-md-tablet-layout')
+      appShell.querySelector('[data-md-editor-shell="true"]')?.removeAttribute('data-md-tools-panel-open')
+    }
+  }, [pdfAnnotatorFile])
+
   const editorPageSectionsRef = useRef<(() => DocumentPageSection[]) | null>(null);
   const registerEditorPageSections = useCallback((handler: (() => DocumentPageSection[]) | null) => {
     editorPageSectionsRef.current = handler;
