@@ -3580,3 +3580,67 @@ body {
 [data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"] .text-rose-700 {
   color: #86e0d9 !important;
 }
+
+
+/* Final dark toolbar repair. Icon-only buttons do not carry a bg utility class,
+   so explicitly style the entire tool panel and then restore intentional states. */
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] {
+  color-scheme: dark !important;
+  background: #101f25 !important;
+  color: #e7f1f1 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] div.bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] div.bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] div.bg-slate-100,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] details.bg-white {
+  background: #182c34 !important;
+  border-color: #35505a !important;
+  color: #d8e8eb !important;
+  box-shadow: none !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button:not(.md-primary-button):not([class*="bg-teal-600"]):not([class*="bg-teal-700"]):not([class*="bg-teal-800"]):not([class*="bg-indigo-700"]):not([class*="bg-indigo-800"]):not([class*="bg-blue-600"]):not([class*="bg-blue-700"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-emerald-"]):not([class*="bg-orange-"]) {
+  background: #182c34 !important;
+  border-color: #35505a !important;
+  color: #d8e8eb !important;
+  box-shadow: none !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button:is([aria-pressed="true"], [class*="bg-teal-50"], [class*="bg-indigo-50"], [class*="bg-blue-50"]) {
+  background: #12393c !important;
+  border-color: #2b5a5b !important;
+  color: #86e0d9 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button:not(:disabled):not(.md-primary-button):hover {
+  background: #223b44 !important;
+  border-color: #45616b !important;
+  color: #ffffff !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button:disabled {
+  background: #14272e !important;
+  color: #718b94 !important;
+  border-color: #29404a !important;
+  opacity: .65 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button.md-primary-button {
+  background: #0f766e !important;
+  border-color: #0f766e !important;
+  color: #ffffff !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] select,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] textarea {
+  background: #0b1519 !important;
+  color: #e7f1f1 !important;
+  border-color: #35505a !important;
+  color-scheme: dark !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] label {
+  color: #c5d8dc !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button svg {
+  color: currentColor;
+  flex-shrink: 0;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] button,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] select {
+  box-sizing: border-box;
+}
