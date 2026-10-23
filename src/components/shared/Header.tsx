@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { PwaInstallControl } from '@/components/shared/PwaInstallControl'
 import {
   MedicalDocsIcon,
@@ -28,6 +29,8 @@ interface HeaderProps {
   isSaving: boolean;
   onTitleChange: (newTitle: string) => void;
   onOpenAIStudio: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
 export function Header({
@@ -39,6 +42,8 @@ export function Header({
   isSaving,
   onTitleChange,
   onOpenAIStudio,
+  theme,
+  onToggleTheme,
 }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<'file' | 'export' | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
@@ -224,7 +229,6 @@ export function Header({
         </div>
 
         <div data-md-topbar-controls="true" className="flex flex-wrap items-center gap-2 lg:justify-end">
-          <PwaInstallControl />
           <button
             type="button"
             onClick={openCommandPalette}
@@ -237,6 +241,19 @@ export function Header({
             <kbd className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
               <CommandIcon className="h-3 w-3" /> K
             </kbd>
+          </button>
+          <PwaInstallControl />
+          <button
+            type="button"
+            data-md-theme-toggle="true"
+            onClick={onToggleTheme}
+            className="md-theme-toggle inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            aria-label={theme === 'dark' ? 'Attiva tema chiaro' : 'Attiva tema scuro'}
+            aria-pressed={theme === 'dark'}
+            title={theme === 'dark' ? 'Attiva tema chiaro' : 'Attiva tema scuro'}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+            <span>{theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}</span>
           </button>
           <button
             type="button"

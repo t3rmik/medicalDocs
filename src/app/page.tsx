@@ -22,6 +22,9 @@ const PdfAnnotator = dynamic(
   { ssr: false }
 )
 
+type AppTheme = 'light' | 'dark'
+const APP_THEME_STORAGE_KEY = 'medicaldocs.appTheme.v1'
+
 export default function Home() {
   const [activeDoc, setActiveDoc] = useState<MedicalDocument>({
     title: 'Appunti_Studio_Laurea',
@@ -45,7 +48,29 @@ export default function Home() {
   const [pdfAnnotatorFile, setPdfAnnotatorFile] = useState<File | null>(null);
   const [ocrState, setOcrState] = useState({ active: false, status: '', progress: 0 });
   const [isAIStudioOpen, setIsAIStudioOpen] = useState(false);
+  const [appTheme, setAppTheme] = useState<AppTheme>('light')
+  const [themePreferenceReady, setThemePreferenceReady] = useState(false)
   const insertIntoEditorRef = useRef<((html: string) => void) | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedTheme = window.localStorage.getItem(APP_THEME_STORAGE_KEY)
+      if (savedTheme === 'light' || savedTheme === 'dark') setAppTheme(savedTheme)
+    } catch {
+      // The workspace remains usable if browser storage is disabled.
+    } finally {
+      setThemePreferenceReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!themePreferenceReady) return
+    try {
+      window.localStorage.setItem(APP_THEME_STORAGE_KEY, appTheme)
+    } catch {
+      // Theme persistence is optional; never block editing.
+    }
+  }, [appTheme, themePreferenceReady])
   const importAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -481,7 +506,7 @@ export default function Home() {
   };
 
   return (
-    <div data-md-app-shell="true" className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
+    <div data-md-app-shell="true" data-md-theme={appTheme} className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
       <Header 
         onExport={handleExport} 
         loadingFormat={loadingFormat} 
@@ -491,6 +516,8 @@ export default function Home() {
         onTitleChange={handleTitleChange}
         onOpenAIStudio={handleOpenAIStudio}
         isSaving={isSaving}
+        theme={appTheme}
+        onToggleTheme={() => setAppTheme((theme) => theme === 'light' ? 'dark' : 'light')}
       />
       
       {pdfAnnotatorFile ? (
