@@ -312,26 +312,61 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
   useEffect(() => {
     const ribbon = ribbonRootRef.current
     const shell = ribbon?.closest<HTMLElement>('[data-md-editor-shell="true"]')
-    if (!shell) return
+    const appShell = shell?.closest<HTMLElement>('[data-md-app-shell="true"]')
+    if (!shell || !appShell) return
 
-    // Do not rely on pointer media features: Android tablet browsers can report them differently
-    // in desktop-site mode. The dock is a viewport/orientation layout, not an input-mode setting.
-    const landscapeTablet = window.matchMedia('(min-width: 768px) and (max-width: 1440px) and (orientation: landscape)')
-    const syncPanelLayout = () => {
-      if (landscapeTablet.matches && tabletPanelOpen && !inkMode) {
+    // Android "desktop site" can report a CSS viewport wider than the old 1440px breakpoint.
+    // Identify touch-capable tablet layouts independently of CSS pointer media queries.
+    const coarsePointer = window.matchMedia('(any-pointer: coarse)')
+    const noHover = window.matchMedia('(hover: none)')
+    const landscapeQuery = window.matchMedia('(orientation: landscape)')
+    const portraitQuery = window.matchMedia('(orientation: portrait)')
+
+    const syncTabletLayout = () => {
+      const width = window.innerWidth || document.documentElement.clientWidth
+      const height = window.innerHeight || document.documentElement.clientHeight
+      const hasTouch = navigator.maxTouchPoints > 0 || coarsePointer.matches || noHover.matches
+      const tabletSizedViewport = width >= 768 && width <= 2400 && height >= 400 && height <= 2400
+      const orientation = landscapeQuery.matches ? 'landscape' : portraitQuery.matches ? 'portrait' : null
+      const mode = hasTouch && tabletSizedViewport ? orientation : null
+
+      if (mode) {
+        shell.setAttribute('data-md-tablet-layout', mode)
+        appShell.setAttribute('data-md-tablet-layout', mode)
+      } else {
+        shell.removeAttribute('data-md-tablet-layout')
+        appShell.removeAttribute('data-md-tablet-layout')
+      }
+
+      if (mode === 'landscape' && tabletPanelOpen && !inkMode) {
         shell.setAttribute('data-md-tools-panel-open', 'true')
       } else {
         shell.removeAttribute('data-md-tools-panel-open')
       }
     }
 
-    syncPanelLayout()
-    window.addEventListener('resize', syncPanelLayout)
-    landscapeTablet.addEventListener('change', syncPanelLayout)
+    syncTabletLayout()
+    window.addEventListener('resize', syncTabletLayout)
+    window.addEventListener('orientationchange', syncTabletLayout)
+    window.screen.orientation?.addEventListener('change', syncTabletLayout)
+    window.visualViewport?.addEventListener('resize', syncTabletLayout)
+    coarsePointer.addEventListener('change', syncTabletLayout)
+    noHover.addEventListener('change', syncTabletLayout)
+    landscapeQuery.addEventListener('change', syncTabletLayout)
+    portraitQuery.addEventListener('change', syncTabletLayout)
+
     return () => {
-      window.removeEventListener('resize', syncPanelLayout)
-      landscapeTablet.removeEventListener('change', syncPanelLayout)
+      window.removeEventListener('resize', syncTabletLayout)
+      window.removeEventListener('orientationchange', syncTabletLayout)
+      window.screen.orientation?.removeEventListener('change', syncTabletLayout)
+      window.visualViewport?.removeEventListener('resize', syncTabletLayout)
+      coarsePointer.removeEventListener('change', syncTabletLayout)
+      noHover.removeEventListener('change', syncTabletLayout)
+      landscapeQuery.removeEventListener('change', syncTabletLayout)
+      portraitQuery.removeEventListener('change', syncTabletLayout)
+      shell.removeAttribute('data-md-tablet-layout')
       shell.removeAttribute('data-md-tools-panel-open')
+      appShell.removeAttribute('data-md-tablet-layout')
     }
   }, [tabletPanelOpen, inkMode])
 

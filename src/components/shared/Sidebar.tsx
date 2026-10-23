@@ -53,7 +53,9 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
 
   useEffect(() => {
     const wideWorkspace = window.matchMedia('(min-width: 1180px)')
-    if (wideWorkspace.matches) setActiveTab((current) => current ?? 'outline')
+    const touchDevice = navigator.maxTouchPoints > 0 || window.matchMedia('(any-pointer: coarse)').matches || window.matchMedia('(hover: none)').matches
+    // Only open the outline automatically on a true wide desktop; keep tablet canvas space available.
+    if (wideWorkspace.matches && !touchDevice) setActiveTab((current) => current ?? 'outline')
   }, [])
 
   useEffect(() => {
