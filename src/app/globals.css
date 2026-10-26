@@ -3812,3 +3812,149 @@ body {
   [data-md-app-shell="true"][data-md-theme="dark"] select option,
   [data-md-app-shell="true"][data-md-theme="dark"] select optgroup { color: #e7f1f1 !important; background: #0b1519 !important; -webkit-text-fill-color: #e7f1f1 !important; }
 }
+
+
+/* Final layout + contrast QA: panel controls must never be clipped by the app header. */
+[data-md-sidebar-panel-header="true"] {
+  position: relative !important; z-index: 24 !important; display: flex !important; flex: 0 0 auto !important;
+  align-items: center !important; justify-content: space-between !important; gap: 8px !important;
+  min-height: 52px !important; overflow: visible !important; isolation: isolate;
+}
+[data-md-sidebar-panel-actions="true"] {
+  position: relative !important; z-index: 25 !important; display: flex !important; flex: 0 0 auto !important;
+  align-items: center !important; justify-content: flex-end !important; gap: 6px !important;
+  margin-inline-start: auto !important; overflow: visible !important;
+}
+button[data-md-sidebar-panel-close="true"],
+button[data-md-sidebar-expand="true"] {
+  position: relative !important; z-index: 26 !important; display: inline-flex !important; flex: 0 0 44px !important;
+  align-items: center !important; justify-content: center !important; width: 44px !important; min-width: 44px !important;
+  height: 44px !important; min-height: 44px !important; margin: 0 !important; padding: 0 !important;
+  overflow: visible !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;
+  touch-action: manipulation !important; border: 1px solid #35505a !important; border-radius: 12px !important;
+  background: #182c34 !important; color: #e1ecee !important; cursor: pointer !important;
+}
+button[data-md-sidebar-panel-close="true"] svg,
+button[data-md-sidebar-expand="true"] svg {
+  display: block !important; width: 18px !important; height: 18px !important; min-width: 18px !important;
+  min-height: 18px !important; flex: 0 0 18px !important; pointer-events: none !important;
+}
+button[data-md-sidebar-panel-close="true"]:hover,
+button[data-md-sidebar-expand="true"]:hover {
+  border-color: #3c8b89 !important; background: #12393c !important; color: #b4f2eb !important;
+}
+button[data-md-sidebar-panel-close="true"]:focus-visible,
+button[data-md-sidebar-expand="true"]:focus-visible { outline: 2px solid #3cbdb5 !important; outline-offset: 2px !important; }
+
+/* On desktop, expanded Tutor starts below the application top bar. On phones it stays full-screen. */
+@media (min-width: 768px) {
+  [data-md-sidebar-root="true"] [data-md-sidebar-panel="true"][data-md-chat-expanded="true"] {
+    top: calc(64px + env(safe-area-inset-top, 0px) + 8px) !important;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important; max-height: none !important; overflow: hidden !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
+  [data-md-sidebar-root="true"] [data-md-sidebar-panel="true"][data-md-chat-expanded="true"] {
+    top: calc(108px + env(safe-area-inset-top, 0px) + 6px) !important;
+    left: 10px !important; right: 10px !important; width: auto !important; max-width: none !important;
+  }
+}
+@media (max-width: 767px) {
+  [data-md-sidebar-panel-header="true"] { min-height: 48px !important; }
+  button[data-md-sidebar-panel-close="true"], button[data-md-sidebar-expand="true"] {
+    width: 44px !important; min-width: 44px !important; flex-basis: 44px !important; height: 44px !important; min-height: 44px !important;
+  }
+}
+
+/* Dark-mode top bar, command palette, side panels and secondary actions. */
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] kbd {
+  background: #0b1519 !important; border-color: #35505a !important; color: #c4d9dd !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button[aria-haspopup="dialog"] {
+  background: #0b1519 !important; border-color: #35505a !important; color: #d8e8eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button[aria-haspopup="dialog"] svg { color: #9db6bd !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button[aria-label="Apri AI Studio"] {
+  background: linear-gradient(110deg, #12393c, #16333c) !important; border-color: #2b5a5b !important; color: #a7f3eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button[aria-label="Apri AI Studio"]:hover {
+  background: #19464a !important; color: #eaffff !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button[data-md-export-action="pdf"] {
+  background: #182c34 !important; border-color: #35505a !important; color: #e7f1f1 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-header="true"] button[data-md-export-action="pdf"]:hover { background: #223b44 !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] {
+  background: #112027 !important; border-color: #35505a !important; color: #e1ecee !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel-header="true"] {
+  background: #112027 !important; border-bottom-color: #35505a !important; overflow: visible !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel-header="true"] h2 { color: #f0fbfb !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] button[data-md-sidebar-panel-close="true"],
+[data-md-app-shell="true"][data-md-theme="dark"] button[data-md-sidebar-expand="true"] {
+  background: #182c34 !important; border-color: #35505a !important; color: #e7f1f1 !important;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%) !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] button[data-md-sidebar-panel-close="true"]:hover,
+[data-md-app-shell="true"][data-md-theme="dark"] button[data-md-sidebar-expand="true"]:hover {
+  background: #12393c !important; border-color: #3cbdb5 !important; color: #b4f2eb !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] input,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] textarea,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] select {
+  background: #0b1519 !important; border-color: #35505a !important; color: #e7f1f1 !important;
+  -webkit-text-fill-color: #e7f1f1 !important; color-scheme: dark !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] select option,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] select optgroup {
+  background: #0b1519 !important; color: #e7f1f1 !important; -webkit-text-fill-color: #e7f1f1 !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] .border-slate-100,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] .border-slate-200,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] .border-slate-300 { border-color: #35505a !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] .bg-gradient-to-br.from-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-sidebar-panel="true"] .bg-gradient-to-r.from-white {
+  background-image: linear-gradient(135deg, #112027, #172e36) !important;
+}
+
+/* Command palette and editor dialogs: avoid light root surfaces and low-contrast labels. */
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) {
+  background-color: #13252c !important; border-color: #35505a !important; color: #e1ecee !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .bg-slate-100 { background-color: #182c34 !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-950,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-900,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-800,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-700 { color: #e1ecee !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-600,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-500,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) .text-slate-400 { color: #aec3c9 !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) button.bg-white,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) button.bg-slate-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) button.bg-slate-100 {
+  background: #182c34 !important; border-color: #35505a !important; color: #e1ecee !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) button.bg-teal-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) button.bg-indigo-50,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) button.bg-blue-50 {
+  background: #12393c !important; border-color: #2b5a5b !important; color: #9be4de !important;
+}
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) input,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) textarea,
+[data-md-app-shell="true"][data-md-theme="dark"] [role="dialog"]:not([data-md-ai-dialog="true"]) select {
+  background: #0b1519 !important; border-color: #35505a !important; color: #e7f1f1 !important;
+  -webkit-text-fill-color: #e7f1f1 !important; color-scheme: dark !important;
+}
+
+/* Final safeguard for nested editor tool groups using light utility backgrounds. */
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="bg-white"],
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="bg-slate-50"],
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="bg-slate-100"] { background-color: #182c34 !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="text-slate-900"],
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="text-slate-800"],
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="text-slate-700"] { color: #e1ecee !important; }
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="text-slate-600"],
+[data-md-app-shell="true"][data-md-theme="dark"] [data-md-ribbon="true"] > [data-md-tool-panel="true"] [class~="text-slate-500"] { color: #b4c9ce !important; }

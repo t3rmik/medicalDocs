@@ -195,7 +195,7 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
           role={activeTab === 'chat' && chatExpanded ? 'dialog' : undefined}
           aria-label={activeTab === 'chat' ? 'Tutor di studio' : undefined}
         >
-          <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+          <div data-md-sidebar-panel-header="true" className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold tracking-tight text-slate-900">
                 {activeTab === 'docs' ? 'La tua libreria' : activeTab === 'favorites' ? 'Documenti preferiti' : activeTab === 'chat' ? 'Tutor di studio' : 'Struttura documento'}
@@ -206,10 +206,11 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
                 </p>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div data-md-sidebar-panel-actions="true" className="flex shrink-0 items-center gap-1">
               {activeTab === 'chat' && (
                 <button
                   type="button"
+                  data-md-sidebar-expand="true"
                   onClick={() => setChatExpanded((expanded) => !expanded)}
                   className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
                   aria-label={chatExpanded ? 'Riduci il tutor di studio' : 'Espandi il tutor di studio'}
@@ -219,7 +220,7 @@ export function Sidebar({ onLoadDocument, onDuplicateDocument, onUpdateDocumentM
                   {chatExpanded ? <Minimize2 className="h-4 w-4" aria-hidden="true" /> : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
                 </button>
               )}
-              <button type="button" onClick={() => { setActiveTab(null); setChatExpanded(false) }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600" aria-label="Chiudi pannello" title="Chiudi pannello">
+              <button type="button" data-md-sidebar-panel-close="true" onClick={() => { setActiveTab(null); setChatExpanded(false) }} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600" aria-label="Chiudi pannello" title="Chiudi pannello">
                 <X className="h-4 w-4" />
               </button>
             </div>
