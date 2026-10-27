@@ -64,7 +64,7 @@ async function generateManifest() {
     assets: selected.map(({url,bytes,core})=>({url,bytes,core})),
   }
   await writeFile(resolve(publicDir,'medicaldocs-offline-assets.json'),JSON.stringify(manifest),'utf8')
-  console.log(\`[offline] Wrote \${manifest.assetCount} assets (\${manifest.essentialAssetCount} essential, \${Math.round(totalBytes/1024/1024)} MiB) to public/medicaldocs-offline-assets.json\`)
+  console.log('[offline] Wrote ' + manifest.assetCount + ' assets (' + manifest.essentialAssetCount + ' essential, ' + Math.round(totalBytes / 1024 / 1024) + ' MiB) to public/medicaldocs-offline-assets.json')
 }
 
 const mode = process.argv[2]
