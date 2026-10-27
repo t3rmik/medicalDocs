@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/offline-assets.mjs prepare && next build && node scripts/offline-assets.mjs manifest",
     "start": "next start",
     "lint": "next lint"
   },
