@@ -442,21 +442,25 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
     editor.commands.focus()
   }
 
-  // The native colour picker temporarily steals focus on tablets. Restore the
-  // range captured when the toolbar was opened before applying the mark.
+  // Apply formatting to the saved range before restoring editor focus. This
+  // avoids a focus transaction collapsing the touch selection on Android.
   const applyTextColor = (color: string) => {
     if (editor.isDestroyed || !color) return
     const range = getRememberedTextRange()
-    const chain = editor.chain().focus()
+    const chain = editor.chain()
     if (range) chain.setTextSelection(range)
-    chain.setColor(color).run()
+    const applied = chain.setColor(color).run()
+    if (!applied) {
+      toast.error(range ? 'Non è stato possibile applicare il colore.' : 'Seleziona il testo da colorare.')
+      return
+    }
     editor.commands.focus()
   }
 
   const applyHighlightColor = (color: string) => {
     if (editor.isDestroyed || !color) return
     const range = getRememberedTextRange()
-    const chain = editor.chain().focus()
+    const chain = editor.chain()
     if (range) chain.setTextSelection(range)
     chain.toggleHighlight({ color }).run()
     editor.commands.focus()
@@ -733,16 +737,38 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
                 <IconButton icon={Superscript} isActive={editor.isActive('superscript')} onClick={() => editor.chain().focus().toggleSuperscript().run()} title="Apice" />
               </div>
 
-              <div className="flex items-center space-x-1 ml-1">
-                <label className="p-1.5 hover:bg-slate-200 rounded cursor-pointer flex items-center text-slate-700" title="Colore Testo">
-                  <Palette className="w-4 h-4 text-teal-600" />
-                  <input type="color" aria-label="Scegli colore del testo" className="sr-only" onChange={(e) => applyTextColor(e.target.value)} />
-                </label>
-                <label className="p-1.5 hover:bg-slate-200 rounded cursor-pointer flex items-center text-slate-700" title="Evidenziatore">
-                  <Highlighter className="w-4 h-4 text-yellow-600" />
-                  <input type="color" aria-label="Scegli colore evidenziatore" className="sr-only" onChange={(e) => applyHighlightColor(e.target.value)} />
+              <div className="ml-1 flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-1.5 py-1" role="group" aria-label="Colori del testo">
+                <Palette className="mr-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden="true" />
+                {[
+                  { value: '#111827', label: 'Nero' },
+                  { value: '#dc2626', label: 'Rosso' },
+                  { value: '#2563eb', label: 'Blu' },
+                  { value: '#16a34a', label: 'Verde' },
+                  { value: '#7c3aed', label: 'Viola' },
+                ].map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    aria-label={'Colore testo ' + color.label}
+                    title={color.label}
+                    onPointerDown={(event) => {
+                      rememberEditorSelection()
+                      if (event.pointerType === 'mouse') event.preventDefault()
+                    }}
+                    onClick={() => applyTextColor(color.value)}
+                    className="h-7 w-7 shrink-0 rounded-full border-2 border-slate-300 shadow-sm transition hover:scale-110 hover:border-teal-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
+                    style={{ backgroundColor: color.value }}
+                  />
+                ))}
+                <label className="ml-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100" title="Colore personalizzato">
+                  <Palette className="h-4 w-4" />
+                  <input type="color" aria-label="Scegli colore personalizzato del testo" className="sr-only" onChange={(event) => applyTextColor(event.target.value)} />
                 </label>
               </div>
+              <label className="ml-1 flex cursor-pointer items-center rounded-md p-1.5 text-slate-700 hover:bg-slate-200" title="Evidenziatore">
+                <Highlighter className="h-4 w-4 text-yellow-600" />
+                <input type="color" aria-label="Scegli colore evidenziatore" className="sr-only" onChange={(event) => applyHighlightColor(event.target.value)} />
+              </label>
             </div>
 
             <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
