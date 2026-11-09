@@ -4183,3 +4183,23 @@ button[data-md-sidebar-expand="true"]:focus-visible { outline: 2px solid #3cbdb5
     -webkit-text-fill-color:#f0fbfb!important; border-color:#35505a!important;
   }
 }
+
+
+/* Touch editing: expose a real text caret and keep mobile text selection enabled. */
+@media (hover: none), (pointer: coarse) {
+  .ProseMirror.editor-page[data-md-touch-editable="true"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+    touch-action: auto !important;
+    caret-color: #0f766e !important;
+  }
+  .ProseMirror.editor-page[data-md-touch-editable="true"] :not([contenteditable="false"]) {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
+  .ProseMirror.editor-page[data-md-touch-editable="true"] [contenteditable="false"] {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+}

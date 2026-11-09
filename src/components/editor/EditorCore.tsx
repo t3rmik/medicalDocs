@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -165,6 +165,7 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
   const [eraserMode, setEraserMode] = useState<'stroke' | 'precision'>('stroke')
   const [eraserSize, setEraserSize] = useState(24)
   const [inkToolbarCollapsed, setInkToolbarCollapsed] = useState(false)
+  const touchEditorPressRef = useRef<{ pointerId: number; x: number; y: number; selectionText: string } | null>(null)
 
 
 
@@ -218,6 +219,10 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
     editorProps: {
       attributes: {
         class: 'editor-page prose prose-slate max-w-none focus:outline-none',
+        inputmode: 'text',
+        autocapitalize: 'sentences',
+        spellcheck: 'true',
+        'data-md-touch-editable': 'true',
       },
       handleKeyDown: (view, event) => {
         if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return false
@@ -240,6 +245,57 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
       },
     },
   });
+
+  const handleEditorPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editor || inkMode || (event.pointerType !== 'touch' && event.pointerType !== 'pen')) {
+      touchEditorPressRef.current = null
+      return
+    }
+    if (!event.isPrimary || event.button !== 0) {
+      touchEditorPressRef.current = null
+      return
+    }
+
+    const target = event.target instanceof Element ? event.target : null
+    if (!target || !editor.view.dom.contains(target) ||
+      target.closest('[contenteditable="false"],button,input,textarea,select,a,[role="button"]')) {
+      touchEditorPressRef.current = null
+      return
+    }
+
+    touchEditorPressRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      selectionText: window.getSelection()?.toString() ?? '',
+    }
+  }, [editor, inkMode])
+
+  const handleEditorPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = touchEditorPressRef.current
+    if (!press || press.pointerId !== event.pointerId) return
+    touchEditorPressRef.current = null
+
+    if (!editor || inkMode || !event.isPrimary ||
+      (event.pointerType !== 'touch' && event.pointerType !== 'pen')) return
+
+    // A drag belongs to native text selection or scrolling, not caret placement.
+    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > 12) return
+
+    const target = event.target instanceof Element ? event.target : null
+    if (!target || !editor.view.dom.contains(target) ||
+      target.closest('[contenteditable="false"],button,input,textarea,select,a,[role="button"]')) return
+
+    // Preserve a word newly selected by a long-press; a subsequent short tap can
+    // collapse that selection to the exact insertion point and open the keyboard.
+    const currentSelectionText = window.getSelection()?.toString() ?? ''
+    if (currentSelectionText && currentSelectionText !== press.selectionText) return
+
+    const hit = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })
+    if (!hit) return
+
+    editor.chain().setTextSelection(hit.pos).focus().run()
+  }, [editor, inkMode])
 
   useEffect(() => {
     if (!editor) return
@@ -551,7 +607,14 @@ export default function EditorCore({ initialContent, onChange, isSaving, documen
           </button>
         </div>
       )}
-      <div ref={editorViewportRef} data-md-editor-viewport="true" className="min-h-0 flex-1 overflow-auto">
+      <div
+        ref={editorViewportRef}
+        data-md-editor-viewport="true"
+        className="min-h-0 flex-1 overflow-auto"
+        onPointerDown={handleEditorPointerDown}
+        onPointerUp={handleEditorPointerUp}
+        onPointerCancel={() => { touchEditorPressRef.current = null }}
+      >
         <div data-md-editor-zoom-wrapper="true" style={{ zoom: (zoom / 100) * fitScale }}>
           <EditorContent editor={editor} />
         </div>
