@@ -442,6 +442,25 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
     editor.commands.focus()
   }
 
+  // The native colour picker temporarily steals focus on tablets. Restore the
+  // range captured when the toolbar was opened before applying the mark.
+  const applyTextColor = (color: string) => {
+    if (editor.isDestroyed || !color) return
+    const range = getRememberedTextRange()
+    const chain = editor.chain().focus()
+    if (range) chain.setTextSelection(range)
+    chain.setColor(color).run()
+    editor.commands.focus()
+  }
+
+  const applyHighlightColor = (color: string) => {
+    if (editor.isDestroyed || !color) return
+    const range = getRememberedTextRange()
+    const chain = editor.chain().focus()
+    if (range) chain.setTextSelection(range)
+    chain.toggleHighlight({ color }).run()
+    editor.commands.focus()
+  }
 
   const insertStudyTemplate = (html: string, label: string) => {
     const inserted = editor.chain().focus().insertContent(html).run()
@@ -717,11 +736,11 @@ export function Ribbon({ editor, onToggleInk, inkMode }: RibbonProps) {
               <div className="flex items-center space-x-1 ml-1">
                 <label className="p-1.5 hover:bg-slate-200 rounded cursor-pointer flex items-center text-slate-700" title="Colore Testo">
                   <Palette className="w-4 h-4 text-teal-600" />
-                  <input type="color" className="sr-only" onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} />
+                  <input type="color" aria-label="Scegli colore del testo" className="sr-only" onChange={(e) => applyTextColor(e.target.value)} />
                 </label>
                 <label className="p-1.5 hover:bg-slate-200 rounded cursor-pointer flex items-center text-slate-700" title="Evidenziatore">
                   <Highlighter className="w-4 h-4 text-yellow-600" />
-                  <input type="color" className="sr-only" onChange={(e) => editor.chain().focus().toggleHighlight({ color: e.target.value }).run()} />
+                  <input type="color" aria-label="Scegli colore evidenziatore" className="sr-only" onChange={(e) => applyHighlightColor(e.target.value)} />
                 </label>
               </div>
             </div>
