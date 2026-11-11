@@ -476,10 +476,48 @@ export default function Home() {
         .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
         .replace(/^\.+/, '')
         .slice(0, 120) || 'Documento';
-      const url = URL.createObjectURL(blob);
+      const mimeType = format === 'word'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : format === 'pdf'
+          ? 'application/pdf'
+          : blob.type || 'application/octet-stream';
+      // Android tablets can occasionally hand an object URL to another app before
+      // the browser has finished materialising it. Build a real File first and use
+      // the native share hand-off when available; this gives Word the DOCX bytes
+      // and MIME type instead of a transient browser URL.
+      const exportedFile = new File([blob], `${safeTitle}.${extension}`, {
+        type: mimeType,
+        lastModified: Date.now(),
+      });
+      const canNativeShare = isTouchConstrainedDevice()
+        && typeof navigator.share === 'function'
+        && typeof navigator.canShare === 'function'
+        && navigator.canShare({ files: [exportedFile] });
+
+      if (canNativeShare) {
+        try {
+          await navigator.share({
+            files: [exportedFile],
+            title: safeTitle,
+            text: `Documento MedicalDocs: ${safeTitle}`,
+          });
+          toast.success(`File ${extension.toUpperCase()} pronto: scegli dove salvarlo o aprirlo.`, { id: toastId });
+          return;
+        } catch (shareError) {
+          // Closing the native sheet is not an export failure: fall back to a
+          // normal download so the user can still retrieve the exact same file.
+          if (shareError instanceof DOMException && shareError.name === 'AbortError') {
+            toast(`Esportazione pronta. Puoi riprovare e scegliere Word o File.`, { id: toastId });
+            return;
+          }
+        }
+      }
+
+      const url = URL.createObjectURL(exportedFile);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${safeTitle}.${extension}`;
+      link.download = exportedFile.name;
+      link.type = mimeType;
       document.body.appendChild(link);
       link.click();
       link.remove();
