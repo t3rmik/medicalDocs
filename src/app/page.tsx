@@ -498,8 +498,7 @@ export default function Home() {
         try {
           await navigator.share({
             files: [exportedFile],
-            title: safeTitle,
-            text: `Documento MedicalDocs: ${safeTitle}`,
+            title: exportedFile.name,
           });
           toast.success(`File ${extension.toUpperCase()} pronto: scegli dove salvarlo o aprirlo.`, { id: toastId });
           return;

@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
-// @ts-ignore - la libreria espone un export CommonJS
-import HTMLToDOCX from 'html-to-docx';
+import { Document as WordDocument, Packer, Paragraph, TextRun } from 'docx';
 import TurndownService from 'turndown';
 
 export const runtime = 'nodejs';
@@ -268,25 +267,37 @@ export async function POST(req: Request) {
     if (format === 'word') {
       const { widthMm, heightMm, margins } = pageLayout;
       const mmToTwips = (value: number) => Math.round(value * 56.6929);
-      let wordContent = prepareWordHtml(exportContent);
-      if (/data-word-ink-layer=["']true["']/i.test(wordContent)) {
-        browser = await launchExportBrowser();
-        wordContent = await rasterizeWordInkLayers(wordContent, browser);
-      }
-      const fileBuffer = await HTMLToDOCX(wordContent, null, {
-        orientation: pageLayout.orientation,
-        pageSize: { width: mmToTwips(widthMm), height: mmToTwips(heightMm) },
-        margins: {
-          top: mmToTwips(margins.top),
-          right: mmToTwips(margins.right),
-          bottom: mmToTwips(margins.bottom),
-          left: mmToTwips(margins.left),
-        },
-        font: 'Calibri',
-        fontSize: 22,
-        lang: 'it-IT',
+
+      // Use the native DOCX writer rather than an HTML-to-DOCX compatibility layer.
+      // Some Android Word builds are stricter than ZIP readers and can reject files
+      // produced by HTML conversion libraries even when their ZIP structure is readable.
+      const plainText = htmlToPlainText(prepareWordHtml(exportContent));
+      const lines = plainText.split(/\r?\n/);
+      const paragraphs = lines.length
+        ? lines.map((line) => new Paragraph({
+            children: [new TextRun({ text: line || ' ' })],
+            spacing: { after: 120 },
+          }))
+        : [new Paragraph({ children: [new TextRun({ text: ' ' })] })];
+
+      const wordDocument = new WordDocument({
+        sections: [{
+          properties: {
+            page: {
+              size: { width: mmToTwips(widthMm), height: mmToTwips(heightMm), orientation: pageLayout.orientation },
+              margin: {
+                top: mmToTwips(margins.top),
+                right: mmToTwips(margins.right),
+                bottom: mmToTwips(margins.bottom),
+                left: mmToTwips(margins.left),
+              },
+            },
+          },
+          children: paragraphs,
+        }],
       });
-      const wordBytes = new Uint8Array(fileBuffer as ArrayBuffer);
+      const fileBuffer = await Packer.toBuffer(wordDocument);
+      const wordBytes = new Uint8Array(fileBuffer);
       if (wordBytes.byteLength < 500 || wordBytes[0] !== 0x50 || wordBytes[1] !== 0x4b) {
         throw new Error('La conversione Word non ha prodotto un pacchetto DOCX valido. Il file non è stato scaricato.');
       }
